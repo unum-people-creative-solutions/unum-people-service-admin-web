@@ -1,21 +1,65 @@
+import { CognitoUser, CognitoRefreshToken } from 'amazon-cognito-identity-js';
 import { useAuthStore } from "@/store/useAuthStore";
+import { userPool } from "@/lib/cognito";
 import { Tenant, CreateTenantInput } from "@/types/tenant";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.unumpeople.com/v1';
 
-async function fetchWithAuth(path: string, options: RequestInit = {}) {
+async function refreshAccessToken(): Promise<string | null> {
+  const { user, refreshToken } = useAuthStore.getState();
+  if (!user || !refreshToken) return null;
+
+  return new Promise((resolve) => {
+    const cognitoUser = new CognitoUser({ Username: user.email, Pool: userPool });
+
+    cognitoUser.refreshSession(
+      new CognitoRefreshToken({ RefreshToken: refreshToken }),
+      (err, session) => {
+        if (err || !session) {
+          resolve(null);
+          return;
+        }
+        const newToken = session.getIdToken().getJwtToken();
+        useAuthStore.getState().setToken(newToken);
+        resolve(newToken);
+      }
+    );
+  });
+}
+
+async function fetchWithAuth(path: string, options: RequestInit = {}): Promise<any> {
   const { token } = useAuthStore.getState();
-  
-  const headers = {
+
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
-  const response = await fetch(`${API_URL}${path}`, {
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  let response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
   });
+
+  // Automatic token refresh on 401 — then retry once
+  if (response.status === 401) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      headers['Authorization'] = `Bearer ${newToken}`;
+      response = await fetch(`${API_URL}${path}`, {
+        ...options,
+        headers,
+      });
+    }
+
+    // Se após a tentativa de refresh (ou falha dele) continuar 401, força logout
+    if (response.status === 401) {
+      useAuthStore.getState().logout();
+    }
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
