@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Users, 
@@ -14,6 +14,7 @@ import {
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const menuItems = [
   {
@@ -27,7 +28,7 @@ const menuItems = [
     icon: Users,
   },
   {
-    title: 'Logs de Erros',
+    title: 'Monitoramento',
     href: '/dashboard/errors',
     icon: AlertCircle,
   },
@@ -35,9 +36,16 @@ const menuItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   return (
     <>
@@ -116,6 +124,7 @@ export function Sidebar() {
           {/* Footer Section */}
           <div className="p-4 border-t border-slate-100">
             <button
+              onClick={handleLogout}
               className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors group"
             >
               <LogOut size={20} className="text-slate-400 group-hover:text-red-500" />

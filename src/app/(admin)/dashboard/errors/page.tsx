@@ -3,16 +3,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
-import { AlertCircle, Clock, RefreshCw, Filter, Search, ShieldCheck, Bug, Calendar, ChevronRight } from 'lucide-react';
+import { AlertCircle, Clock, RefreshCw, Filter, Search, ShieldCheck, Bug, Calendar, ChevronRight, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type LogType = 'error' | 'audit' | 'all';
+type LogSource = 'system' | 'audit';
 type Period = 'today' | '7d' | '30d' | 'all';
 
 export default function LogsPage() {
-  const [type, setType] = useState<LogType>('error');
+  const [source, setSource] = useState<LogSource>('system');
   const [service, setService] = useState<string>('');
-  const [period, setPeriod] = useState<Period>('7d');
+  const [period, setPeriod] = useState<Period>('today');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
 
@@ -20,39 +20,50 @@ export default function LogsPage() {
     if (p === 'all') return { start: undefined, end: undefined };
     const end = new Date();
     const start = new Date();
-    if (p === 'today') start.setHours(0, 0, 0, 0);
+    if (p === 'today') start.setHours(start.getHours() - 24); // Últimas 24h para CloudWatch ser mais rápido
     if (p === '7d') start.setDate(start.getDate() - 7);
     if (p === '30d') start.setDate(start.getDate() - 30);
     return { start: start.toISOString(), end: end.toISOString() };
   };
 
   const { data: logs, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['admin-logs', type, service, period],
+    queryKey: ['admin-logs', source, service, period],
     queryFn: () => {
       const { start, end } = getPeriodDates(period);
-      return tenantService.getLogs({
-        type: type === 'all' ? undefined : type,
-        service: service || undefined,
-        start,
-        end,
-      });
+      if (source === 'system') {
+        return tenantService.getSystemErrors({
+          service: service || undefined,
+          start,
+        });
+      } else {
+        return tenantService.getLogs({
+          type: 'audit',
+          service: service || undefined,
+          start,
+          end,
+        });
+      }
     },
+    // CloudWatch Insights pode demorar, vamos aumentar o tempo de stale
+    staleTime: 30000,
   });
 
-  // Filtro client-side apenas para o search term (RequestID ou Ator)
-  const filteredLogs = logs?.filter(log => 
-    log.request_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.actor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.action?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredLogs = logs?.filter(log => {
+    const text = (log.message || log.action || log.request_id || '').toLowerCase();
+    return text.includes(searchTerm.toLowerCase());
+  }) || [];
 
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex justify-between items-end">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Monitoramento e Auditoria</h1>
-            <p className="text-slate-500">Acompanhe erros técnicos e atividades de negócio do ecossistema.</p>
+            <h1 className="text-2xl font-bold text-slate-900">Centro de Monitoramento</h1>
+            <p className="text-slate-500">
+              {source === 'system' 
+                ? 'Erros técnicos e alertas coletados via CloudWatch Logs Insights.' 
+                : 'Rastreabilidade de ações de negócio gravadas na trilha de auditoria.'}
+            </p>
           </div>
           <button 
             onClick={() => refetch()}
@@ -60,7 +71,7 @@ export default function LogsPage() {
             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             <RefreshCw size={18} className={cn(isFetching && "animate-spin")} />
-            Atualizar
+            {isFetching ? 'Consultando...' : 'Atualizar'}
           </button>
         </div>
 
@@ -69,33 +80,24 @@ export default function LogsPage() {
           <div className="border-b border-slate-100 flex items-center justify-between px-6 bg-slate-50/50">
             <div className="flex">
               <button 
-                onClick={() => setType('error')}
+                onClick={() => setSource('system')}
                 className={cn(
                   "px-6 py-4 text-sm font-medium transition-colors border-b-2 flex items-center gap-2",
-                  type === 'error' ? "border-primary-500 text-primary-600 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"
+                  source === 'system' ? "border-red-500 text-red-600 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"
                 )}
               >
                 <Bug size={16} />
-                Logs de Erros
+                Erros de Sistema (CloudWatch)
               </button>
               <button 
-                onClick={() => setType('audit')}
+                onClick={() => setSource('audit')}
                 className={cn(
                   "px-6 py-4 text-sm font-medium transition-colors border-b-2 flex items-center gap-2",
-                  type === 'audit' ? "border-primary-500 text-primary-600 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"
+                  source === 'audit' ? "border-primary-500 text-primary-600 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"
                 )}
               >
                 <ShieldCheck size={16} />
-                Auditoria
-              </button>
-              <button 
-                onClick={() => setType('all')}
-                className={cn(
-                  "px-6 py-4 text-sm font-medium transition-colors border-b-2 flex items-center gap-2",
-                  type === 'all' ? "border-primary-500 text-primary-600 bg-white" : "border-transparent text-slate-500 hover:text-slate-700"
-                )}
-              >
-                Todos
+                Auditoria de Negócio (DynamoDB)
               </button>
             </div>
           </div>
@@ -105,7 +107,7 @@ export default function LogsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
                 type="text" 
-                placeholder="Buscar por RequestID, Ator ou Ação..." 
+                placeholder="Buscar por RequestID ou Mensagem..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20"
@@ -121,10 +123,10 @@ export default function LogsPage() {
                   className="bg-transparent focus:outline-none text-sm font-medium cursor-pointer"
                 >
                   <option value="">Todos os Serviços</option>
-                  <option value="CRM">CRM</option>
+                  <option value="Admin">Admin</option>
+                  <option value="CRM">CRM Core</option>
                   <option value="Ingestion">Ingestion</option>
                   <option value="Ads">Ads Worker</option>
-                  <option value="Admin">Admin</option>
                 </select>
               </div>
 
@@ -135,10 +137,9 @@ export default function LogsPage() {
                   onChange={(e) => setPeriod(e.target.value as Period)}
                   className="bg-transparent focus:outline-none text-sm font-medium cursor-pointer"
                 >
-                  <option value="today">Hoje</option>
-                  <option value="7d">Últimos 7 dias</option>
-                  <option value="30d">Últimos 30 dias</option>
-                  <option value="all">Todo o histórico</option>
+                  <option value="today">Hoje (24h)</option>
+                  <option value="7d">7 dias</option>
+                  <option value="30d">30 dias</option>
                 </select>
               </div>
             </div>
@@ -149,7 +150,7 @@ export default function LogsPage() {
               <thead>
                 <tr className="bg-slate-50 text-slate-500 text-sm font-medium border-b border-slate-200">
                   <th className="px-6 py-4">Timestamp</th>
-                  <th className="px-6 py-4">Origem / Ação</th>
+                  <th className="px-6 py-4">{source === 'system' ? 'Level / Serviço' : 'Ator / Ação'}</th>
                   <th className="px-6 py-4">Mensagem / Detalhes</th>
                   <th className="px-6 py-4">RequestID</th>
                   <th className="px-6 py-4"></th>
@@ -165,18 +166,22 @@ export default function LogsPage() {
                 ) : filteredLogs.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                      Nenhum registro encontrado para os filtros aplicados.
+                      Nenhum registro encontrado nas últimas 24h.
                     </td>
                   </tr>
                 ) : (
-                  filteredLogs.map((log: any) => {
-                    const isError = log.action.includes('ERROR');
+                  filteredLogs.map((log: any, idx: number) => {
+                    const timestamp = log.timestamp || log.created_at;
+                    const message = log.message || log.new_state || 'Sem detalhes';
+                    const level = log.level || log.action;
+                    const isError = level === 'ERROR' || level?.includes('ERROR');
+
                     return (
-                      <tr key={log.sk} className="hover:bg-slate-50 transition-colors group">
+                      <tr key={log.sk || idx} className="hover:bg-slate-50 transition-colors group">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2 text-slate-600">
                             <Clock size={14} />
-                            <span className="text-sm">{new Date(log.created_at).toLocaleString()}</span>
+                            <span className="text-xs">{new Date(timestamp).toLocaleString()}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -184,25 +189,18 @@ export default function LogsPage() {
                             "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase",
                             isError ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
                           )}>
-                            {log.action}
+                            {level}
                           </span>
                           <div className="text-xs text-slate-500 mt-1 font-mono">
-                            {log.target_id || log.actor || 'System'}
+                            {log.service || log.target_id || log.actor || 'System'}
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-start gap-2 max-w-md">
-                            {isError ? (
-                              <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                            ) : (
-                              <ShieldCheck size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                            )}
-                            <div className="truncate">
-                              <p className="text-sm text-slate-700 font-medium">
-                                {isError ? 'Erro Detectado' : 'Ação de Auditoria'}
-                              </p>
-                              <p className="text-xs text-slate-400 mt-0.5 truncate">{log.new_state || log.target_id}</p>
-                            </div>
+                            {source === 'system' ? <Terminal size={14} className="text-slate-400 mt-0.5 shrink-0" /> : <ChevronRight size={14} className="text-slate-400 mt-0.5 shrink-0" />}
+                            <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
+                              {message}
+                            </p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -225,81 +223,50 @@ export default function LogsPage() {
               </tbody>
             </table>
           </div>
-          
-          <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
-            <div>
-              Filtros: <span className="font-medium text-slate-500">{type}</span> | <span className="font-medium text-slate-500">{service || 'Todos'}</span> | <span className="font-medium text-slate-500">{period}</span>
-            </div>
-            <div>
-              Exibindo {filteredLogs.length} registro(s).
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Modal de Detalhes */}
       {selectedLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Clock size={20} className="text-slate-400" />
-                  Detalhes do Log
+                  <Terminal size={20} className="text-slate-400" />
+                  Visualização de Log
                 </h3>
-                <p className="text-xs text-slate-500 mt-1 font-mono">{selectedLog.sk}</p>
+                <p className="text-xs text-slate-500 mt-1 font-mono">{selectedLog.request_id || 'ID Indisponível'}</p>
               </div>
               <button 
                 onClick={() => setSelectedLog(null)}
-                className="p-2 hover:bg-white border border-transparent hover:border-slate-200 rounded-xl transition-all"
+                className="px-4 py-2 hover:bg-white border border-slate-200 rounded-xl transition-all text-sm font-medium"
               >
                 Fechar
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Ação</p>
-                  <p className="text-sm font-medium text-slate-700 mt-1">{selectedLog.action}</p>
+            <div className="p-6 overflow-y-auto bg-slate-50/30">
+              <div className="bg-slate-900 rounded-xl p-6 font-mono text-sm leading-relaxed overflow-x-auto shadow-inner border border-slate-800">
+                <div className="text-slate-500 mb-4 pb-4 border-b border-slate-800">
+                  <span className="text-emerald-500">// {new Date(selectedLog.timestamp || selectedLog.created_at).toLocaleString()}</span>
+                  <br />
+                  <span className="text-blue-400"># Origin:</span> {selectedLog.service || selectedLog.target_id || 'System'}
+                  <br />
+                  <span className="text-purple-400"># Action:</span> {selectedLog.level || selectedLog.action}
                 </div>
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Origem / Ator</p>
-                  <p className="text-sm font-medium text-slate-700 mt-1">{selectedLog.target_id || selectedLog.actor || 'System'}</p>
+                <div className="text-slate-300 whitespace-pre-wrap">
+                  {selectedLog.message || selectedLog.new_state}
                 </div>
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Timestamp</p>
-                  <p className="text-sm font-medium text-slate-700 mt-1">{new Date(selectedLog.created_at).toLocaleString()}</p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Request ID</p>
-                  <p className="text-sm font-mono text-slate-700 mt-1">{selectedLog.request_id || 'N/A'}</p>
-                </div>
+                {selectedLog.old_state && (
+                  <div className="mt-6 pt-6 border-t border-slate-800">
+                    <span className="text-amber-400">// Estado Anterior:</span>
+                    <pre className="mt-2 text-slate-400 text-xs">
+                      {selectedLog.old_state}
+                    </pre>
+                  </div>
+                )}
               </div>
-
-              {selectedLog.old_state && (
-                <div>
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-2">Estado Anterior</p>
-                  <pre className="p-4 bg-slate-900 rounded-lg text-xs text-emerald-400 overflow-x-auto font-mono">
-                    {selectedLog.old_state.startsWith('{') || selectedLog.old_state.startsWith('[') 
-                      ? JSON.stringify(JSON.parse(selectedLog.old_state), null, 2)
-                      : selectedLog.old_state
-                    }
-                  </pre>
-                </div>
-              )}
-
-              {selectedLog.new_state && (
-                <div>
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-2">Novo Estado / Payload</p>
-                  <pre className="p-4 bg-slate-900 rounded-lg text-xs text-blue-400 overflow-x-auto font-mono">
-                    {selectedLog.new_state.startsWith('{') || selectedLog.new_state.startsWith('[') 
-                      ? JSON.stringify(JSON.parse(selectedLog.new_state), null, 2)
-                      : selectedLog.new_state
-                    }
-                  </pre>
-                </div>
-              )}
             </div>
           </div>
         </div>

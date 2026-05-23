@@ -1,20 +1,48 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Sidebar } from './Sidebar';
-import { expect, test, vi, describe } from 'vitest';
-import { usePathname } from 'next/navigation';
+import { expect, test, vi, describe, beforeEach } from 'vitest';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuthStore } from '../store/useAuthStore';
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(() => '/dashboard'),
+  useRouter: vi.fn(() => ({
+    push: vi.fn(),
+  })),
+}));
+
+// Mock useAuthStore
+vi.mock('../store/useAuthStore', () => ({
+  useAuthStore: vi.fn(),
 }));
 
 describe('Sidebar Component', () => {
+  const mockPush = vi.fn();
+  const mockLogout = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useRouter).mockReturnValue({ push: mockPush } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(useAuthStore).mockReturnValue({ logout: mockLogout } as any);
+  });
+
   test('renders all menu links', () => {
     render(<Sidebar />);
     
     expect(screen.getByText('Visão Geral')).toBeDefined();
     expect(screen.getByText('Gestão de Tenants')).toBeDefined();
-    expect(screen.getByText('Logs de Erros')).toBeDefined();
+    expect(screen.getByText('Monitoramento')).toBeDefined();
+  });
+
+  test('calls logout and redirects when "Sair do Sistema" is clicked', () => {
+    render(<Sidebar />);
+    
+    const logoutButton = screen.getByRole('button', { name: /Sair do Sistema/i });
+    fireEvent.click(logoutButton);
+    
+    expect(mockLogout).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/login');
   });
 
   test('highlights active link based on pathname', () => {

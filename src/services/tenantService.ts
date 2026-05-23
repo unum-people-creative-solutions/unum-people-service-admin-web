@@ -100,4 +100,13 @@ export const tenantService = {
     const queryString = params.toString();
     return fetchWithAuth(`/admin/dashboard/logs${queryString ? `?${queryString}` : ''}`);
   },
+
+  getSystemErrors: (filters?: { service?: string; start?: string }): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (filters?.service) params.append('service', filters.service);
+    if (filters?.start) params.append('start', filters.start);
+    
+    const queryString = params.toString();
+    return fetchWithAuth(`/admin/dashboard/errors${queryString ? `?${queryString}` : ''}`);
+  },
 };
