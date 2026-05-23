@@ -11,6 +11,9 @@ vi.mock('amazon-cognito-identity-js', () => ({
   CognitoUser: vi.fn(function (this: any) {
     this.refreshSession = vi.fn((_refreshToken: any, callback: any) => {
       callback(null, {
+        getIdToken: () => ({
+          getJwtToken: () => 'refreshed-id-token',
+        }),
         getAccessToken: () => ({
           getJwtToken: () => 'refreshed-access-token',
         }),

@@ -150,7 +150,7 @@ export default function TenantDetailsPage() {
                   <button
                     type="submit"
                     disabled={updateMutation.isPending}
-                    className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-primary-700 transition-colors disabled:opacity-50"
                   >
                     {updateMutation.isPending ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                     Salvar Alterações
@@ -205,7 +205,7 @@ export default function TenantDetailsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Próximo Débito:</span>
-                  <span className="font-medium text-indigo-600">{new Date(tenant.next_billing_at).toLocaleDateString()}</span>
+                  <span className="font-medium text-primary-600">{new Date(tenant.next_billing_at).toLocaleDateString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Renovação:</span>

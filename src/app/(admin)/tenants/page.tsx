@@ -14,7 +14,7 @@ export default function TenantsPage() {
   if (error) return <div className="p-8 text-red-600">Erro ao carregar tenants: {error.message}</div>;
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen">
+    <div className="p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -23,7 +23,7 @@ export default function TenantsPage() {
           </div>
           <Link 
             href="/tenants/new"
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
           >
             <Plus size={20} />
             Novo Tenant
@@ -37,7 +37,7 @@ export default function TenantsPage() {
               <input 
                 type="text" 
                 placeholder="Buscar por nome, e-mail ou documento..." 
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20"
               />
             </div>
             <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
@@ -85,7 +85,7 @@ export default function TenantsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/tenants/${tenant.id}`} className="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
+                      <Link href={`/tenants/${tenant.id}`} className="text-primary-600 hover:text-primary-900 text-sm font-medium">
                         Detalhes
                       </Link>
                     </td>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Image from 'next/image';
 import { tenantService } from '@/services/tenantService';
 import { Users, Ban, Activity, TrendingUp, AlertTriangle, Clock } from 'lucide-react';
 
@@ -20,15 +21,21 @@ export default function DashboardPage() {
     { title: 'Total Tenants', value: stats?.total_tenants || 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
     { title: 'Ativos', value: stats?.active_tenants || 0, icon: Activity, color: 'text-green-600', bg: 'bg-green-50' },
     { title: 'Bloqueados', value: stats?.blocked_tenants || 0, icon: Ban, color: 'text-red-600', bg: 'bg-red-50' },
-    { title: 'Est. MRR', value: `R$ ${(stats?.estimated_mrr || 0).toLocaleString('pt-BR')}`, icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { title: 'Est. MRR', value: `R$ ${(stats?.estimated_mrr || 0).toLocaleString('pt-BR')}`, icon: TrendingUp, color: 'text-primary-600', bg: 'bg-primary-50' },
   ];
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen">
+    <div className="p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard de Administração</h1>
-          <p className="text-slate-500">Visão geral do sistema e monitoramento de saúde.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Dashboard de Administração</h1>
+            <p className="text-slate-500">Visão geral do sistema e monitoramento de saúde.</p>
+          </div>
+          <div className="bg-primary-50 text-primary-700 px-4 py-2 rounded-lg font-medium text-sm border border-primary-100 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+            Admin Central
+          </div>
         </div>
 
         {/* Cards de Métricas */}
@@ -111,12 +118,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="bg-indigo-600 p-6 rounded-xl shadow-sm text-white">
-              <h3 className="font-bold mb-2">Dica do Administrador</h3>
-              <p className="text-sm text-indigo-100">
-                Tenants bloqueados perdem acesso imediato às APIs de ingestão. Verifique os logs se houver reclamação de "403 Forbidden".
-              </p>
-            </div>
           </div>
         </div>
       </div>

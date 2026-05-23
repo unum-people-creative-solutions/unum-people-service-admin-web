@@ -47,7 +47,7 @@ export default function NewTenantPage() {
                 <label className="text-sm font-semibold text-slate-700">Nome do Negócio</label>
                 <input 
                   {...register('nome_negocio', { required: 'Campo obrigatório' })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
                   placeholder="Ex: Unum Solutions"
                 />
                 {errors.nome_negocio && <span className="text-red-500 text-xs">{errors.nome_negocio.message}</span>}
@@ -58,7 +58,7 @@ export default function NewTenantPage() {
                 <input 
                   {...register('email_contato', { required: 'Campo obrigatório' })}
                   type="email"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
                   placeholder="contato@empresa.com"
                 />
               </div>
@@ -67,7 +67,7 @@ export default function NewTenantPage() {
                 <label className="text-sm font-semibold text-slate-700">Nome do Administrador</label>
                 <input 
                   {...register('nome_admin', { required: 'Campo obrigatório' })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
                   placeholder="Nome do responsável"
                 />
               </div>
@@ -76,7 +76,7 @@ export default function NewTenantPage() {
                 <label className="text-sm font-semibold text-slate-700">CPF / CNPJ</label>
                 <input 
                   {...register('documento', { required: 'Campo obrigatório' })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
                   placeholder="000.000.000-00"
                 />
               </div>
@@ -85,7 +85,7 @@ export default function NewTenantPage() {
                 <label className="text-sm font-semibold text-slate-700">Nicho / Mercado</label>
                 <input 
                   {...register('nicho', { required: 'Campo obrigatório' })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
                   placeholder="Ex: Tecnologia, Varejo"
                 />
               </div>
@@ -128,7 +128,7 @@ export default function NewTenantPage() {
                     {...register('plan_value', { valueAsNumber: true })}
                     type="number"
                     step="0.01"
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
               </div>
@@ -138,7 +138,7 @@ export default function NewTenantPage() {
               <button
                 disabled={mutation.isPending}
                 type="submit"
-                className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 bg-primary-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-primary-700 transition-colors disabled:opacity-50"
               >
                 {mutation.isPending ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                 {mutation.isPending ? 'Salvando...' : 'Criar Tenant'}

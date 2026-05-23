@@ -5,12 +5,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isAdmin } = useAuthStore();
+  const { isAuthenticated, isAdmin, hasHydrated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+  const isProtectedRoute = pathname !== '/login';
 
   useEffect(() => {
-    if (pathname !== '/login') {
+    if (isProtectedRoute && hasHydrated) {
       if (!isAuthenticated) {
         router.push('/login');
       } else if (!isAdmin) {
@@ -18,13 +19,17 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         router.push('/login?error=unauthorized');
       }
     }
-  }, [isAuthenticated, isAdmin, router, pathname]);
+  }, [isAuthenticated, isAdmin, router, isProtectedRoute, hasHydrated]);
 
-  // Se não estiver no login e não for admin, não renderiza nada enquanto redireciona
-  if (pathname !== '/login' && (!isAuthenticated || !isAdmin)) {
+  // Se não estiver no login, aguarda hidratacao/redirecionamento sem montar a rota protegida.
+  if (isProtectedRoute && (!hasHydrated || !isAuthenticated || !isAdmin)) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <div
+        role="status"
+        aria-label="Validando sessao"
+        className="flex items-center justify-center min-h-screen bg-slate-50"
+      >
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" aria-hidden="true"></div>
       </div>
     );
   }
