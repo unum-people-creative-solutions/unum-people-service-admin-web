@@ -90,5 +90,14 @@ export const tenantService = {
 
   getStats: (): Promise<any> => fetchWithAuth('/admin/dashboard/stats'),
   
-  getLogs: (): Promise<any[]> => fetchWithAuth('/admin/dashboard/logs'),
+  getLogs: (filters?: { type?: string; service?: string; start?: string; end?: string }): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (filters?.type) params.append('type', filters.type);
+    if (filters?.service) params.append('service', filters.service);
+    if (filters?.start) params.append('start', filters.start);
+    if (filters?.end) params.append('end', filters.end);
+    
+    const queryString = params.toString();
+    return fetchWithAuth(`/admin/dashboard/logs${queryString ? `?${queryString}` : ''}`);
+  },
 };

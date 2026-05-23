@@ -11,9 +11,9 @@ export default function DashboardPage() {
     queryFn: tenantService.getStats,
   });
 
-  const { data: logs, isLoading: logsLoading } = useQuery({
+  const { data: logs, isLoading: logsLoading } = useQuery<any[]>({
     queryKey: ['admin-logs'],
-    queryFn: tenantService.getLogs,
+    queryFn: () => tenantService.getLogs(),
     refetchInterval: 30000, // Refresh a cada 30s
   });
 
