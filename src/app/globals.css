@@ -2,40 +2,46 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0a1c82;
 }
 
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-poppins);
   
   --color-primary-50: #f0f4f9;
   --color-primary-100: #e1e9f4;
-  --color-primary-500: #345995;
-  --color-primary-600: #2b4c82;
-  --color-primary-700: #233d6a;
-  --color-primary-800: #1b2f51;
-  --color-primary-900: #13213a;
+  --color-primary-500: #0a1c82;
+  --color-primary-600: #081669;
+  --color-primary-700: #061150;
+  --color-primary-800: #040b37;
+  --color-primary-900: #02061e;
 
-  --color-secondary-50: #fbfaf8;
-  --color-secondary-100: #f6f4f0;
-  --color-secondary-200: #ebe6df;
-  --color-secondary-500: #d1c1a5;
-  --color-secondary-600: #c1b092;
-  --color-secondary-700: #a8987b;
+  --color-secondary-50: #fff5f2;
+  --color-secondary-100: #ffebe6;
+  --color-secondary-500: #ff3d00;
+  --color-secondary-600: #d63300;
+  --color-secondary-700: #ad2900;
+
+  --color-accent-50: #f3e5ff;
+  --color-accent-500: #6b00d7;
+  --color-accent-600: #5700af;
+
+  --color-neutral-500: #6e7191;
+  
+  --brand-gradient: linear-gradient(135deg, #0a1c82 0%, #6b00d7 50%, #ff3d00 100%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground: #ffffff;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
 }
