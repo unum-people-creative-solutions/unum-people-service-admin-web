@@ -6,6 +6,7 @@ import {
   LayoutDashboard, 
   Users, 
   AlertCircle, 
+  Settings,
   ChevronRight,
   LogOut,
   Menu,
@@ -31,6 +32,11 @@ const menuItems = [
     title: 'Monitoramento',
     href: '/dashboard/errors',
     icon: AlertCircle,
+  },
+  {
+    title: 'Configurações',
+    href: '/settings',
+    icon: Settings,
   },
 ];
 
