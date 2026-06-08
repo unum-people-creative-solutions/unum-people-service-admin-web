@@ -205,7 +205,7 @@ export default function SettingsPage() {
               <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold">1</div>
               <div className="text-sm text-slate-700">
                 <p className="font-semibold">Obtenha as Credenciais SMTP</p>
-                <p className="text-slate-500 text-xs mt-1">No console AWS, acesse o SES -> SMTP Settings e clique em "Create SMTP Credentials".</p>
+                <p className="text-slate-500 text-xs mt-1">No console AWS, acesse o SES -&gt; SMTP Settings e clique em "Create SMTP Credentials".</p>
               </div>
             </div>
 
@@ -214,7 +214,7 @@ export default function SettingsPage() {
               <div className="text-sm text-slate-700">
                 <p className="font-semibold">Configuração no Gmail</p>
                 <p className="text-slate-500 text-xs mt-1">
-                  No Gmail: Configurações -> Ver todas as configurações -> Contas e Importação -> <strong>Enviar e-mail como</strong> -> Adicionar outro endereço de e-mail.
+                  No Gmail: Configurações -&gt; Ver todas as configurações -&gt; Contas e Importação -&gt; <strong>Enviar e-mail como</strong> -&gt; Adicionar outro endereço de e-mail.
                 </p>
               </div>
             </div>
