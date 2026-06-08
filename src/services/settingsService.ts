@@ -25,8 +25,7 @@ export interface GlobalSettingsResponse {
 
 export const settingsService = {
   getSettings: async (): Promise<GlobalSettingsResponse> => {
-    const response = await api.get('/admin/settings');
-    return response.data;
+    return api.get('/admin/settings');
   },
 
   updateSettings: async (data: { institutional_email: string; redirection_email: string }): Promise<void> => {
