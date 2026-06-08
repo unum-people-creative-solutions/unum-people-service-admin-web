@@ -30,11 +30,18 @@ export default function SettingsPage() {
   const fetchSettings = async () => {
     try {
       const resp = await settingsService.getSettings();
-      setData(resp);
-      setInstitutionalEmail(resp.settings.institutional_email);
-      setRedirectionEmail(resp.settings.redirection_email);
+      console.log('Settings data received:', resp);
+      
+      if (resp && resp.settings) {
+        setData(resp);
+        setInstitutionalEmail(resp.settings.institutional_email || '');
+        setRedirectionEmail(resp.settings.redirection_email || '');
+      } else {
+        throw new Error('Formato de resposta inválido');
+      }
     } catch (error) {
       console.error('Erro ao carregar configurações', error);
+      alert('Não foi possível carregar as configurações do servidor.');
     } finally {
       setLoading(false);
     }
