@@ -89,6 +89,56 @@ export default function NewTenantPage() {
                   placeholder="Ex: Tecnologia, Varejo"
                 />
               </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">URL do Site</label>
+                <input 
+                  {...register('site_url')}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
+                  placeholder="https://meusite.com.br"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Google Ads Customer ID</label>
+                <input 
+                  {...register('google_ads_customer_id')}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
+                  placeholder="000-000-0000"
+                />
+              </div>
+
+              <div className="space-y-2 flex flex-col justify-center">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mt-6 cursor-pointer">
+                  <input 
+                    type="checkbox"
+                    {...register('use_mcc_auth')}
+                    className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
+                  />
+                  <span>Utilizar Autenticação MCC (Gerenciador de Contas)</span>
+                </label>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            <div className="bg-slate-50 p-6 rounded-lg space-y-4">
+              <h2 className="font-bold text-slate-900">Serviços Habilitados</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {['crm', 'site', 'blog', 'lp'].map((service) => (
+                  <label key={service} className="flex items-center gap-2 cursor-pointer p-3 bg-white border border-slate-200 rounded-lg hover:border-primary-500 transition-colors">
+                    <input 
+                      type="checkbox"
+                      value={service}
+                      {...register('enabled_services')}
+                      className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
+                    />
+                    <span className="text-sm font-medium text-slate-700 capitalize">
+                      {service === 'lp' ? 'Landing Pages' : service}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <hr className="border-slate-100" />

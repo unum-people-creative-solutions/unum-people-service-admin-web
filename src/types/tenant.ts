@@ -8,6 +8,10 @@ export interface Tenant {
   email_contato: string;
   documento: string;
   nicho: string;
+  site_url?: string;
+  enabled_services?: string[];
+  google_ads_customer_id?: string;
+  use_mcc_auth: boolean;
   status: string;
   plan_id: PlanID;
   plan_status: PlanStatus;
@@ -26,6 +30,10 @@ export interface CreateTenantInput {
   email_contato: string;
   documento: string;
   nicho: string;
+  site_url?: string;
+  enabled_services?: string[];
+  google_ads_customer_id?: string;
+  use_mcc_auth: boolean;
   plan_id: PlanID;
   plan_value: number;
   plan_cycle: PlanCycle;
