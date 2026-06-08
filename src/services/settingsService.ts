@@ -14,6 +14,7 @@ export interface DNSStatus {
 
 export interface GlobalSettings {
   institutional_email: string;
+  redirection_email: string;
   updated_at: string;
 }
 
@@ -28,7 +29,7 @@ export const settingsService = {
     return response.data;
   },
 
-  updateSettings: async (data: { institutional_email: string }): Promise<void> => {
+  updateSettings: async (data: { institutional_email: string; redirection_email: string }): Promise<void> => {
     await api.post('/admin/settings', data);
   },
 };

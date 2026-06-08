@@ -6,19 +6,21 @@ import {
   Mail, 
   Globe, 
   CheckCircle, 
-  XCircle, 
   Loader2, 
   Copy, 
-  Check 
+  Check,
+  ArrowRight
 } from 'lucide-react';
 import { settingsService, GlobalSettingsResponse } from '@/services/settingsService';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 export default function SettingsPage() {
   const [data, setData] = useState<GlobalSettingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [email, setEmail] = useState('');
+  const [institutionalEmail, setInstitutionalEmail] = useState('');
+  const [redirectionEmail, setRedirectionEmail] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -29,7 +31,8 @@ export default function SettingsPage() {
     try {
       const resp = await settingsService.getSettings();
       setData(resp);
-      setEmail(resp.settings.institutional_email);
+      setInstitutionalEmail(resp.settings.institutional_email);
+      setRedirectionEmail(resp.settings.redirection_email);
     } catch (error) {
       console.error('Erro ao carregar configurações', error);
     } finally {
@@ -41,7 +44,10 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await settingsService.updateSettings({ institutional_email: email });
+      await settingsService.updateSettings({ 
+        institutional_email: institutionalEmail,
+        redirection_email: redirectionEmail 
+      });
       await fetchSettings();
       alert('Configurações salvas com sucesso!');
     } catch (error) {
@@ -72,30 +78,52 @@ export default function SettingsPage() {
         <p className="text-slate-500">Gerencie as preferências institucionais e parâmetros de rede da plataforma.</p>
       </div>
 
-      {/* Seção E-mail Institucional */}
+      {/* Seção E-mail Institucional e Redirecionamento */}
       <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center gap-2">
           <Mail size={20} className="text-primary-600" />
-          <h2 className="font-semibold text-slate-800">E-mail Institucional</h2>
+          <h2 className="font-semibold text-slate-800">Comunicação e E-mail</h2>
         </div>
-        <form onSubmit={handleSave} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Endereço de E-mail para Contato
-            </label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-              placeholder="contato@unumpeople.com.br"
-              required
-            />
-            <p className="mt-2 text-xs text-slate-500">
-              Este e-mail será usado como remetente oficial das comunicações do sistema.
-            </p>
+        <form onSubmit={handleSave} className="p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                E-mail Institucional (Remetente)
+              </label>
+              <input 
+                type="email" 
+                value={institutionalEmail}
+                onChange={(e) => setInstitutionalEmail(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                placeholder="noreply@unumpeople.com.br"
+                required
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Endereço oficial usado para enviar notificações e convites.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                E-mail de Redirecionamento (Destino)
+              </label>
+              <div className="relative">
+                <input 
+                  type="email" 
+                  value={redirectionEmail}
+                  onChange={(e) => setRedirectionEmail(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                  placeholder="unumpeople@gmail.com.br"
+                  required
+                />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Para onde os e-mails recebidos em @{data?.dns.domain} serão encaminhados.
+              </p>
+            </div>
           </div>
-          <div className="flex justify-end">
+
+          <div className="flex justify-end pt-4 border-t border-slate-50">
             <button
               type="submit"
               disabled={saving}
@@ -205,7 +233,9 @@ export default function SettingsPage() {
               <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold">1</div>
               <div className="text-sm text-slate-700">
                 <p className="font-semibold">Obtenha as Credenciais SMTP</p>
-                <p className="text-slate-500 text-xs mt-1">No console AWS, acesse o SES -&gt; SMTP Settings e clique em "Create SMTP Credentials".</p>
+                <p className="text-slate-500 text-xs mt-1">
+                  {"No console AWS, acesse o SES -> SMTP Settings e clique em \"Create SMTP Credentials\"."}
+                </p>
               </div>
             </div>
 
@@ -214,7 +244,9 @@ export default function SettingsPage() {
               <div className="text-sm text-slate-700">
                 <p className="font-semibold">Configuração no Gmail</p>
                 <p className="text-slate-500 text-xs mt-1">
-                  No Gmail: Configurações -&gt; Ver todas as configurações -&gt; Contas e Importação -&gt; <strong>Enviar e-mail como</strong> -&gt; Adicionar outro endereço de e-mail.
+                  {"No Gmail: Configurações -> Ver todas as configurações -> Contas e Importação -> "}
+                  <strong>Enviar e-mail como</strong>
+                  {" -> Adicionar outro endereço de e-mail."}
                 </p>
               </div>
             </div>
