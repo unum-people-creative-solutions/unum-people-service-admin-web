@@ -151,7 +151,7 @@ export default function SettingsPage() {
             <h2 className="font-semibold text-slate-800">Configuração de DNS</h2>
           </div>
           <div className="flex items-center gap-2">
-            {data?.dns.status === 'Success' ? (
+            {['Success', 'Verified'].includes(data?.dns.status || '') ? (
               <span className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full border border-green-200">
                 <CheckCircle size={14} /> Verificado
               </span>
