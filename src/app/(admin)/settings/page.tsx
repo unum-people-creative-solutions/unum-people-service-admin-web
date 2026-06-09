@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [institutionalEmail, setInstitutionalEmail] = useState('');
   const [redirectionEmail, setRedirectionEmail] = useState('');
+  const [vapidEmail, setVapidEmail] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function SettingsPage() {
         setData(resp);
         setInstitutionalEmail(resp.settings.institutional_email || '');
         setRedirectionEmail(resp.settings.redirection_email || '');
+        setVapidEmail(resp.settings.vapid_email || '');
       } else {
         throw new Error('Formato de resposta inválido');
       }
@@ -53,7 +55,8 @@ export default function SettingsPage() {
     try {
       await settingsService.updateSettings({ 
         institutional_email: institutionalEmail,
-        redirection_email: redirectionEmail 
+        redirection_email: redirectionEmail,
+        vapid_email: vapidEmail
       });
       await fetchSettings();
       alert('Configurações salvas com sucesso!');
@@ -126,6 +129,25 @@ export default function SettingsPage() {
               </div>
               <p className="mt-2 text-xs text-slate-500">
                 Para onde os e-mails recebidos em @{data?.dns.domain} serão encaminhados.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                E-mail de Contato Push (VAPID)
+              </label>
+              <input 
+                type="text" 
+                value={vapidEmail}
+                onChange={(e) => setVapidEmail(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                placeholder="mailto:noreply@unumpeople.com.br"
+                required
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Endereço exigido pelo protocolo Web Push (deve começar com mailto:).
               </p>
             </div>
           </div>
