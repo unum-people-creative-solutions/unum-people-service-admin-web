@@ -32,10 +32,17 @@ export default function TenantDetailsPage() {
     queryFn: () => tenantService.getById(id),
   });
 
-  // Atualiza o formulário com os dados carregados para garantir estado 'dirty' preciso
+  // Sincroniza dados e evita discrepância entre null e "" para o estado 'dirty'
   useEffect(() => {
     if (tenant) {
-      reset(tenant);
+      const sanitizedTenant = {
+        ...tenant,
+        nicho: tenant.nicho || '',
+        site_url: tenant.site_url || '',
+        google_ads_customer_id: tenant.google_ads_customer_id || '',
+        enabled_services: tenant.enabled_services || [],
+      };
+      reset(sanitizedTenant);
     }
   }, [tenant, reset]);
 
@@ -74,7 +81,6 @@ export default function TenantDetailsPage() {
   if (error || !tenant) return <div className="p-8 text-red-600">Erro: Tenant não encontrado.</div>;
 
   const onSubmit = (data: Partial<Tenant>) => {
-    // Only send dirty fields to the update API
     const dirtyData = Object.keys(dirtyFields).reduce((acc, key) => {
       acc[key as keyof Tenant] = data[key as keyof Tenant];
       return acc;
@@ -95,18 +101,34 @@ export default function TenantDetailsPage() {
     }
   };
 
-  // Sections dirty state check
-  const isBasicsDirty = ['nome_negocio', 'documento', 'nicho', 'site_url'].some(field => dirtyFields[field as keyof Tenant]);
-  const isIntegrationsDirty = ['google_ads_customer_id', 'use_mcc_auth', 'enabled_services'].some(field => dirtyFields[field as keyof Tenant]);
-  const isSubscriptionDirty = ['plan_id', 'plan_status', 'plan_value'].some(field => dirtyFields[field as keyof Tenant]);
+  // Verificações rigorosas de estado 'dirty' por seção
+  const isBasicsDirty = ['nome_negocio', 'documento', 'nicho', 'site_url'].some(
+    field => dirtyFields[field as keyof Tenant] === true
+  );
+  
+  const isIntegrationsDirty = (
+    dirtyFields.google_ads_customer_id === true || 
+    dirtyFields.use_mcc_auth === true || 
+    (Array.isArray(dirtyFields.enabled_services) && dirtyFields.enabled_services.some(v => v === true))
+  );
+  
+  const isSubscriptionDirty = ['plan_id', 'plan_status', 'plan_value'].some(
+    field => dirtyFields[field as keyof Tenant] === true
+  );
 
   const StatusLed = ({ active }: { active: boolean }) => {
+    const label = active ? 'Alterações Pendentes' : 'Sincronizado';
     return (
-      <div className={`flex items-center gap-2 px-2 py-1 border rounded-md transition-all duration-300 ${active ? 'bg-red-50 border-red-100 animate-pulse' : 'bg-green-50 border-green-100'}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-red-500' : 'bg-green-500'}`} />
-        <span className={`text-[10px] font-bold uppercase tracking-tight ${active ? 'text-red-600' : 'text-green-600'}`}>
-          {active ? 'Alterações Pendentes' : 'Sincronizado'}
-        </span>
+      <div 
+        className={`group relative flex items-center justify-center h-6 w-6 border rounded-full transition-all duration-300 ${active ? 'bg-red-50 border-red-200 animate-pulse shadow-sm shadow-red-200' : 'bg-green-50 border-green-200'}`}
+      >
+        <span className={`h-2 w-2 rounded-full ${active ? 'bg-red-500' : 'bg-green-500'}`} />
+        
+        {/* Tooltip posicionada para a esquerda para evitar corte pelo overflow-hidden do card */}
+        <div className="absolute right-full mr-2 hidden group-hover:block whitespace-nowrap bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-xl z-20">
+          {label}
+          <div className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-slate-800" />
+        </div>
       </div>
     );
   };
@@ -120,7 +142,7 @@ export default function TenantDetailsPage() {
         </Link>
 
         {successMsg && (
-          <div className="fixed top-8 right-8 z-50 p-4 bg-white border-l-4 border-green-500 text-slate-800 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
+          <div className="fixed top-8 right-8 z-[110] p-4 bg-white border-l-4 border-green-500 text-slate-800 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
             <CheckCircle2 size={20} className="text-green-500" />
             <span className="text-sm font-medium">{successMsg}</span>
           </div>
@@ -154,7 +176,7 @@ export default function TenantDetailsPage() {
             <div className="lg:col-span-2 space-y-8">
               
               {/* Informações Básicas */}
-              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isBasicsDirty ? 'border-amber-200 shadow-amber-500/5' : 'border-slate-200'}`}>
+              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isBasicsDirty ? 'border-red-200 shadow-red-500/5' : 'border-slate-200'}`}>
                 <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                   <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <Globe size={18} /> Dados Institucionais
@@ -207,7 +229,7 @@ export default function TenantDetailsPage() {
               </div>
 
               {/* Integrações e Serviços */}
-              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isIntegrationsDirty ? 'border-amber-200 shadow-amber-500/5' : 'border-slate-200'}`}>
+              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isIntegrationsDirty ? 'border-red-200 shadow-red-500/5' : 'border-slate-200'}`}>
                 <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                   <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <LayoutGrid size={18} /> Serviços e Integrações
@@ -258,7 +280,7 @@ export default function TenantDetailsPage() {
 
               {/* API Credentials */}
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200">
+                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                   <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <Key size={18} /> Chaves de API
                   </h2>
@@ -300,60 +322,62 @@ export default function TenantDetailsPage() {
 
             <div className="space-y-8 sticky top-8 h-fit">
               {/* Card Assinatura */}
-              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 p-6 ${isSubscriptionDirty ? 'border-amber-200 shadow-amber-500/5' : 'border-slate-200'}`}>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isSubscriptionDirty ? 'border-red-200 shadow-red-500/5' : 'border-slate-200'}`}>
+                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                  <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <CreditCard size={18} /> Assinatura
-                  </h3>
+                  </h2>
                   <StatusLed active={isSubscriptionDirty} />
                 </div>
                 
-                <div className="space-y-4 text-sm">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Plano</label>
-                    <select {...register('plan_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
-                      <option value="lp_flash">LP Flash</option>
-                      <option value="lp_basico">LP Básico</option>
-                      <option value="lp_intermediario">LP Intermediário</option>
-                      <option value="lp_avancado">LP Avançado</option>
-                      <option value="lp_personalizado">LP Personalizado</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
-                    <select {...register('plan_status')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
-                      <option value="ativo">Ativo</option>
-                      <option value="em_atraso">Em Atraso</option>
-                      <option value="pausado">Pausado</option>
-                      <option value="cancelado">Cancelado</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Valor do Ciclo</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
-                      <input 
-                        {...register('plan_value', { valueAsNumber: true })}
-                        type="number"
-                        step="0.01"
-                        className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium"
-                      />
+                <div className="p-8">
+                  <div className="space-y-4 text-sm">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Plano</label>
+                      <select {...register('plan_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
+                        <option value="lp_flash">LP Flash</option>
+                        <option value="lp_basico">LP Básico</option>
+                        <option value="lp_intermediario">LP Intermediário</option>
+                        <option value="lp_avancado">LP Avançado</option>
+                        <option value="lp_personalizado">LP Personalizado</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
+                      <select {...register('plan_status')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
+                        <option value="ativo">Ativo</option>
+                        <option value="em_atraso">Em Atraso</option>
+                        <option value="pausado">Pausado</option>
+                        <option value="cancelado">Cancelado</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Valor do Ciclo</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
+                        <input 
+                          {...register('plan_value', { valueAsNumber: true })}
+                          type="number"
+                          step="0.01"
+                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-8 space-y-3 pt-6 border-t border-slate-100">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500 italic">Próximo Débito:</span>
-                    <span className="font-bold text-primary-600 underline cursor-help" title={new Date(tenant.next_billing_at).toLocaleString()}>
-                      {new Date(tenant.next_billing_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500 italic">Renovação Contratual:</span>
-                    <span className="font-bold text-slate-700">
-                      {new Date(tenant.renewal_at).toLocaleDateString()}
-                    </span>
+                  <div className="mt-8 space-y-3 pt-6 border-t border-slate-100">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 italic">Próximo Débito:</span>
+                      <span className="font-bold text-primary-600 underline cursor-help" title={new Date(tenant.next_billing_at).toLocaleString()}>
+                        {new Date(tenant.next_billing_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 italic">Renovação Contratual:</span>
+                      <span className="font-bold text-slate-700">
+                        {new Date(tenant.renewal_at).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
