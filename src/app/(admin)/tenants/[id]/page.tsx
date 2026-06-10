@@ -260,9 +260,9 @@ export default function TenantDetailsPage() {
               </div>
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-8 sticky top-8 h-fit">
               {/* Salvar Botão Fixo/Lateral */}
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sticky top-8">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
