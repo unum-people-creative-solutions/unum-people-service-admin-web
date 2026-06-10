@@ -4,6 +4,7 @@ export type PlanID = 'lp_flash' | 'lp_basico' | 'lp_intermediario' | 'lp_avancad
 
 export interface Tenant {
   id: string;
+  api_key: string;
   nome_negocio: string;
   email_contato: string;
   documento: string;
