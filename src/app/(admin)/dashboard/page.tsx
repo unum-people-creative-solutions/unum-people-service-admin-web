@@ -19,7 +19,7 @@ export default function DashboardPage() {
 
   const { data: systemErrors, isLoading: errorsLoading } = useQuery<any[]>({
     queryKey: ['admin-system-errors'],
-    queryFn: () => tenantService.getSystemErrors({ start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }),
+    queryFn: () => tenantService.getSystemErrors({ start: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() }),
     refetchInterval: 30000,
   });
 
