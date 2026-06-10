@@ -30,7 +30,7 @@ export default function TenantDetailsPage() {
     queryFn: () => tenantService.getById(id),
   });
 
-  const { register, handleSubmit } = useForm<Partial<Tenant>>();
+  const { register, handleSubmit, formState: { dirtyFields, isDirty } } = useForm<Partial<Tenant>>();
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Tenant>) => tenantService.update(id, data),
@@ -66,7 +66,13 @@ export default function TenantDetailsPage() {
   if (error || !tenant) return <div className="p-8 text-red-600">Erro: Tenant não encontrado.</div>;
 
   const onSubmit = (data: Partial<Tenant>) => {
-    updateMutation.mutate(data);
+    // Only send dirty fields to the update API
+    const dirtyData = Object.keys(dirtyFields).reduce((acc, key) => {
+      acc[key as keyof Tenant] = data[key as keyof Tenant];
+      return acc;
+    }, {} as any);
+    
+    updateMutation.mutate(dirtyData);
   };
 
   const copyToClipboard = (text: string) => {
@@ -81,9 +87,18 @@ export default function TenantDetailsPage() {
     }
   };
 
+  // Sections dirty state check
+  const isBasicsDirty = ['nome_negocio', 'documento', 'nicho', 'site_url'].some(field => dirtyFields[field as keyof Tenant]);
+  const isIntegrationsDirty = ['google_ads_customer_id', 'use_mcc_auth', 'enabled_services'].some(field => dirtyFields[field as keyof Tenant]);
+  const isSubscriptionDirty = ['plan_id', 'plan_status', 'plan_value'].some(field => dirtyFields[field as keyof Tenant]);
+
+  const StatusLed = ({ active }: { active: boolean }) => (
+    <span className={`h-2 w-2 rounded-full ring-2 ring-offset-2 transition-all duration-300 ${active ? 'bg-amber-500 ring-amber-500 animate-pulse' : 'bg-green-500 ring-green-500 opacity-40'}`} />
+  );
+
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <Link href="/tenants" className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-6 transition-colors">
           <ArrowLeft size={20} />
           Voltar para listagem
@@ -96,26 +111,45 @@ export default function TenantDetailsPage() {
           </div>
         )}
 
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">{tenant.nome_negocio}</h1>
-            <p className="text-slate-500">ID: {tenant.id}</p>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-3xl font-bold text-slate-900">{tenant.nome_negocio}</h1>
+                <div className={`px-3 py-1 rounded-full text-[10px] font-bold border ${tenant.is_blocked ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
+                  {tenant.is_blocked ? 'BLOQUEADA' : 'ATIVA'}
+                </div>
+              </div>
+              <p className="text-slate-500 text-sm">Tenant ID: <span className="font-mono">{tenant.id}</span></p>
+            </div>
+            
+            <div className="flex items-center gap-4 w-full md:w-auto">
+              {isDirty && (
+                <span className="text-xs font-bold text-amber-600 animate-pulse bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100 hidden lg:block">
+                  Possui alterações não salvas
+                </span>
+              )}
+              <button
+                type="submit"
+                disabled={updateMutation.isPending || !isDirty}
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 disabled:opacity-30 disabled:grayscale ${isDirty ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-500/20' : 'bg-slate-200 text-slate-400'}`}
+              >
+                {updateMutation.isPending ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                Salvar Alterações
+              </button>
+            </div>
           </div>
-          <div className={`px-4 py-1.5 rounded-full text-sm font-bold border-2 ${tenant.is_blocked ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
-            {tenant.is_blocked ? 'CONTA BLOQUEADA' : 'CONTA ATIVA'}
-          </div>
-        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
               
               {/* Informações Básicas */}
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200">
+              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isBasicsDirty ? 'border-amber-200 shadow-amber-500/5' : 'border-slate-200'}`}>
+                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                   <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <Globe size={18} /> Dados Institucionais
                   </h2>
+                  <StatusLed active={isBasicsDirty} />
                 </div>
                 <div className="p-8 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -167,11 +201,12 @@ export default function TenantDetailsPage() {
               </div>
 
               {/* Integrações e Serviços */}
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200">
+              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isIntegrationsDirty ? 'border-amber-200 shadow-amber-500/5' : 'border-slate-200'}`}>
+                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                   <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <LayoutGrid size={18} /> Serviços e Integrações
                   </h2>
+                  <StatusLed active={isIntegrationsDirty} />
                 </div>
                 <div className="p-8 space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -261,56 +296,46 @@ export default function TenantDetailsPage() {
             </div>
 
             <div className="space-y-8 sticky top-8 h-fit">
-              {/* Salvar Botão Fixo/Lateral */}
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                  className="w-full flex items-center justify-center gap-2 bg-primary-600 text-white py-3 rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
-                >
-                  {updateMutation.isPending ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                  Salvar Alterações
-                </button>
-                
-                <hr className="my-6 border-slate-100" />
-
-                {/* Info de Assinatura */}
-                <div className="space-y-4">
+              {/* Card Assinatura */}
+              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 p-6 ${isSubscriptionDirty ? 'border-amber-200 shadow-amber-500/5' : 'border-slate-200'}`}>
+                <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-slate-900 flex items-center gap-2">
                     <CreditCard size={18} /> Assinatura
                   </h3>
-                  <div className="space-y-4 text-sm">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Plano</label>
-                      <select {...register('plan_id')} defaultValue={tenant.plan_id} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
-                        <option value="lp_flash">LP Flash</option>
-                        <option value="lp_basico">LP Básico</option>
-                        <option value="lp_intermediario">LP Intermediário</option>
-                        <option value="lp_avancado">LP Avançado</option>
-                        <option value="lp_personalizado">LP Personalizado</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
-                      <select {...register('plan_status')} defaultValue={tenant.plan_status} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
-                        <option value="ativo">Ativo</option>
-                        <option value="em_atraso">Em Atraso</option>
-                        <option value="pausado">Pausado</option>
-                        <option value="cancelado">Cancelado</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Valor do Ciclo</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
-                        <input 
-                          {...register('plan_value', { valueAsNumber: true })}
-                          type="number"
-                          step="0.01"
-                          defaultValue={tenant.plan_value}
-                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium"
-                        />
-                      </div>
+                  <StatusLed active={isSubscriptionDirty} />
+                </div>
+                
+                <div className="space-y-4 text-sm">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Plano</label>
+                    <select {...register('plan_id')} defaultValue={tenant.plan_id} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
+                      <option value="lp_flash">LP Flash</option>
+                      <option value="lp_basico">LP Básico</option>
+                      <option value="lp_intermediario">LP Intermediário</option>
+                      <option value="lp_avancado">LP Avançado</option>
+                      <option value="lp_personalizado">LP Personalizado</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
+                    <select {...register('plan_status')} defaultValue={tenant.plan_status} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
+                      <option value="ativo">Ativo</option>
+                      <option value="em_atraso">Em Atraso</option>
+                      <option value="pausado">Pausado</option>
+                      <option value="cancelado">Cancelado</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Valor do Ciclo</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
+                      <input 
+                        {...register('plan_value', { valueAsNumber: true })}
+                        type="number"
+                        step="0.01"
+                        defaultValue={tenant.plan_value}
+                        className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium"
+                      />
                     </div>
                   </div>
                 </div>
