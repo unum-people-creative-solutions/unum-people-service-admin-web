@@ -11,7 +11,7 @@ import {
   CheckCircle2, Eye, EyeOff, Copy, Trash2, 
   Globe, LayoutGrid, CreditCard, AlertTriangle 
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function TenantDetailsPage() {
   const { id } = useParams() as { id: string };
@@ -25,12 +25,19 @@ export default function TenantDetailsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
+  const { register, handleSubmit, reset, formState: { dirtyFields, isDirty } } = useForm<Partial<Tenant>>();
+
   const { data: tenant, isLoading, error } = useQuery({
     queryKey: ['tenant', id],
     queryFn: () => tenantService.getById(id),
   });
 
-  const { register, handleSubmit, formState: { dirtyFields, isDirty } } = useForm<Partial<Tenant>>();
+  // Atualiza o formulário com os dados carregados para garantir estado 'dirty' preciso
+  useEffect(() => {
+    if (tenant) {
+      reset(tenant);
+    }
+  }, [tenant, reset]);
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Tenant>) => tenantService.update(id, data),
@@ -51,7 +58,8 @@ export default function TenantDetailsPage() {
   const resetPwdMutation = useMutation({
     mutationFn: () => tenantService.resetPassword(id),
     onSuccess: () => {
-      alert('Fluxo de reset de senha disparado com sucesso!');
+      setSuccessMsg('Fluxo de reset de senha disparado com sucesso!');
+      setTimeout(() => setSuccessMsg(null), 3000);
     },
   });
 
@@ -92,9 +100,16 @@ export default function TenantDetailsPage() {
   const isIntegrationsDirty = ['google_ads_customer_id', 'use_mcc_auth', 'enabled_services'].some(field => dirtyFields[field as keyof Tenant]);
   const isSubscriptionDirty = ['plan_id', 'plan_status', 'plan_value'].some(field => dirtyFields[field as keyof Tenant]);
 
-  const StatusLed = ({ active }: { active: boolean }) => (
-    <span className={`h-2 w-2 rounded-full ring-2 ring-offset-2 transition-all duration-300 ${active ? 'bg-amber-500 ring-amber-500 animate-pulse' : 'bg-green-500 ring-green-500 opacity-40'}`} />
-  );
+  const StatusLed = ({ active }: { active: boolean }) => {
+    return (
+      <div className={`flex items-center gap-2 px-2 py-1 border rounded-md transition-all duration-300 ${active ? 'bg-red-50 border-red-100 animate-pulse' : 'bg-green-50 border-green-100'}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-red-500' : 'bg-green-500'}`} />
+        <span className={`text-[10px] font-bold uppercase tracking-tight ${active ? 'text-red-600' : 'text-green-600'}`}>
+          {active ? 'Alterações Pendentes' : 'Sincronizado'}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
@@ -105,9 +120,9 @@ export default function TenantDetailsPage() {
         </Link>
 
         {successMsg && (
-          <div className="fixed top-8 right-8 z-50 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-4">
-            <CheckCircle2 size={20} />
-            {successMsg}
+          <div className="fixed top-8 right-8 z-50 p-4 bg-white border-l-4 border-green-500 text-slate-800 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
+            <CheckCircle2 size={20} className="text-green-500" />
+            <span className="text-sm font-medium">{successMsg}</span>
           </div>
         )}
 
@@ -124,11 +139,6 @@ export default function TenantDetailsPage() {
             </div>
             
             <div className="flex items-center gap-4 w-full md:w-auto">
-              {isDirty && (
-                <span className="text-xs font-bold text-amber-600 animate-pulse bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100 hidden lg:block">
-                  Possui alterações não salvas
-                </span>
-              )}
               <button
                 type="submit"
                 disabled={updateMutation.isPending || !isDirty}
@@ -157,7 +167,6 @@ export default function TenantDetailsPage() {
                       <label className="text-sm font-semibold text-slate-700">Nome do Negócio</label>
                       <input 
                         {...register('nome_negocio')}
-                        defaultValue={tenant.nome_negocio}
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       />
                     </div>
@@ -165,7 +174,6 @@ export default function TenantDetailsPage() {
                       <label className="text-sm font-semibold text-slate-700">Documento (CPF/CNPJ)</label>
                       <input 
                         {...register('documento')}
-                        defaultValue={tenant.documento}
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       />
                     </div>
@@ -173,7 +181,6 @@ export default function TenantDetailsPage() {
                       <label className="text-sm font-semibold text-slate-700">Nicho de Atuação</label>
                       <input 
                         {...register('nicho')}
-                        defaultValue={tenant.nicho}
                         placeholder="Ex: MEDICINA, VENDAS..."
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       />
@@ -182,7 +189,6 @@ export default function TenantDetailsPage() {
                       <label className="text-sm font-semibold text-slate-700">URL do Site</label>
                       <input 
                         {...register('site_url')}
-                        defaultValue={tenant.site_url}
                         placeholder="https://suaempresa.com"
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       />
@@ -214,7 +220,6 @@ export default function TenantDetailsPage() {
                       <label className="text-sm font-semibold text-slate-700">Google Ads Customer ID</label>
                       <input 
                         {...register('google_ads_customer_id')}
-                        defaultValue={tenant.google_ads_customer_id}
                         placeholder="000-000-0000"
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       />
@@ -223,7 +228,6 @@ export default function TenantDetailsPage() {
                       <input 
                         type="checkbox"
                         {...register('use_mcc_auth')}
-                        defaultChecked={tenant.use_mcc_auth}
                         id="use_mcc_auth"
                         className="w-4 h-4 text-primary-600 rounded"
                       />
@@ -241,7 +245,6 @@ export default function TenantDetailsPage() {
                           <input 
                             type="checkbox"
                             value={svc}
-                            defaultChecked={tenant.enabled_services?.includes(svc)}
                             {...register('enabled_services')}
                             className="w-4 h-4 text-primary-600 rounded"
                           />
@@ -308,7 +311,7 @@ export default function TenantDetailsPage() {
                 <div className="space-y-4 text-sm">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Plano</label>
-                    <select {...register('plan_id')} defaultValue={tenant.plan_id} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
+                    <select {...register('plan_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
                       <option value="lp_flash">LP Flash</option>
                       <option value="lp_basico">LP Básico</option>
                       <option value="lp_intermediario">LP Intermediário</option>
@@ -318,7 +321,7 @@ export default function TenantDetailsPage() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
-                    <select {...register('plan_status')} defaultValue={tenant.plan_status} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
+                    <select {...register('plan_status')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
                       <option value="ativo">Ativo</option>
                       <option value="em_atraso">Em Atraso</option>
                       <option value="pausado">Pausado</option>
@@ -333,7 +336,6 @@ export default function TenantDetailsPage() {
                         {...register('plan_value', { valueAsNumber: true })}
                         type="number"
                         step="0.01"
-                        defaultValue={tenant.plan_value}
                         className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium"
                       />
                     </div>

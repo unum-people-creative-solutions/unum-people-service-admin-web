@@ -33,6 +33,9 @@ const mockTenant = {
   nicho: 'SAUDE',
   site_url: 'https://teste.com',
   api_key: 'up_test_key_123456789',
+  enabled_services: ['crm'],
+  google_ads_customer_id: '123-456-7890',
+  use_mcc_auth: false,
   plan_id: 'lp_basico',
   plan_status: 'ativo',
   plan_value: 199,
@@ -114,5 +117,26 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
     // Deve mostrar aviso de que a deleção será física
     expect(await screen.findByText(/Atenção: Deleção Física Ativada/i)).toBeDefined();
+  });
+
+  test('deve alternar LED de Sincronizado (Verde) para Alterações Pendentes (Vermelho) ao editar', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    // Inicialmente deve estar Sincronizado (Verde)
+    const syncedLeds = await screen.findAllByText(/Sincronizado/i);
+    expect(syncedLeds).toHaveLength(3);
+
+    // Edita um campo do card de Dados Institucionais
+    const input = screen.getByDisplayValue('Empresa Teste');
+    fireEvent.change(input, { target: { value: 'Novo Nome' } });
+
+    // LED de Dados Institucionais deve mudar para Vermelho
+    const pendingLeds = await screen.findAllByText(/Alterações Pendentes/i);
+    expect(pendingLeds).toHaveLength(1);
+    expect(screen.getAllByText(/Sincronizado/i)).toHaveLength(2);
   });
 });
