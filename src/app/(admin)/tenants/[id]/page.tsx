@@ -60,6 +60,7 @@ export default function TenantDetailsPage() {
   const deleteMutation = useMutation({
     mutationFn: () => tenantService.delete(id, isHardDelete),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
       router.push('/tenants');
     },
   });
