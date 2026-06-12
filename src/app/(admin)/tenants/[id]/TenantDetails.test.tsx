@@ -146,4 +146,18 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     expect(pendingLeds).toHaveLength(1);
     expect(screen.getAllByText(/Sincronizado/i)).toHaveLength(2);
   });
+
+  test('não deve exibir o botão de Resetar Senha Admin na Danger Zone', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+    fireEvent.click(showActionsBtn);
+
+    const resetBtn = screen.queryByRole('button', { name: /Resetar Senha Admin/i });
+    expect(resetBtn).toBeNull();
+  });
 });

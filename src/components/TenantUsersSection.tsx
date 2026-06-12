@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { TenantUserRole, AddTenantUserInput, TenantUser } from '@/types/tenant';
-import { Plus, Loader2, Edit2 } from 'lucide-react';
+import { Plus, Loader2, Edit2, Key } from 'lucide-react';
 
 interface TenantUsersSectionProps {
   tenantId: string;
@@ -70,6 +70,14 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
       tenantService.updateUserName(tenantId, email, name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
+    },
+  });
+
+  const resetUserPasswordMutation = useMutation({
+    mutationFn: ({ tenantId, email }: { tenantId: string; email: string }) =>
+      tenantService.resetUserPassword(tenantId, email),
+    onSuccess: () => {
+      alert("Código de recuperação enviado com sucesso!");
     },
   });
 
@@ -343,23 +351,38 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                 </label>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+                  onClick={() => {
+                    if (window.confirm("Deseja enviar um código de recuperação de senha para o e-mail deste usuário?")) {
+                      resetUserPasswordMutation.mutate({ tenantId, email: editingUser.email });
+                    }
+                  }}
+                  disabled={resetUserPasswordMutation.isPending}
+                  className="flex items-center gap-2 px-3 py-2 border border-slate-200 text-slate-700 bg-slate-50 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors disabled:opacity-50"
                 >
-                  Cancelar
+                  {resetUserPasswordMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Key size={16} />}
+                  Resetar Senha
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleEditSave()}
-                  disabled={updateUserRoleMutation.isPending || blockUserMutation.isPending || updateUserNameMutation.isPending}
-                  className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
-                >
-                  {(updateUserRoleMutation.isPending || blockUserMutation.isPending || updateUserNameMutation.isPending) && <Loader2 className="animate-spin" size={16} />}
-                  Salvar
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEditSave()}
+                    disabled={updateUserRoleMutation.isPending || blockUserMutation.isPending || updateUserNameMutation.isPending}
+                    className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
+                  >
+                    {(updateUserRoleMutation.isPending || blockUserMutation.isPending || updateUserNameMutation.isPending) && <Loader2 className="animate-spin" size={16} />}
+                    Salvar
+                  </button>
+                </div>
               </div>
             </div>
           </div>

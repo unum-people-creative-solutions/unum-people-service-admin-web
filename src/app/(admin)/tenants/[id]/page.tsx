@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { Tenant } from '@/types/tenant';
 import Link from 'next/link';
 import { 
-  ArrowLeft, Save, Loader2, ShieldAlert, Key, 
+  ArrowLeft, Save, Loader2, ShieldAlert, Key,
   CheckCircle2, Eye, EyeOff, Copy, Trash2, 
   Globe, LayoutGrid, CreditCard, AlertTriangle 
 } from 'lucide-react';
@@ -63,14 +63,6 @@ export default function TenantDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
       router.push('/tenants');
-    },
-  });
-
-  const resetPwdMutation = useMutation({
-    mutationFn: () => tenantService.resetPassword(id),
-    onSuccess: () => {
-      setSuccessMsg('Fluxo de reset de senha disparado com sucesso!');
-      setTimeout(() => setSuccessMsg(null), 3000);
     },
   });
 
@@ -416,15 +408,6 @@ export default function TenantDetailsPage() {
 
                 {showDangerZone && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <button
-                      type="button"
-                      onClick={() => resetPwdMutation.mutate()}
-                      disabled={resetPwdMutation.isPending}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 rounded-lg text-red-700 bg-white font-medium hover:bg-red-50 transition-colors shadow-sm"
-                    >
-                      <Key size={18} /> Resetar Senha Admin
-                    </button>
-
                     <div className="p-4 bg-white/50 rounded-lg border border-red-100 flex items-center justify-between">
                       <div className="space-y-0.5">
                         <span className="text-sm font-bold text-red-900 block">Bloquear Tenant</span>

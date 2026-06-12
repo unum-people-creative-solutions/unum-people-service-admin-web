@@ -265,6 +265,31 @@ describe('tenantService', () => {
     })
   })
 
+  describe('resetUserPassword', () => {
+    it('calls POST /admin/tenants/{id}/users/{email}/reset-password endpoint', async () => {
+      const tenantId = 'tenant-123'
+      const email = 'user@test.com'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Password reset code sent' }),
+      })
+
+
+      const result = await tenantService.resetUserPassword(tenantId, email)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/users/${email}/reset-password`),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual({ message: 'Password reset code sent' })
+    })
+  })
+
   describe('automatic token refresh on 401', () => {
     it('refreshes the token and retries the request on 401', async () => {
       // First call returns 401

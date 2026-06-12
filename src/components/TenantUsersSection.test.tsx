@@ -13,6 +13,7 @@ vi.mock('@/services/tenantService', () => ({
     updateUserRole: vi.fn(),
     blockUser: vi.fn(),
     updateUserName: vi.fn(),
+    resetUserPassword: vi.fn(),
   },
 }));
 
@@ -192,5 +193,37 @@ describe('TenantUsersSection Component', () => {
     await waitFor(() => {
       expect(tenantService.updateUserName).toHaveBeenCalledWith(mockTenantId, 'other@test.com', 'Novo Nome Alterado');
     });
+  });
+
+  test('deve exibir confirm e chamar resetUserPassword ao clicar em Resetar Senha na modal de edição', async () => {
+    vi.mocked(tenantService.resetUserPassword).mockResolvedValue({ message: 'Code sent' } as any);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantUsersSection tenantId={mockTenantId} />
+      </QueryClientProvider>
+    );
+
+    const otherRow = (await screen.findByText('other@test.com')).closest('tr');
+    expect(otherRow).not.toBeNull();
+
+    // Abre o modal de edição
+    const editBtn = within(otherRow!).getByRole('button', { name: /editar/i });
+    fireEvent.click(editBtn);
+
+    // Encontra o botão de Resetar Senha
+    const resetPasswordBtn = screen.getByRole('button', { name: /Resetar Senha/i });
+    fireEvent.click(resetPasswordBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/Deseja enviar um código de recuperação de senha para o e-mail deste usuário\?/i)
+    );
+
+    await waitFor(() => {
+      expect(tenantService.resetUserPassword).toHaveBeenCalledWith(mockTenantId, 'other@test.com');
+    });
+
+    confirmSpy.mockRestore();
   });
 });

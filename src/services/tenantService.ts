@@ -88,7 +88,7 @@ export const tenantService = {
     method: 'DELETE',
   }),
 
-  resetPassword: (id: string): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}/reset-password`, {
+  resetUserPassword: (tenantId: string, email: string): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/reset-password`, {
     method: 'POST',
   }),
 
