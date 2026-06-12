@@ -12,6 +12,7 @@ vi.mock('@/services/tenantService', () => ({
     removeUser: vi.fn(),
     updateUserRole: vi.fn(),
     blockUser: vi.fn(),
+    updateUserName: vi.fn(),
   },
 }));
 
@@ -159,5 +160,37 @@ describe('TenantUsersSection Component', () => {
     
     const otherBlockCheckbox = screen.getByRole('checkbox');
     expect(otherBlockCheckbox).not.toBeDisabled();
+  });
+
+  test('permite editar o nome do usuário e chama a mutation correta', async () => {
+    vi.mocked(tenantService.updateUserName).mockResolvedValue({ message: 'Name updated' } as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantUsersSection tenantId={mockTenantId} />
+      </QueryClientProvider>
+    );
+
+    const otherRow = (await screen.findByText('other@test.com')).closest('tr');
+    expect(otherRow).not.toBeNull();
+
+    // Abre o modal de edição
+    const editBtn = within(otherRow!).getByRole('button', { name: /editar/i });
+    fireEvent.click(editBtn);
+
+    // Encontra o input de Nome
+    const nameInput = screen.getByDisplayValue('Other User') as HTMLInputElement;
+    // O teste deve falhar aqui porque o input ainda está disabled
+    expect(nameInput.disabled).toBe(false);
+    
+    fireEvent.change(nameInput, { target: { value: 'Novo Nome Alterado' } });
+
+    // Salva as alterações
+    const saveButton = screen.getByRole('button', { name: /Salvar/i });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(tenantService.updateUserName).toHaveBeenCalledWith(mockTenantId, 'other@test.com', 'Novo Nome Alterado');
+    });
   });
 });

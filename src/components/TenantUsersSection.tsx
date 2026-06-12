@@ -21,6 +21,7 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
 
   const [editingUser, setEditingUser] = useState<TenantUser | null>(null);
+  const [editName, setEditName] = useState('');
   const [editRole, setEditRole] = useState<TenantUserRole>('user');
   const [editBlocked, setEditBlocked] = useState(false);
 
@@ -64,6 +65,14 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
     },
   });
 
+  const updateUserNameMutation = useMutation({
+    mutationFn: ({ email, name }: { email: string; name: string }) =>
+      tenantService.updateUserName(tenantId, email, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
+    },
+  });
+
   const handleSave = (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
     const newErrors: { name?: string; email?: string } = {};
@@ -94,6 +103,9 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
     if (!editingUser) return;
     
     // Dispara as mutations sequencialmente ou apenas a que mudou
+    if (editingUser.name !== editName) {
+      updateUserNameMutation.mutate({ email: editingUser.email, name: editName });
+    }
     if (editingUser.role !== editRole) {
       updateUserRoleMutation.mutate({ email: editingUser.email, role: editRole });
     }
@@ -165,6 +177,7 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                       type="button"
                       onClick={() => {
                         setEditingUser(userItem);
+                        setEditName(userItem.name);
                         setEditRole(userItem.role);
                         setEditBlocked(userItem.is_blocked);
                       }}
@@ -280,9 +293,9 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                 <label className="text-sm font-semibold text-slate-700">Nome</label>
                 <input
                   type="text"
-                  value={editingUser.name}
-                  disabled
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 outline-none"
                 />
               </div>
 
@@ -341,10 +354,10 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                 <button
                   type="button"
                   onClick={() => handleEditSave()}
-                  disabled={updateUserRoleMutation.isPending || blockUserMutation.isPending}
+                  disabled={updateUserRoleMutation.isPending || blockUserMutation.isPending || updateUserNameMutation.isPending}
                   className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
                 >
-                  {(updateUserRoleMutation.isPending || blockUserMutation.isPending) && <Loader2 className="animate-spin" size={16} />}
+                  {(updateUserRoleMutation.isPending || blockUserMutation.isPending || updateUserNameMutation.isPending) && <Loader2 className="animate-spin" size={16} />}
                   Salvar
                 </button>
               </div>

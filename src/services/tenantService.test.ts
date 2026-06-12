@@ -213,6 +213,32 @@ describe('tenantService', () => {
     })
   })
 
+  describe('updateUserName', () => {
+    it('calls PATCH /admin/tenants/{id}/users/{email}/name endpoint with body', async () => {
+      const tenantId = 'tenant-123'
+      const email = 'user@test.com'
+      const newName = 'Novo Nome'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Name updated' }),
+      })
+
+      const result = await tenantService.updateUserName(tenantId, email, newName)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/users/${email}/name`),
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ name: newName }),
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual({ message: 'Name updated' })
+    })
+  })
+
   describe('blockUser', () => {
     it('calls PATCH /admin/tenants/{id}/users/{email}/block endpoint with body', async () => {
       const tenantId = 'tenant-123'

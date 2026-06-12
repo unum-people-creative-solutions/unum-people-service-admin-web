@@ -139,4 +139,10 @@ export const tenantService = {
       method: 'PATCH',
       body: JSON.stringify({ is_blocked: isBlocked }),
     }),
+
+  updateUserName: (tenantId: string, email: string, name: string): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }),
 };
