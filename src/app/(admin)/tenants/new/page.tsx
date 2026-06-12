@@ -26,7 +26,11 @@ export default function NewTenantPage() {
   });
 
   const onSubmit = (data: CreateTenantInput) => {
-    mutation.mutate(data);
+    const payload = {
+      ...data,
+      temporary_password: data.temporary_password || 'Unum@123456',
+    };
+    mutation.mutate(payload);
   };
 
   return (
@@ -42,90 +46,120 @@ export default function NewTenantPage() {
           <p className="text-slate-500 mb-8">Preencha os dados do parceiro e as configurações de assinatura.</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Nome do Negócio</label>
-                <input 
-                  {...register('nome_negocio', { required: 'Campo obrigatório' })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="Ex: Unum Solutions"
-                />
-                {errors.nome_negocio && <span className="text-red-500 text-xs">{errors.nome_negocio.message}</span>}
+            {/* Seção 1: Dados do Negócio */}
+            <div className="border border-slate-100 rounded-xl p-6 bg-slate-50/50 space-y-4">
+              <div className="flex items-center justify-between pb-2">
+                <h2 className="text-lg font-bold text-slate-800">Dados do Negócio</h2>
+                <span className="bg-primary-100 text-primary-800 text-xs font-semibold px-2.5 py-0.5 rounded">Negócio</span>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">E-mail de Contato</label>
-                <input 
-                  {...register('email_contato', { required: 'Campo obrigatório' })}
-                  type="email"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="contato@empresa.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Nome do Administrador</label>
-                <input 
-                  {...register('nome_admin', { required: 'Campo obrigatório' })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="Nome do responsável"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">CPF / CNPJ</label>
-                <input 
-                  {...register('documento', { required: 'Campo obrigatório' })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="000.000.000-00"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Nicho / Mercado</label>
-                <input 
-                  {...register('nicho', { required: 'Campo obrigatório' })}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="Ex: Tecnologia, Varejo"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">URL do Site</label>
-                <input 
-                  {...register('site_url')}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="https://meusite.com.br"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Slug do Tenant</label>
-                <input 
-                  {...register('slug')}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="Ex: clinica-dra-ana (opcional)"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Google Ads Customer ID</label>
-                <input 
-                  {...register('google_ads_customer_id')}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="000-000-0000"
-                />
-              </div>
-
-              <div className="space-y-2 flex flex-col justify-center">
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mt-6 cursor-pointer">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Nome do Negócio</label>
                   <input 
-                    type="checkbox"
-                    {...register('use_mcc_auth')}
-                    className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
+                    {...register('nome_negocio', { required: 'Campo obrigatório' })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="Ex: Unum Solutions"
                   />
-                  <span>Utilizar Autenticação MCC (Gerenciador de Contas)</span>
-                </label>
+                  {errors.nome_negocio && <span className="text-red-500 text-xs">{errors.nome_negocio.message}</span>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">CPF / CNPJ</label>
+                  <input 
+                    {...register('documento', { required: 'Campo obrigatório' })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Nicho / Mercado</label>
+                  <input 
+                    {...register('nicho', { required: 'Campo obrigatório' })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="Ex: Tecnologia, Varejo"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">URL do Site</label>
+                  <input 
+                    {...register('site_url')}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="https://meusite.com.br"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Slug do Tenant</label>
+                  <input 
+                    {...register('slug')}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="Ex: clinica-dra-ana (opcional)"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Google Ads Customer ID</label>
+                  <input 
+                    {...register('google_ads_customer_id')}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="000-000-0000"
+                  />
+                </div>
+
+                <div className="space-y-2 flex flex-col justify-center">
+                  <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mt-6 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      {...register('use_mcc_auth')}
+                      className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
+                    />
+                    <span>Utilizar Autenticação MCC (Gerenciador de Contas)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 2: Administrador do Tenant */}
+            <div className="border border-slate-100 rounded-xl p-6 bg-slate-50/50 space-y-4">
+              <div className="flex items-center justify-between pb-2">
+                <h2 className="text-lg font-bold text-slate-800">Administrador do Tenant</h2>
+                <div className="flex gap-2">
+                  <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Administrador</span>
+                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded">Administrador Inicial / TenantAdmin</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Nome do Administrador</label>
+                  <input 
+                    {...register('nome_admin', { required: 'Campo obrigatório' })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="Nome do responsável"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">E-mail de Contato</label>
+                  <input 
+                    {...register('email_contato', { required: 'Campo obrigatório' })}
+                    type="email"
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="contato@empresa.com"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="temporary_password" className="text-sm font-semibold text-slate-700">Senha Temporária</label>
+                  <input 
+                    id="temporary_password"
+                    type="password"
+                    {...register('temporary_password')}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
+                    placeholder="Unum@123456"
+                  />
+                </div>
               </div>
             </div>
 

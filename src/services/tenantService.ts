@@ -1,7 +1,7 @@
 import { CognitoUser, CognitoRefreshToken } from 'amazon-cognito-identity-js';
 import { useAuthStore } from "@/store/useAuthStore";
 import { userPool } from "@/lib/cognito";
-import { Tenant, CreateTenantInput } from "@/types/tenant";
+import { Tenant, CreateTenantInput, TenantUser, TenantUserRole, AddTenantUserInput } from "@/types/tenant";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.unumpeople.com/v1';
 
@@ -88,7 +88,7 @@ export const tenantService = {
     method: 'DELETE',
   }),
 
-  resetPassword: (id: string): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}/reset-password`, {
+  resetUserPassword: (tenantId: string, email: string): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/reset-password`, {
     method: 'POST',
   }),
 
@@ -113,4 +113,36 @@ export const tenantService = {
     const queryString = params.toString();
     return fetchWithAuth(`/admin/dashboard/errors${queryString ? `?${queryString}` : ''}`);
   },
+
+  listUsers: (tenantId: string): Promise<TenantUser[]> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/users`, { method: 'GET' }),
+
+  addUser: (tenantId: string, data: AddTenantUserInput): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/users`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  removeUser: (tenantId: string, email: string): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}`, {
+      method: 'DELETE',
+    }),
+
+  updateUserRole: (tenantId: string, email: string, role: TenantUserRole): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+
+  blockUser: (tenantId: string, email: string, isBlocked: boolean): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/block`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_blocked: isBlocked }),
+    }),
+
+  updateUserName: (tenantId: string, email: string, name: string): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }),
 };
