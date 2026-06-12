@@ -40,5 +40,23 @@ export interface CreateTenantInput {
   plan_id: PlanID;
   plan_value: number;
   plan_cycle: PlanCycle;
+  temporary_password?: string;
 }
+
+export type TenantUserRole = 'admin' | 'user';
+
+export interface TenantUser {
+  email: string;
+  name: string;
+  role: TenantUserRole;
+  is_blocked: boolean;
+  created_at: string;
+}
+
+export interface AddTenantUserInput {
+  email: string;
+  name: string;
+  role: TenantUserRole;
+}
+
 

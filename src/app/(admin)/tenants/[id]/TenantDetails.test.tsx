@@ -11,6 +11,7 @@ vi.mock('@/services/tenantService', () => ({
     update: vi.fn(),
     delete: vi.fn(),
     resetPassword: vi.fn(),
+    listUsers: vi.fn().mockResolvedValue([]),
   },
 }));
 

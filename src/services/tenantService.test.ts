@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { tenantService } from './tenantService'
 import { useAuthStore } from '@/store/useAuthStore'
+import { TenantUser, TenantUserRole, AddTenantUserInput } from '@/types/tenant'
 
 // Mock globals
 const mockFetch = vi.fn()
@@ -98,6 +99,143 @@ describe('tenantService', () => {
         expect.stringContaining('/admin/dashboard/logs'),
         expect.any(Object)
       )
+    })
+  })
+
+  describe('listUsers', () => {
+    it('calls GET /admin/tenants/{id}/users endpoint', async () => {
+      const tenantId = 'tenant-123'
+      const mockUsers: TenantUser[] = [
+        {
+          email: 'user@test.com',
+          name: 'Test User',
+          role: 'user',
+          is_blocked: false,
+          created_at: '2026-06-12T12:00:00Z',
+        },
+      ]
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUsers,
+      })
+
+      const result = await tenantService.listUsers(tenantId)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/users`),
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual(mockUsers)
+    })
+  })
+
+  describe('addUser', () => {
+    it('calls POST /admin/tenants/{id}/users endpoint with body', async () => {
+      const tenantId = 'tenant-123'
+      const input: AddTenantUserInput = {
+        email: 'newuser@test.com',
+        name: 'New User',
+        role: 'user',
+      }
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'User added to tenant' }),
+      })
+
+      const result = await tenantService.addUser(tenantId, input)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/users`),
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify(input),
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual({ message: 'User added to tenant' })
+    })
+  })
+
+  describe('removeUser', () => {
+    it('calls DELETE /admin/tenants/{id}/users/{email} endpoint', async () => {
+      const tenantId = 'tenant-123'
+      const email = 'user@test.com'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'User removed from tenant' }),
+      })
+
+      const result = await tenantService.removeUser(tenantId, email)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/users/${email}`),
+        expect.objectContaining({
+          method: 'DELETE',
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual({ message: 'User removed from tenant' })
+    })
+  })
+
+  describe('updateUserRole', () => {
+    it('calls PATCH /admin/tenants/{id}/users/{email}/role endpoint with body', async () => {
+      const tenantId = 'tenant-123'
+      const email = 'user@test.com'
+      const role: TenantUserRole = 'admin'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Role updated' }),
+      })
+
+      const result = await tenantService.updateUserRole(tenantId, email, role)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/users/${email}/role`),
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ role }),
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual({ message: 'Role updated' })
+    })
+  })
+
+  describe('blockUser', () => {
+    it('calls PATCH /admin/tenants/{id}/users/{email}/block endpoint with body', async () => {
+      const tenantId = 'tenant-123'
+      const email = 'user@test.com'
+      const isBlocked = true
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'User blocked' }),
+      })
+
+      const result = await tenantService.blockUser(tenantId, email, isBlocked)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/users/${email}/block`),
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ is_blocked: isBlocked }),
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual({ message: 'User blocked' })
     })
   })
 

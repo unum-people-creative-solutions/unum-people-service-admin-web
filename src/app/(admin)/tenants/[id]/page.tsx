@@ -12,6 +12,7 @@ import {
   Globe, LayoutGrid, CreditCard, AlertTriangle 
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { TenantUsersSection } from '@/components/TenantUsersSection';
 
 export default function TenantDetailsPage() {
   const { id } = useParams() as { id: string };
@@ -331,6 +332,9 @@ export default function TenantDetailsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Seção de Usuários */}
+              <TenantUsersSection tenantId={id} />
             </div>
 
             <div className="space-y-8 sticky top-8 h-fit">
