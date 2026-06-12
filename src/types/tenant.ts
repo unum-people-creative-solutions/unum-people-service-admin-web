@@ -4,10 +4,16 @@ export type PlanID = 'lp_flash' | 'lp_basico' | 'lp_intermediario' | 'lp_avancad
 
 export interface Tenant {
   id: string;
+  api_key: string;
   nome_negocio: string;
   email_contato: string;
   documento: string;
   nicho: string;
+  site_url?: string;
+  slug?: string;
+  enabled_services?: string[];
+  google_ads_customer_id?: string;
+  use_mcc_auth: boolean;
   status: string;
   plan_id: PlanID;
   plan_status: PlanStatus;
@@ -26,7 +32,13 @@ export interface CreateTenantInput {
   email_contato: string;
   documento: string;
   nicho: string;
+  site_url?: string;
+  slug?: string;
+  enabled_services?: string[];
+  google_ads_customer_id?: string;
+  use_mcc_auth: boolean;
   plan_id: PlanID;
   plan_value: number;
   plan_cycle: PlanCycle;
 }
+

@@ -20,7 +20,7 @@ export default function LogsPage() {
     if (p === 'all') return { start: undefined, end: undefined };
     const end = new Date();
     const start = new Date();
-    if (p === 'today') start.setHours(start.getHours() - 24); // Últimas 24h para CloudWatch ser mais rápido
+    if (p === 'today') start.setHours(start.getHours() - 1); // Última 1h para CloudWatch ser mais rápido
     if (p === '7d') start.setDate(start.getDate() - 7);
     if (p === '30d') start.setDate(start.getDate() - 30);
     return { start: start.toISOString(), end: end.toISOString() };
@@ -137,7 +137,7 @@ export default function LogsPage() {
                   onChange={(e) => setPeriod(e.target.value as Period)}
                   className="bg-transparent focus:outline-none text-sm font-medium cursor-pointer"
                 >
-                  <option value="today">Hoje (24h)</option>
+                  <option value="today">Hoje (1h)</option>
                   <option value="7d">7 dias</option>
                   <option value="30d">30 dias</option>
                 </select>
@@ -166,7 +166,7 @@ export default function LogsPage() {
                 ) : filteredLogs.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                      Nenhum registro encontrado nas últimas 24h.
+                      Nenhum registro encontrado no período selecionado.
                     </td>
                   </tr>
                 ) : (

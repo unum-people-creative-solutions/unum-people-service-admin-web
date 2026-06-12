@@ -84,6 +84,10 @@ export const tenantService = {
     body: JSON.stringify(data),
   }),
 
+  delete: (id: string, immediate: boolean): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}${immediate ? '?immediate=true' : ''}`, {
+    method: 'DELETE',
+  }),
+
   resetPassword: (id: string): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}/reset-password`, {
     method: 'POST',
   }),
