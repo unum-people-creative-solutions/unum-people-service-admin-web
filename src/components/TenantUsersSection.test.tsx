@@ -226,4 +226,32 @@ describe('TenantUsersSection Component', () => {
 
     confirmSpy.mockRestore();
   });
+
+  test('exibe corretamente o status Bloqueado para usuários bloqueados', async () => {
+    const blockedUser = {
+      email: 'blocked@test.com',
+      name: 'Blocked User',
+      role: 'user' as const,
+      is_blocked: true,
+      created_at: '2026-06-12T12:00:00Z',
+    };
+    
+    vi.mocked(tenantService.listUsers).mockResolvedValue([blockedUser] as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantUsersSection tenantId={mockTenantId} />
+      </QueryClientProvider>
+    );
+
+    const table = await screen.findByRole('table');
+    expect(table).toBeDefined();
+
+    expect(screen.getByText('Blocked User')).toBeDefined();
+    
+    // Deve exibir o label Bloqueado (status visual)
+    const statusLabel = screen.getByText('Bloqueado');
+    expect(statusLabel).toBeDefined();
+    expect(statusLabel.className).toContain('bg-red-50 text-red-700');
+  });
 });
