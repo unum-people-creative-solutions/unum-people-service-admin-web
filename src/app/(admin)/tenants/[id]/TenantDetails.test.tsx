@@ -90,6 +90,9 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       </QueryClientProvider>
     );
 
+    const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+    fireEvent.click(showActionsBtn);
+
     const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
     fireEvent.click(deleteBtn);
 
@@ -111,6 +114,9 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
         <TenantDetailsPage />
       </QueryClientProvider>
     );
+
+    const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+    fireEvent.click(showActionsBtn);
 
     const hardDeleteSwitch = await screen.findByLabelText(/Hard Delete/i);
     fireEvent.click(hardDeleteSwitch);

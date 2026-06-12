@@ -21,6 +21,7 @@ export default function TenantDetailsPage() {
   
   // UI States
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showDangerZone, setShowDangerZone] = useState(false);
   const [isHardDelete, setIsHardDelete] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -39,6 +40,7 @@ export default function TenantDetailsPage() {
         ...tenant,
         nicho: tenant.nicho || '',
         site_url: tenant.site_url || '',
+        slug: tenant.slug || '',
         google_ads_customer_id: tenant.google_ads_customer_id || '',
         enabled_services: tenant.enabled_services || [],
       };
@@ -102,7 +104,7 @@ export default function TenantDetailsPage() {
   };
 
   // Verificações rigorosas de estado 'dirty' por seção
-  const isBasicsDirty = ['nome_negocio', 'documento', 'nicho', 'site_url'].some(
+  const isBasicsDirty = ['nome_negocio', 'documento', 'nicho', 'site_url', 'slug'].some(
     field => dirtyFields[field as keyof Tenant] === true
   );
   
@@ -215,6 +217,14 @@ export default function TenantDetailsPage() {
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Slug do Tenant</label>
+                      <input 
+                        {...register('slug')}
+                        placeholder="Ex: clinica-dra-ana"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700">E-mail do Proprietário (Login)</label>
@@ -262,7 +272,7 @@ export default function TenantDetailsPage() {
                   <div className="space-y-4">
                     <label className="text-sm font-semibold text-slate-700">Serviços Ativos</label>
                     <div className="flex flex-wrap gap-4">
-                      {['crm', 'ads', 'site', 'notifications'].map((svc) => (
+                      {['crm', 'site', 'blog', 'lp', 'ads', 'notifications'].map((svc) => (
                         <label key={svc} className="flex items-center gap-2 px-4 py-2 border border-slate-100 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
                           <input 
                             type="checkbox"
@@ -270,7 +280,9 @@ export default function TenantDetailsPage() {
                             {...register('enabled_services')}
                             className="w-4 h-4 text-primary-600 rounded"
                           />
-                          <span className="text-sm font-medium text-slate-600 uppercase">{svc}</span>
+                          <span className="text-sm font-medium text-slate-600 uppercase">
+                            {svc === 'lp' ? 'Landing Pages' : svc === 'crm' ? 'CRM' : svc}
+                          </span>
                         </label>
                       ))}
                     </div>
@@ -384,69 +396,80 @@ export default function TenantDetailsPage() {
 
               {/* Área Crítica */}
               <div className="bg-red-50 rounded-xl shadow-sm border border-red-100 p-6 space-y-6">
-                <h2 className="flex items-center gap-2 font-bold text-red-800">
-                  <ShieldAlert size={20} /> Área de Perigo
-                </h2>
-
-                <div className="space-y-4">
-                  <button
+                <div className="flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 font-bold text-red-800">
+                    <ShieldAlert size={20} /> Área de Perigo
+                  </h2>
+                  <button 
                     type="button"
-                    onClick={() => resetPwdMutation.mutate()}
-                    disabled={resetPwdMutation.isPending}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 rounded-lg text-red-700 bg-white font-medium hover:bg-red-50 transition-colors shadow-sm"
+                    onClick={() => setShowDangerZone(!showDangerZone)}
+                    className="text-[10px] font-bold px-3 py-1 border border-red-200 rounded-lg text-red-700 bg-white hover:bg-red-50 transition-colors shadow-sm"
                   >
-                    <Key size={18} /> Resetar Senha Admin
+                    {showDangerZone ? 'OCULTAR AÇÕES' : 'MOSTRAR AÇÕES'}
                   </button>
-
-                  <div className="p-4 bg-white/50 rounded-lg border border-red-100 flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <span className="text-sm font-bold text-red-900 block">Bloquear Tenant</span>
-                      <p className="text-[10px] text-red-600 max-w-[120px]">Interrompe acesso imediato de todos os usuários.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleBlockMutation.mutate(!tenant.is_blocked)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${tenant.is_blocked ? 'bg-red-600' : 'bg-slate-300'}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${tenant.is_blocked ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-
-                  <div className="pt-4 border-t border-red-100 space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="relative inline-flex h-5 w-9 items-center rounded-full bg-slate-300 cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          id="hard_delete_toggle"
-                          className="sr-only peer" 
-                          checked={isHardDelete}
-                          onChange={(e) => setIsHardDelete(e.target.checked)}
-                        />
-                        <div className={`h-3 w-3 ml-1 rounded-full bg-white transition-all peer-checked:translate-x-4 ${isHardDelete ? 'bg-red-600' : ''}`}></div>
-                        <label htmlFor="hard_delete_toggle" className="absolute inset-0 cursor-pointer">
-                          <span className="sr-only">Hard Delete</span>
-                        </label>
-                      </div>
-                      <span className="text-xs font-bold text-slate-700">MODO EXCLUSÃO FÍSICA</span>
-                    </div>
-
-                    {isHardDelete && (
-                      <div className="p-3 bg-red-100 border border-red-200 rounded-lg text-red-700 text-[10px] font-bold animate-pulse">
-                        <AlertTriangle size={14} className="inline mr-1" />
-                        Atenção: Deleção Física Ativada! Isto removerá permanentemente todos os registros do banco.
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteModal(true)}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-all shadow-md active:scale-95"
-                    >
-                      <Trash2 size={18} />
-                      Excluir Tenant
-                    </button>
-                  </div>
                 </div>
+
+                {showDangerZone && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <button
+                      type="button"
+                      onClick={() => resetPwdMutation.mutate()}
+                      disabled={resetPwdMutation.isPending}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 rounded-lg text-red-700 bg-white font-medium hover:bg-red-50 transition-colors shadow-sm"
+                    >
+                      <Key size={18} /> Resetar Senha Admin
+                    </button>
+
+                    <div className="p-4 bg-white/50 rounded-lg border border-red-100 flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <span className="text-sm font-bold text-red-900 block">Bloquear Tenant</span>
+                        <p className="text-[10px] text-red-600 max-w-[120px]">Interrompe acesso imediato de todos os usuários.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleBlockMutation.mutate(!tenant.is_blocked)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${tenant.is_blocked ? 'bg-red-600' : 'bg-slate-300'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${tenant.is_blocked ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+
+                    <div className="pt-4 border-t border-red-100 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative inline-flex h-5 w-9 items-center rounded-full bg-slate-300 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            id="hard_delete_toggle"
+                            className="sr-only peer" 
+                            checked={isHardDelete}
+                            onChange={(e) => setIsHardDelete(e.target.checked)}
+                          />
+                          <div className={`h-3 w-3 ml-1 rounded-full bg-white transition-all peer-checked:translate-x-4 ${isHardDelete ? 'bg-red-600' : ''}`}></div>
+                          <label htmlFor="hard_delete_toggle" className="absolute inset-0 cursor-pointer">
+                            <span className="sr-only">Hard Delete</span>
+                          </label>
+                        </div>
+                        <span className="text-xs font-bold text-slate-700">MODO EXCLUSÃO FÍSICA</span>
+                      </div>
+
+                      {isHardDelete && (
+                        <div className="p-3 bg-red-100 border border-red-200 rounded-lg text-red-700 text-[10px] font-bold animate-pulse">
+                          <AlertTriangle size={14} className="inline mr-1" />
+                          Atenção: Deleção Física Ativada! Isto removerá permanentemente todos os registros do banco.
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteModal(true)}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-all shadow-md active:scale-95"
+                      >
+                        <Trash2 size={18} />
+                        Excluir Tenant
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
