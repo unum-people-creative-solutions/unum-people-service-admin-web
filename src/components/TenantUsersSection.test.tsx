@@ -217,7 +217,7 @@ describe('TenantUsersSection Component', () => {
     fireEvent.click(resetPasswordBtn);
 
     expect(confirmSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/Deseja enviar um código de recuperação de senha para o e-mail deste usuário\?/i)
+      expect.stringMatching(/Deseja redefinir e enviar uma nova senha temporária para o e-mail deste usuário\?/i)
     );
 
     await waitFor(() => {

@@ -355,7 +355,7 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm("Deseja enviar um código de recuperação de senha para o e-mail deste usuário?")) {
+                    if (window.confirm("Deseja redefinir e enviar uma nova senha temporária para o e-mail deste usuário?")) {
                       resetUserPasswordMutation.mutate({ tenantId, email: editingUser.email });
                     }
                   }}
