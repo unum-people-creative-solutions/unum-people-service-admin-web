@@ -129,18 +129,35 @@ describe('TenantUsersSection Component', () => {
     expect(loggedRow).not.toBeNull();
 
     const loggedRemoveBtn = within(loggedRow!).getByRole('button', { name: /remover/i });
-    const loggedRoleSelect = within(loggedRow!).getByRole('combobox', { name: /perfil|role/i });
-
     expect(loggedRemoveBtn).toBeDisabled();
+
+    // Abre o modal de edição para o usuário logado
+    const loggedEditBtn = within(loggedRow!).getByRole('button', { name: /editar/i });
+    fireEvent.click(loggedEditBtn);
+
+    const loggedRoleSelect = screen.getByRole('combobox', { name: /perfil/i });
     expect(loggedRoleSelect).toBeDisabled();
+    
+    const loggedBlockCheckbox = screen.getByRole('checkbox');
+    expect(loggedBlockCheckbox).toBeDisabled();
+
+    // Fecha o modal
+    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
 
     const otherRow = screen.getByText('other@test.com').closest('tr');
     expect(otherRow).not.toBeNull();
 
     const otherRemoveBtn = within(otherRow!).getByRole('button', { name: /remover/i });
-    const otherRoleSelect = within(otherRow!).getByRole('combobox', { name: /perfil|role/i });
-
     expect(otherRemoveBtn).not.toBeDisabled();
+
+    // Abre o modal de edição para outro usuário
+    const otherEditBtn = within(otherRow!).getByRole('button', { name: /editar/i });
+    fireEvent.click(otherEditBtn);
+
+    const otherRoleSelect = screen.getByRole('combobox', { name: /perfil/i });
     expect(otherRoleSelect).not.toBeDisabled();
+    
+    const otherBlockCheckbox = screen.getByRole('checkbox');
+    expect(otherBlockCheckbox).not.toBeDisabled();
   });
 });

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { TenantUserRole, AddTenantUserInput, TenantUser } from '@/types/tenant';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Edit2 } from 'lucide-react';
 
 interface TenantUsersSectionProps {
   tenantId: string;
@@ -19,6 +19,10 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<TenantUserRole>('user');
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
+
+  const [editingUser, setEditingUser] = useState<TenantUser | null>(null);
+  const [editRole, setEditRole] = useState<TenantUserRole>('user');
+  const [editBlocked, setEditBlocked] = useState(false);
 
   const { data: users = [], isLoading, error } = useQuery<TenantUser[]>({
     queryKey: ['tenant-users', tenantId],
@@ -60,8 +64,8 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
     },
   });
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault();
     const newErrors: { name?: string; email?: string } = {};
     if (!newName.trim()) {
       newErrors.name = 'Nome é obrigatório';
@@ -84,6 +88,19 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
     if (window.confirm('Tem certeza de que deseja remover este usuário?')) {
       removeUserMutation.mutate(email);
     }
+  };
+
+  const handleEditSave = () => {
+    if (!editingUser) return;
+    
+    // Dispara as mutations sequencialmente ou apenas a que mudou
+    if (editingUser.role !== editRole) {
+      updateUserRoleMutation.mutate({ email: editingUser.email, role: editRole });
+    }
+    if (editingUser.is_blocked !== editBlocked) {
+      blockUserMutation.mutate({ email: editingUser.email, isBlocked: editBlocked });
+    }
+    setEditingUser(null);
   };
 
   return (
@@ -119,10 +136,10 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
           <table role="table" className="w-full border-collapse text-left text-sm text-slate-500">
             <thead className="bg-slate-50 text-xs uppercase text-slate-700">
               <tr role="row">
-                <th scope="col" className="px-6 py-3">Nome / Avatar</th>
+                <th scope="col" className="px-6 py-3">Nome</th>
                 <th scope="col" className="px-6 py-3">Email</th>
-                <th scope="col" className="px-6 py-3">Perfil / Role</th>
-                <th scope="col" className="px-6 py-3">Bloqueado</th>
+                <th scope="col" className="px-6 py-3">Perfil</th>
+                <th scope="col" className="px-6 py-3">Status</th>
                 <th scope="col" className="px-6 py-3">Ações</th>
               </tr>
             </thead>
@@ -130,52 +147,36 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
               {users.map((userItem) => (
                 <tr role="row" key={userItem.email} className="hover:bg-slate-50/50">
                   <td className="px-6 py-4 font-medium text-slate-900">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-primary-700">
-                        {userItem.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span>{userItem.name}</span>
-                    </div>
+                    {userItem.name}
                   </td>
                   <td className="px-6 py-4">{userItem.email}</td>
                   <td className="px-6 py-4">
-                    <select
-                      title="Perfil"
-                      value={userItem.role}
-                      disabled={userItem.email === loggedInEmail}
-                      onChange={(e) =>
-                        updateUserRoleMutation.mutate({
-                          email: userItem.email,
-                          role: e.target.value as TenantUserRole,
-                        })
-                      }
-                      className="px-2 py-1 border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-slate-50 disabled:text-slate-400"
-                    >
-                      <option value="admin">Admin</option>
-                      <option value="user">User</option>
-                    </select>
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${userItem.role === 'admin' ? 'bg-primary-50 text-primary-700 border border-primary-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                      {userItem.role === 'admin' ? 'Admin' : 'Usuário'}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={userItem.is_blocked}
-                        onChange={(e) =>
-                          blockUserMutation.mutate({
-                            email: userItem.email,
-                            isBlocked: e.target.checked,
-                          })
-                        }
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                    </label>
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${userItem.is_blocked ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                      {userItem.is_blocked ? 'Bloqueado' : 'Ativo'}
+                    </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 flex gap-4">
                     <button
+                      type="button"
+                      onClick={() => {
+                        setEditingUser(userItem);
+                        setEditRole(userItem.role);
+                        setEditBlocked(userItem.is_blocked);
+                      }}
+                      className="text-primary-600 hover:text-primary-900 font-medium flex items-center gap-1 transition-colors"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleRemove(userItem.email)}
                       disabled={userItem.email === loggedInEmail}
-                      className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:hover:text-red-600 font-medium"
+                      className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:hover:text-red-600 font-medium flex items-center gap-1 transition-colors"
                     >
                       Remover
                     </button>
@@ -191,7 +192,10 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
         <div role="dialog" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-bold text-slate-900">Adicionar Usuário ao Tenant</h3>
-            <form onSubmit={handleSave} className="space-y-4">
+            <div 
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
+              className="space-y-4"
+            >
               <div className="space-y-1">
                 <label htmlFor="new_name" className="text-sm font-semibold text-slate-700">Nome</label>
                 <input
@@ -202,7 +206,7 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                     setNewName(e.target.value);
                     if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
                   }}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 outline-none"
                   placeholder="Nome do usuário"
                 />
                 {errors.name && <span className="text-red-500 text-xs">{errors.name}</span>}
@@ -218,7 +222,7 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                     setNewEmail(e.target.value);
                     if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
                   }}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 outline-none"
                   placeholder="email@empresa.com"
                 />
                 {errors.email && <span className="text-red-500 text-xs">{errors.email}</span>}
@@ -230,7 +234,7 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                   id="new_role"
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as TenantUserRole)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-primary-500/20"
                 >
                   <option value="admin">Administrador (Admin)</option>
                   <option value="user">Usuário Comum (User)</option>
@@ -252,7 +256,8 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                   Cancelar
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => handleSave()}
                   disabled={addUserMutation.isPending}
                   className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
                 >
@@ -260,7 +265,90 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
                   Salvar
                 </button>
               </div>
-            </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div role="dialog" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">Editar Usuário</h3>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-slate-700">Nome</label>
+                <input
+                  type="text"
+                  value={editingUser.name}
+                  disabled
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-slate-700">E-mail</label>
+                <input
+                  type="email"
+                  value={editingUser.email}
+                  disabled
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="edit_role" className="text-sm font-semibold text-slate-700">Perfil</label>
+                <select
+                  id="edit_role"
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as TenantUserRole)}
+                  disabled={editingUser.email === loggedInEmail}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-slate-50 disabled:text-slate-400"
+                >
+                  <option value="admin">Administrador (Admin)</option>
+                  <option value="user">Usuário Comum (User)</option>
+                </select>
+                {editingUser.email === loggedInEmail && (
+                  <p className="text-xs text-amber-600 mt-1">Você não pode alterar seu próprio perfil.</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 block">Bloquear Usuário</label>
+                  <span className="text-xs text-slate-500">Impede o login no sistema.</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editBlocked}
+                    onChange={(e) => setEditBlocked(e.target.checked)}
+                    disabled={editingUser.email === loggedInEmail}
+                    className="sr-only peer"
+                  />
+                  <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${editBlocked ? 'bg-red-600' : 'bg-slate-200'} ${editingUser.email === loggedInEmail ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleEditSave()}
+                  disabled={updateUserRoleMutation.isPending || blockUserMutation.isPending}
+                  className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
+                >
+                  {(updateUserRoleMutation.isPending || blockUserMutation.isPending) && <Loader2 className="animate-spin" size={16} />}
+                  Salvar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
