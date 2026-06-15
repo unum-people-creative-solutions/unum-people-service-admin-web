@@ -25,11 +25,11 @@ A Fase 5 exige a separação rígida de responsabilidades:
 - **Handoff**: "Código implementado. Testes passando. Handoff para o Agente Auditor."
 
 ### 3. Agente Auditor (Revisor)
-- **Objetivo**: Validar segurança (`security-best-practices`), convenções e cobertura.
-- **Handoff**: "Auditoria concluída. Task marcada como DONE."
+- **Objetivo**: Validar segurança (`security-best-practices`), convenções e cobertura. E garantir a **Atualização de Estado** no `STATE.md`.
+- **Handoff**: "Auditoria concluída. Arquivo STATE.md atualizado. Task marcada como DONE."
 
 ## 🛡️ Regras e Harness
-Consulte estritamente o arquivo `.specs/RULES.md` para restrições técnicas e comportamentais inquebráveis.
+Consulte estritamente o arquivo `docs/unum-people-services-admin-web/spec/RULES.md` para restrições técnicas e comportamentais inquebráveis.
 
 ## 📝 Comandos e Contexto Local
 Admin web interface for scalable services.
