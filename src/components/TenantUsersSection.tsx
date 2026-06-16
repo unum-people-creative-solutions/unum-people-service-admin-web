@@ -77,7 +77,7 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
     mutationFn: ({ tenantId, email }: { tenantId: string; email: string }) =>
       tenantService.resetUserPassword(tenantId, email),
     onSuccess: () => {
-      alert("Código de recuperação enviado com sucesso!");
+      alert("Senha temporária enviada com sucesso!");
     },
   });
 
