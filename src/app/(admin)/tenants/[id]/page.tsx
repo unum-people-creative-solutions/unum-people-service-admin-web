@@ -39,6 +39,8 @@ export default function TenantDetailsPage() {
     if (tenant) {
       const sanitizedTenant = {
         ...tenant,
+        nome_negocio: tenant.nome_negocio || '',
+        documento: tenant.documento || '',
         nicho: tenant.nicho || '',
         site_url: tenant.site_url || '',
         slug: tenant.slug || '',
