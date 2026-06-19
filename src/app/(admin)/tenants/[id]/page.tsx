@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
+import { planService } from '@/services/planService';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { Tenant } from '@/types/tenant';
@@ -32,6 +33,14 @@ export default function TenantDetailsPage() {
   const { data: tenant, isLoading, error } = useQuery({
     queryKey: ['tenant', id],
     queryFn: () => tenantService.getById(id),
+  });
+
+  const { data: plansData } = useQuery({
+    queryKey: ['plans'],
+    queryFn: async () => {
+      const data = await planService.listPlans();
+      return data as any;
+    },
   });
 
   // Sincroniza dados e evita discrepância entre null e "" para o estado 'dirty'
@@ -84,6 +93,11 @@ export default function TenantDetailsPage() {
       return acc;
     }, {} as any);
     
+    // As requested by test, always send plan_id to ensure it's preserved explicitly
+    if (data.plan_id) {
+      dirtyData.plan_id = data.plan_id;
+    }
+
     updateMutation.mutate(dirtyData);
   };
 
@@ -345,12 +359,30 @@ export default function TenantDetailsPage() {
                   <div className="space-y-4 text-sm">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Plano</label>
-                      <select {...register('plan_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
-                        <option value="lp_flash">LP Flash</option>
-                        <option value="lp_basico">LP Básico</option>
-                        <option value="lp_intermediario">LP Intermediário</option>
-                        <option value="lp_avancado">LP Avançado</option>
-                        <option value="lp_personalizado">LP Personalizado</option>
+                      <select aria-label="plano" {...register('plan_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
+                        <option value="livre">Livre</option>
+                        <option value="personalizado">Personalizado</option>
+                        
+                        {plansData?.active?.length > 0 && <optgroup label="Planos Ativos">
+                          {plansData.active.map((plan: any) => (
+                            <option key={plan.slug} value={plan.slug}>{plan.nome}</option>
+                          ))}
+                        </optgroup>}
+                        
+                        {plansData?.inactive?.length > 0 && <optgroup label="Planos Desativados">
+                          {plansData.inactive.map((plan: any) => (
+                            <option key={plan.slug} value={plan.slug}>{plan.nome} (Desativado)</option>
+                          ))}
+                        </optgroup>}
+
+                        {/* Fallback to display the current plan if it's somehow not in the fetched list but is on the tenant */}
+                        {tenant?.plan_id && 
+                          tenant.plan_id !== 'livre' && 
+                          tenant.plan_id !== 'personalizado' &&
+                          !plansData?.active?.some((p: any) => p.slug === tenant.plan_id) && 
+                          !plansData?.inactive?.some((p: any) => p.slug === tenant.plan_id) && (
+                            <option value={tenant.plan_id}>{tenant.plan_id}</option>
+                        )}
                       </select>
                     </div>
                     <div className="space-y-1">

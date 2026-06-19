@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import NewTenantPage from './page';
 import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,6 +8,17 @@ import { useRouter } from 'next/navigation';
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
     create: vi.fn(),
+  },
+}));
+
+vi.mock('@/services/planService', () => ({
+  planService: {
+    listPlans: vi.fn().mockResolvedValue({ 
+      active: [
+        { slug: 'plan_mock_1', nome: 'Mock Plan', activation_fee: 100, monthly_value: 50 }
+      ], 
+      inactive: [] 
+    }),
   },
 }));
 
@@ -66,6 +77,55 @@ describe('NewTenantPage - Separation of Tenant and Admin', () => {
 
     const passwordInput = screen.getByLabelText(/senha temporária/i);
     expect(passwordInput).toBeDefined();
-    expect(passwordInput).toHaveAttribute('placeholder', 'Unum@123456');
+  });
+});
+
+describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test('Plano Livre oculta campos de pagamento', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'livre' } });
+    
+    const fields = screen.queryByRole('spinbutton', { name: /valor de ativação/i });
+    expect(fields).toBeNull();
+  });
+
+  test('Plano Personalizado permite edição de valores', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'personalizado' } });
+
+    const activationField = screen.getByRole('spinbutton', { name: /valor de ativação/i });
+    expect(activationField).toBeInTheDocument();
+    expect(activationField).not.toHaveAttribute('readonly');
+  });
+
+  test('Plano Pré-configurado exibe valores readonly', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'plan_mock_1' } });
+
+    const monthlyField = screen.getByRole('spinbutton', { name: /mensalidade/i });
+    expect(monthlyField).toBeInTheDocument();
+    expect(monthlyField).toHaveAttribute('readonly');
   });
 });

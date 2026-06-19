@@ -1,6 +1,33 @@
-export type PlanStatus = 'ativo' | 'em_atraso' | 'pausado' | 'cancelado';
+export type TenantStatus = 'aguardando_ativacao' | 'ativo' | 'inadimplente' | 'suspenso' | 'pausado' | 'cancelado' | 'pendente_asaas';
 export type PlanCycle = 'mensal' | 'anual';
-export type PlanID = 'lp_flash' | 'lp_basico' | 'lp_intermediario' | 'lp_avancado' | 'lp_personalizado';
+export type PlanType = 'pago' | 'personalizado' | 'livre';
+
+export interface Plan {
+  slug: string;
+  nome: string;
+  descricao: string;
+  activation_fee: number;
+  monthly_value: number;
+  included_services: string[];
+  is_active: boolean;
+  tenant_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Contract {
+  plan_id: string;
+  plan_type: PlanType;
+  activation_fee: number;
+  monthly_value: number;
+  activation_billing_type?: 'pix' | 'credit_card';
+  subscription_billing_type?: 'pix' | 'credit_card';
+  asaas_customer_id?: string;
+  activation_invoice_url?: string;
+  subscription_invoice_url?: string;
+  subscription_url_state?: 'aguardando_ativacao' | 'gerando' | 'disponivel' | 'erro';
+  created_at: string;
+}
 
 export interface Tenant {
   id: string;
@@ -14,9 +41,10 @@ export interface Tenant {
   enabled_services?: string[];
   google_ads_customer_id?: string;
   use_mcc_auth: boolean;
-  status: string;
-  plan_id: PlanID;
-  plan_status: PlanStatus;
+  status: TenantStatus;
+  plan_id: string;
+  plan_type?: PlanType;
+  plan_status?: TenantStatus; // Mantido para retrocompatibilidade se necessário
   plan_value: number;
   plan_cycle: PlanCycle;
   activated_at: string;
@@ -37,8 +65,10 @@ export interface CreateTenantInput {
   enabled_services?: string[];
   google_ads_customer_id?: string;
   use_mcc_auth: boolean;
-  plan_id: PlanID;
-  plan_value: number;
+  plan_id: string;
+  plan_type?: PlanType;
+  activation_fee?: number;
+  monthly_value?: number;
   plan_cycle: PlanCycle;
   temporary_password?: string;
 }
