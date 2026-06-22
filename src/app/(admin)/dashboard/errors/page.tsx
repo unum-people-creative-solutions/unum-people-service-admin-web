@@ -127,6 +127,8 @@ export default function LogsPage() {
                   <option value="CRM">CRM Core</option>
                   <option value="Ingestion">Ingestion</option>
                   <option value="Ads">Ads Worker</option>
+                  <option value="Public">Public (Webhooks)</option>
+                  <option value="AsaasWorker">Asaas Worker</option>
                 </select>
               </div>
 
