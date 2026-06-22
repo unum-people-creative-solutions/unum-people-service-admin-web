@@ -14,6 +14,31 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { TenantUsersSection } from '@/components/TenantUsersSection';
+import { BillingCard } from '@/components/tenants/BillingCard';
+
+const getStatusBadge = (tenant: Tenant) => {
+  if (tenant.is_blocked) {
+    return { label: 'BLOQUEADA', classes: 'bg-red-50 text-red-700 border-red-200' };
+  }
+  switch (tenant.status) {
+    case 'aguardando_ativacao':
+      return { label: 'AGUARDANDO ATIVAÇÃO', classes: 'bg-yellow-50 text-yellow-700 border-yellow-200' };
+    case 'pendente_asaas':
+      return { label: 'PENDENTE ASAAS', classes: 'bg-blue-50 text-blue-700 border-blue-200' };
+    case 'ativo':
+      return { label: 'ATIVO', classes: 'bg-green-50 text-green-700 border-green-200' };
+    case 'inadimplente':
+      return { label: 'INADIMPLENTE', classes: 'bg-red-50 text-red-700 border-red-200' };
+    case 'suspenso':
+      return { label: 'SUSPENSO', classes: 'bg-orange-50 text-orange-700 border-orange-200' };
+    case 'pausado':
+      return { label: 'PAUSADO', classes: 'bg-slate-50 text-slate-700 border-slate-200' };
+    case 'cancelado':
+      return { label: 'CANCELADO', classes: 'bg-slate-100 text-slate-800 border-slate-300' };
+    default:
+      return { label: tenant.status ? String(tenant.status).toUpperCase() : 'DESCONHECIDO', classes: 'bg-slate-50 text-slate-700 border-slate-200' };
+  }
+};
 
 export default function TenantDetailsPage() {
   const { id } = useParams() as { id: string };
@@ -165,9 +190,14 @@ export default function TenantDetailsPage() {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-3xl font-bold text-slate-900">{tenant.nome_negocio}</h1>
-                <div className={`px-3 py-1 rounded-full text-[10px] font-bold border ${tenant.is_blocked ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
-                  {tenant.is_blocked ? 'BLOQUEADA' : 'ATIVA'}
-                </div>
+                {(() => {
+                  const badge = getStatusBadge(tenant);
+                  return (
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold border ${badge.classes}`}>
+                      {badge.label}
+                    </div>
+                  );
+                })()}
               </div>
               <p className="text-slate-500 text-sm">Tenant ID: <span className="font-mono">{tenant.id}</span></p>
             </div>
@@ -346,6 +376,11 @@ export default function TenantDetailsPage() {
             </div>
 
             <div className="space-y-8 sticky top-8 h-fit">
+              {/* Card de Billing (Asaas) — apenas para planos pagos/personalizado */}
+              {tenant.plan_type !== 'livre' && (
+                <BillingCard tenant={tenant} contract={tenant.contract} />
+              )}
+
               {/* Card Assinatura */}
               <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isSubscriptionDirty ? 'border-red-200 shadow-red-500/5' : 'border-slate-200'}`}>
                 <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">

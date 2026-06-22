@@ -203,4 +203,32 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       }));
     });
   });
+
+  describe('T19 - Badge reflete status real', () => {
+    const statusesAndLabels = [
+      { status: 'aguardando_ativacao', label: 'AGUARDANDO ATIVAÇÃO' },
+      { status: 'pendente_asaas', label: 'PENDENTE ASAAS' },
+      { status: 'ativo', label: 'ATIVO' },
+      { status: 'inadimplente', label: 'INADIMPLENTE' },
+      { status: 'suspenso', label: 'SUSPENSO' },
+      { status: 'pausado', label: 'PAUSADO' },
+      { status: 'cancelado', label: 'CANCELADO' },
+    ];
+
+    statusesAndLabels.forEach(({ status, label }) => {
+      test(`deve exibir o badge "${label}" quando status for "${status}"`, async () => {
+        vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status } as any);
+
+        render(
+          <QueryClientProvider client={queryClient}>
+            <TenantDetailsPage />
+          </QueryClientProvider>
+        );
+
+        // O cabeçalho (que está dentro de h1 ou no topo) deve conter o badge
+        // Test fails se o texto exato não for encontrado
+        expect(await screen.findByText(label)).toBeInTheDocument();
+      });
+    });
+  });
 });

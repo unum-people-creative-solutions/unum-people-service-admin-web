@@ -129,3 +129,57 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
     expect(monthlyField).toHaveAttribute('readonly');
   });
 });
+
+describe('NewTenantPage - T20: CPF obrigatório p/ pago + seletores de método (UI-07)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test('Deve exigir CPF/CNPJ quando plano é pago e exibir seletores de método de pagamento', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    // Seleciona plano pago
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'plan_mock_1' } });
+
+    // Tenta submeter sem preencher nada
+    const submitBtn = screen.getByRole('button', { name: /criar tenant/i });
+    fireEvent.click(submitBtn);
+
+    // Deve exibir erro de CPF/CNPJ obrigatório específico
+    const cpfError = await screen.findByText(/cpf\/cnpj é obrigatório para planos pagos/i);
+    expect(cpfError).toBeInTheDocument();
+
+    // Deve exibir os seletores de método de pagamento (Cartão, Boleto, Pix) para ativação e assinatura
+    const paymentMethodHeading = screen.getByRole('heading', { name: /métodos de pagamento/i });
+    expect(paymentMethodHeading).toBeInTheDocument();
+
+    // Os seletores de método de pagamento (ativação e assinatura) devem ser campos reais, não só o heading
+    const activationMethod = screen.getByRole('combobox', { name: /método de pagamento da ativação/i });
+    expect(activationMethod).toBeInTheDocument();
+    const subscriptionMethod = screen.getByRole('combobox', { name: /método de pagamento da assinatura/i });
+    expect(subscriptionMethod).toBeInTheDocument();
+  });
+
+  test('Não deve exibir seletores de pagamento quando plano é livre', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    // Seleciona plano livre
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'livre' } });
+
+    // Não deve exibir os seletores de método de pagamento
+    const paymentMethodHeading = screen.queryByRole('heading', { name: /métodos de pagamento/i });
+    expect(paymentMethodHeading).toBeNull();
+    expect(screen.queryByRole('combobox', { name: /método de pagamento da ativação/i })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: /método de pagamento da assinatura/i })).toBeNull();
+  });
+});

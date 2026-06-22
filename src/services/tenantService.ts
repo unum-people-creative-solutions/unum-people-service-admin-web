@@ -145,4 +145,14 @@ export const tenantService = {
       method: 'PATCH',
       body: JSON.stringify({ name }),
     }),
+
+  retryBilling: (tenantId: string): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/subscription/retry`, {
+      method: 'POST',
+    }),
+
+  retryActivation: (tenantId: string): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/activation/retry`, {
+      method: 'POST',
+    }),
 };

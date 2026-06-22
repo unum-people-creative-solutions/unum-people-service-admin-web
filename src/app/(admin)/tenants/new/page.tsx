@@ -103,10 +103,13 @@ export default function NewTenantPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">CPF / CNPJ</label>
                   <input 
-                    {...register('documento', { required: 'Campo obrigatório' })}
+                    {...register('documento', { 
+                      required: planType !== 'livre' ? 'CPF/CNPJ é obrigatório para planos pagos' : false 
+                    })}
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
                     placeholder="000.000.000-00"
                   />
+                  {errors.documento && <span className="text-red-500 text-xs">{errors.documento.message}</span>}
                 </div>
 
                 <div className="space-y-2">
@@ -244,6 +247,35 @@ export default function NewTenantPage() {
 
                 {planType !== 'livre' && (
                   <>
+                    <div className="md:col-span-2 pt-4 border-t border-slate-200 mt-2 mb-2">
+                      <h3 className="text-lg font-bold text-slate-800">Métodos de Pagamento</h3>
+                      <p className="text-sm text-slate-500">Selecione os métodos aceitos para este tenant (via Asaas).</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="activation_billing_type" className="text-sm font-semibold text-slate-700">Método de Pagamento da Ativação</label>
+                      <select
+                        id="activation_billing_type"
+                        {...register('activation_billing_type')}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
+                      >
+                        <option value="pix">PIX</option>
+                        <option value="credit_card">Cartão de Crédito</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="subscription_billing_type" className="text-sm font-semibold text-slate-700">Método de Pagamento da Assinatura</label>
+                      <select
+                        id="subscription_billing_type"
+                        {...register('subscription_billing_type')}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
+                      >
+                        <option value="pix">PIX</option>
+                        <option value="credit_card">Cartão de Crédito</option>
+                      </select>
+                    </div>
+
                     <div className="space-y-2">
                       <label htmlFor="plan_cycle" className="text-sm font-semibold text-slate-700">Ciclo</label>
                       <select 

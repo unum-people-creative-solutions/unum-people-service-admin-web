@@ -52,6 +52,7 @@ export interface Tenant {
   renewal_at: string;
   is_blocked: boolean;
   created_at: string;
+  contract?: Contract;
 }
 
 export interface CreateTenantInput {
@@ -71,6 +72,8 @@ export interface CreateTenantInput {
   monthly_value?: number;
   plan_cycle: PlanCycle;
   temporary_password?: string;
+  activation_billing_type?: 'pix' | 'credit_card';
+  subscription_billing_type?: 'pix' | 'credit_card';
 }
 
 export type TenantUserRole = 'admin' | 'user';
