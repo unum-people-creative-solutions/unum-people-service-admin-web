@@ -4,11 +4,12 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { planService } from '@/services/planService';
 import { useRouter } from 'next/navigation';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, Controller } from 'react-hook-form';
 import { CreateTenantInput } from '@/types/tenant';
 import Link from 'next/link';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
+import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
 
 export default function NewTenantPage() {
   const router = useRouter();
@@ -290,25 +291,37 @@ export default function NewTenantPage() {
 
                     <div className="space-y-2">
                       <label htmlFor="activation_fee" className="text-sm font-semibold text-slate-700">Valor de Ativação</label>
-                      <input 
-                        id="activation_fee"
-                        {...register('activation_fee', { valueAsNumber: true })}
-                        type="number"
-                        step="0.01"
-                        readOnly={planType === 'pago'}
-                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white read-only:bg-slate-100 read-only:text-slate-500"
+                      <Controller
+                        name="activation_fee"
+                        control={control}
+                        render={({ field }) => (
+                          <CurrencyInputBR
+                            id="activation_fee"
+                            name={field.name}
+                            value={field.value ?? 0}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            readOnly={planType === 'pago'}
+                          />
+                        )}
                       />
                     </div>
 
                     <div className="space-y-2">
                       <label htmlFor="monthly_value" className="text-sm font-semibold text-slate-700">Mensalidade</label>
-                      <input 
-                        id="monthly_value"
-                        {...register('monthly_value', { valueAsNumber: true })}
-                        type="number"
-                        step="0.01"
-                        readOnly={planType === 'pago'}
-                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white read-only:bg-slate-100 read-only:text-slate-500"
+                      <Controller
+                        name="monthly_value"
+                        control={control}
+                        render={({ field }) => (
+                          <CurrencyInputBR
+                            id="monthly_value"
+                            name={field.name}
+                            value={field.value ?? 0}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            readOnly={planType === 'pago'}
+                          />
+                        )}
                       />
                     </div>
                   </>

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import NewTenantPage from './page';
 import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
-    create: vi.fn(),
+    create: vi.fn().mockResolvedValue({}),
   },
 }));
 
@@ -95,7 +95,7 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
     const planSelect = screen.getByRole('combobox', { name: /plano/i });
     fireEvent.change(planSelect, { target: { value: 'livre' } });
     
-    const fields = screen.queryByRole('spinbutton', { name: /valor de ativação/i });
+    const fields = screen.queryByRole('textbox', { name: /valor de ativação/i });
     expect(fields).toBeNull();
   });
 
@@ -109,9 +109,38 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
     const planSelect = screen.getByRole('combobox', { name: /plano/i });
     fireEvent.change(planSelect, { target: { value: 'personalizado' } });
 
-    const activationField = screen.getByRole('spinbutton', { name: /valor de ativação/i });
+    const activationField = screen.getByRole('textbox', { name: /valor de ativação/i });
     expect(activationField).toBeInTheDocument();
     expect(activationField).not.toHaveAttribute('readonly');
+  });
+
+  test('Vírgula decimal (formato BR) é convertida corretamente para o valor numérico enviado', async () => {
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'personalizado' } });
+
+    const activationField = screen.getByRole('textbox', { name: /valor de ativação/i });
+    // Simula o usuário digitando "150,50" como faria naturalmente em PT-BR.
+    fireEvent.change(activationField, { target: { value: '150,50' } });
+
+    expect(activationField).toHaveValue('150,50');
+
+    fireEvent.change(container.querySelector('[name="nome_negocio"]')!, { target: { value: 'Empresa Teste' } });
+    fireEvent.change(container.querySelector('[name="documento"]')!, { target: { value: '94.586.814/0001-01' } });
+    fireEvent.change(container.querySelector('[name="nicho"]')!, { target: { value: 'Tech' } });
+    fireEvent.change(container.querySelector('[name="nome_admin"]')!, { target: { value: 'Admin Teste' } });
+    fireEvent.change(container.querySelector('[name="email_contato"]')!, { target: { value: 'admin@teste.com' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
+
+    await waitFor(() => expect(tenantService.create).toHaveBeenCalled());
+    const payload = (tenantService.create as any).mock.calls[0][0];
+    expect(payload.activation_fee).toBe(150.5);
   });
 
   test('Plano Pré-configurado exibe valores readonly', async () => {
@@ -124,7 +153,7 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
     const planSelect = screen.getByRole('combobox', { name: /plano/i });
     fireEvent.change(planSelect, { target: { value: 'plan_mock_1' } });
 
-    const monthlyField = screen.getByRole('spinbutton', { name: /mensalidade/i });
+    const monthlyField = screen.getByRole('textbox', { name: /mensalidade/i });
     expect(monthlyField).toBeInTheDocument();
     expect(monthlyField).toHaveAttribute('readonly');
   });

@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { planService } from '@/services/planService';
 import { Plan } from '@/types/tenant';
 import * as Dialog from '@radix-ui/react-dialog';
+import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
 
 export default function PlansPage() {
   const queryClient = useQueryClient();
@@ -26,7 +27,7 @@ export default function PlansPage() {
     },
   });
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>>({
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>>({
     defaultValues: {
       slug: '',
       nome: '',
@@ -103,12 +104,40 @@ export default function PlansPage() {
                 </div>
                 <div className="flex gap-4">
                   <div className="flex-1">
-                    <label className="block text-sm font-semibold mb-1">Taxa de Adesão (R$)</label>
-                    <input type="number" step="0.01" {...register('activation_fee', { required: true })} className="w-full border p-2 rounded" />
+                    <label className="block text-sm font-semibold mb-1">Taxa de Adesão</label>
+                    <Controller
+                      name="activation_fee"
+                      control={control}
+                      rules={{ validate: (v) => v > 0 || 'Obrigatório' }}
+                      render={({ field }) => (
+                        <CurrencyInputBR
+                          name={field.name}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          className="w-full pl-9 pr-4 py-2 border rounded"
+                        />
+                      )}
+                    />
+                    {errors.activation_fee && <span className="text-red-500 text-xs">Obrigatório</span>}
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-semibold mb-1">Mensalidade (R$)</label>
-                    <input type="number" step="0.01" {...register('monthly_value', { required: true })} className="w-full border p-2 rounded" />
+                    <label className="block text-sm font-semibold mb-1">Mensalidade</label>
+                    <Controller
+                      name="monthly_value"
+                      control={control}
+                      rules={{ validate: (v) => v > 0 || 'Obrigatório' }}
+                      render={({ field }) => (
+                        <CurrencyInputBR
+                          name={field.name}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          className="w-full pl-9 pr-4 py-2 border rounded"
+                        />
+                      )}
+                    />
+                    {errors.monthly_value && <span className="text-red-500 text-xs">Obrigatório</span>}
                   </div>
                 </div>
                 <div>
