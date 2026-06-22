@@ -48,6 +48,7 @@ export default function NewTenantPage() {
       if (plan) {
         setValue('activation_fee', plan.activation_fee ?? 0);
         setValue('monthly_value', plan.monthly_value ?? 0);
+        setValue('enabled_services', plan.included_services ?? []);
       }
     } else if (planType === 'livre') {
       setValue('activation_fee', 0);
@@ -208,12 +209,16 @@ export default function NewTenantPage() {
 
             <div className="bg-slate-50 p-6 rounded-lg space-y-4">
               <h2 className="font-bold text-slate-900">Serviços Habilitados</h2>
+              {planType === 'pago' && (
+                <p className="text-xs text-slate-400 italic">Definidos pelo plano selecionado — mude o plano para alterar.</p>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {['crm', 'site', 'blog', 'lp', 'ads', 'notifications'].map((service) => (
-                  <label key={service} className="flex items-center gap-2 cursor-pointer p-3 bg-white border border-slate-200 rounded-lg hover:border-primary-500 transition-colors">
-                    <input 
+                  <label key={service} className={`flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg transition-colors ${planType === 'pago' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-primary-500'}`}>
+                    <input
                       type="checkbox"
                       value={service}
+                      disabled={planType === 'pago'}
                       {...register('enabled_services')}
                       className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
                     />

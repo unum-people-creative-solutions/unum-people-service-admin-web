@@ -53,7 +53,8 @@ export default function TenantDetailsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  const { register, handleSubmit, reset, formState: { dirtyFields, isDirty } } = useForm<Partial<Tenant>>();
+  const { register, handleSubmit, reset, setValue, formState: { dirtyFields, isDirty } } = useForm<Partial<Tenant>>();
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
 
   const { data: tenant, isLoading, error } = useQuery({
     queryKey: ['tenant', id],
@@ -82,8 +83,21 @@ export default function TenantDetailsPage() {
         enabled_services: tenant.enabled_services || [],
       };
       reset(sanitizedTenant);
+      setSelectedPlanId(tenant.plan_id || '');
     }
   }, [tenant, reset]);
+
+  // O <select> de plano é não-controlado: quando o plansData chega depois do
+  // tenant, a option de fallback (renderizada antes da lista carregar) é
+  // substituída pela option "real" dentro do <optgroup> — mesmo value, posição
+  // diferente no DOM. Essa troca de elementos faz o <select> nativo perder a
+  // seleção e voltar para a 1ª option ("Livre"). Reaplicamos o valor depois que
+  // a lista de planos chega para corrigir a seleção visual.
+  useEffect(() => {
+    if (tenant && plansData) {
+      setValue('plan_id', tenant.plan_id, { shouldDirty: false });
+    }
+  }, [plansData, tenant, setValue]);
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Tenant>) => tenantService.update(id, data),
@@ -111,6 +125,25 @@ export default function TenantDetailsPage() {
 
   if (isLoading) return <div className="p-8 animate-pulse">Carregando detalhes...</div>;
   if (error || !tenant) return <div className="p-8 text-red-600">Erro: Tenant não encontrado.</div>;
+
+  // Planos pré-configurados (qualquer slug que não seja livre/personalizado) têm
+  // os serviços definidos pelo plano (RF-28); só Livre/Personalizado permanecem
+  // editáveis manualmente pelo operador.
+  const isPlanoPreConfigurado = selectedPlanId !== 'livre' && selectedPlanId !== 'personalizado' && selectedPlanId !== '';
+
+  const planIdField = register('plan_id');
+  const handlePlanChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    planIdField.onChange(e);
+    const slug = e.target.value;
+    setSelectedPlanId(slug);
+    if (slug !== 'livre' && slug !== 'personalizado') {
+      const allPlans = [...(plansData?.active ?? []), ...(plansData?.inactive ?? [])];
+      const plan = allPlans.find((p: any) => p.slug === slug);
+      if (plan) {
+        setValue('enabled_services', plan.included_services ?? [], { shouldDirty: true });
+      }
+    }
+  };
 
   const onSubmit = (data: Partial<Tenant>) => {
     const dirtyData = Object.keys(dirtyFields).reduce((acc, key) => {
@@ -149,7 +182,7 @@ export default function TenantDetailsPage() {
     (Array.isArray(dirtyFields.enabled_services) && dirtyFields.enabled_services.some(v => v === true))
   );
   
-  const isSubscriptionDirty = ['plan_id', 'plan_status', 'plan_value'].some(
+  const isSubscriptionDirty = ['plan_id', 'plan_value'].some(
     field => dirtyFields[field as keyof Tenant] === true
   );
 
@@ -311,12 +344,16 @@ export default function TenantDetailsPage() {
 
                   <div className="space-y-4">
                     <label className="text-sm font-semibold text-slate-700">Serviços Ativos</label>
+                    {isPlanoPreConfigurado && (
+                      <p className="text-xs text-slate-400 italic">Definidos pelo plano selecionado — mude o plano para alterar.</p>
+                    )}
                     <div className="flex flex-wrap gap-4">
                       {['crm', 'site', 'blog', 'lp', 'ads', 'notifications'].map((svc) => (
-                        <label key={svc} className="flex items-center gap-2 px-4 py-2 border border-slate-100 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
-                          <input 
+                        <label key={svc} className={`flex items-center gap-2 px-4 py-2 border border-slate-100 rounded-lg transition-colors ${isPlanoPreConfigurado ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'hover:bg-slate-50 cursor-pointer'}`}>
+                          <input
                             type="checkbox"
                             value={svc}
+                            disabled={isPlanoPreConfigurado}
                             {...register('enabled_services')}
                             className="w-4 h-4 text-primary-600 rounded"
                           />
@@ -394,7 +431,7 @@ export default function TenantDetailsPage() {
                   <div className="space-y-4 text-sm">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Plano</label>
-                      <select aria-label="plano" {...register('plan_id')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
+                      <select aria-label="plano" {...planIdField} onChange={handlePlanChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
                         <option value="livre">Livre</option>
                         <option value="personalizado">Personalizado</option>
                         
@@ -418,15 +455,6 @@ export default function TenantDetailsPage() {
                           !plansData?.inactive?.some((p: any) => p.slug === tenant.plan_id) && (
                             <option value={tenant.plan_id}>{tenant.plan_id}</option>
                         )}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
-                      <select {...register('plan_status')} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
-                        <option value="ativo">Ativo</option>
-                        <option value="em_atraso">Em Atraso</option>
-                        <option value="pausado">Pausado</option>
-                        <option value="cancelado">Cancelado</option>
                       </select>
                     </div>
                     <div className="space-y-1">

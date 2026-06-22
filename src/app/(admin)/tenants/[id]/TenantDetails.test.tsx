@@ -17,9 +17,9 @@ vi.mock('@/services/tenantService', () => ({
 
 vi.mock('@/services/planService', () => ({
   planService: {
-    listPlans: vi.fn().mockResolvedValue({ 
-      active: [{ slug: 'lp_basico', nome: 'LP Básico' }], 
-      inactive: [{ slug: 'plano-desativado-legacy', nome: 'Plano Legacy' }] 
+    listPlans: vi.fn().mockResolvedValue({
+      active: [{ slug: 'lp_basico', nome: 'LP Básico', included_services: ['site', 'blog'] }],
+      inactive: [{ slug: 'plano-desativado-legacy', nome: 'Plano Legacy', included_services: ['crm'] }]
     }),
   },
 }));
@@ -202,6 +202,106 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
         plan_id: 'plano-desativado-legacy'
       }));
     });
+  });
+
+  test('ao selecionar um plano pré-configurado, preenche os serviços automaticamente a partir do plano', async () => {
+    const tenantPersonalizado = { ...mockTenant, plan_id: 'personalizado', enabled_services: ['crm'] };
+    vi.mocked(tenantService.getById).mockResolvedValue(tenantPersonalizado as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = await screen.findByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'lp_basico' } });
+
+    // included_services do plano "lp_basico" no mock: ['site', 'blog']
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /^site$/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /^blog$/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /^crm$/i })).not.toBeChecked();
+    });
+  });
+
+  test('desabilita os checkboxes de serviços quando o plano selecionado é pré-configurado', async () => {
+    const tenantComPlanoReal = { ...mockTenant, plan_id: 'lp_basico' };
+    vi.mocked(tenantService.getById).mockResolvedValue(tenantComPlanoReal as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    await screen.findByRole('combobox', { name: /plano/i });
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /^site$/i })).toBeDisabled();
+    });
+  });
+
+  test('mantém os checkboxes de serviços editáveis para planos Livre e Personalizado', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = await screen.findByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'personalizado' } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /^site$/i })).not.toBeDisabled();
+    });
+  });
+
+  test('não deve exibir o dropdown legado de Status no card de Assinatura (substituído pelo badge no topo)', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    await screen.findByRole('combobox', { name: /plano/i });
+
+    // O badge de status real (tenant.status) continua sendo a única fonte exibida.
+    expect(screen.queryByText('Em Atraso')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: /^status$/i })).toBeNull();
+  });
+
+  test('deve manter o plano selecionado quando a lista de planos carrega depois do tenant (race condition)', async () => {
+    const tenantWithRealPlan = { ...mockTenant, plan_id: 'lp_basico' };
+    vi.mocked(tenantService.getById).mockResolvedValue(tenantWithRealPlan as any);
+
+    // Simula listPlans resolvendo DEPOIS do tenant (cenário real: a contagem de
+    // tenants por plano em listPlans é mais lenta que o GetItem do tenant).
+    const { planService } = await import('@/services/planService');
+    let resolveListPlans: (value: any) => void;
+    vi.mocked(planService.listPlans).mockImplementation(
+      () => new Promise((resolve) => { resolveListPlans = resolve; })
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    // Antes do plansData carregar: a option de fallback já deve refletir o plano correto.
+    const planSelect = await screen.findByRole('combobox', { name: /plano/i });
+    await waitFor(() => expect(planSelect).toHaveValue('lp_basico'));
+
+    // Agora resolve listPlans - isso troca a option de fallback pela option "real"
+    // dentro do optgroup, o que é exatamente o gatilho do bug (reset visual pra "Livre").
+    resolveListPlans!({ active: [{ slug: 'lp_basico', nome: 'LP Básico' }], inactive: [] });
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'LP Básico' })).toBeInTheDocument();
+    });
+
+    // O plano selecionado deve permanecer o mesmo, não resetar para "Livre".
+    expect(planSelect).toHaveValue('lp_basico');
   });
 
   describe('T19 - Badge reflete status real', () => {

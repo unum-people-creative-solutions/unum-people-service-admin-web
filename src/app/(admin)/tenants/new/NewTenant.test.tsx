@@ -13,11 +13,11 @@ vi.mock('@/services/tenantService', () => ({
 
 vi.mock('@/services/planService', () => ({
   planService: {
-    listPlans: vi.fn().mockResolvedValue({ 
+    listPlans: vi.fn().mockResolvedValue({
       active: [
-        { slug: 'plan_mock_1', nome: 'Mock Plan', activation_fee: 100, monthly_value: 50 }
-      ], 
-      inactive: [] 
+        { slug: 'plan_mock_1', nome: 'Mock Plan', activation_fee: 100, monthly_value: 50, included_services: ['site', 'blog'] }
+      ],
+      inactive: []
     }),
   },
 }));
@@ -156,6 +156,53 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
     const monthlyField = screen.getByRole('textbox', { name: /mensalidade/i });
     expect(monthlyField).toBeInTheDocument();
     expect(monthlyField).toHaveAttribute('readonly');
+  });
+
+  test('Plano Pré-configurado preenche os serviços automaticamente a partir do plano', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'plan_mock_1' } });
+
+    // included_services do plan_mock_1: ['site', 'blog']
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /^site$/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /^blog$/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /^crm$/i })).not.toBeChecked();
+    });
+  });
+
+  test('Plano Pré-configurado desabilita a edição manual dos serviços', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'plan_mock_1' } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /^site$/i })).toBeDisabled();
+    });
+  });
+
+  test('Plano Livre mantém os serviços editáveis manualmente', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'livre' } });
+
+    const crmCheckbox = await screen.findByRole('checkbox', { name: /^crm$/i });
+    expect(crmCheckbox).not.toBeDisabled();
   });
 });
 
