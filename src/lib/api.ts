@@ -63,7 +63,10 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     throw new Error(error.error || 'Request failed');
   }
 
-  return response.json();
+  // 204 No Content (DELETE) ou 201/200 sem corpo: response.json() em string vazia
+  // lança "Unexpected end of JSON input". Só faz parse se houver conteúdo.
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 export const api = {
@@ -74,6 +77,10 @@ export const api = {
   }),
   patch: (path: string, body?: any) => apiFetch(path, { 
     method: 'PATCH', 
+    body: body ? JSON.stringify(body) : undefined 
+  }),
+  put: (path: string, body?: any) => apiFetch(path, { 
+    method: 'PUT', 
     body: body ? JSON.stringify(body) : undefined 
   }),
   delete: (path: string) => apiFetch(path, { method: 'DELETE' }),

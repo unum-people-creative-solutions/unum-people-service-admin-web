@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Users, 
-  AlertCircle, 
+import {
+  LayoutDashboard,
+  Users,
+  Tag,
+  AlertCircle,
   Settings,
   ChevronRight,
   LogOut,
@@ -27,6 +28,11 @@ const menuItems = [
     title: 'Gestão de Tenants',
     href: '/tenants',
     icon: Users,
+  },
+  {
+    title: 'Planos',
+    href: '/plans',
+    icon: Tag,
   },
   {
     title: 'Monitoramento',

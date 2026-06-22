@@ -1,22 +1,59 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
+import { planService } from '@/services/planService';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch, Controller } from 'react-hook-form';
 import { CreateTenantInput } from '@/types/tenant';
 import Link from 'next/link';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
 
 export default function NewTenantPage() {
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors } } = useForm<CreateTenantInput>({
+
+  const { data: plansData, isLoading: isLoadingPlans } = useQuery({
+    queryKey: ['plans'],
+    queryFn: async () => {
+      const plans = await planService.listPlans();
+      return plans as any;
+    },
+  });
+
+  const { register, handleSubmit, formState: { errors }, control, setValue } = useForm<CreateTenantInput>({
     defaultValues: {
       plan_id: 'lp_basico',
       plan_cycle: 'mensal',
-      plan_value: 199.90
+      activation_fee: 0,
+      monthly_value: 0
     }
   });
+
+  const selectedPlanId = useWatch({ control, name: 'plan_id' });
+
+  // Derive plan_type
+  let planType: 'livre' | 'personalizado' | 'pago' = 'pago';
+  if (selectedPlanId === 'livre') planType = 'livre';
+  else if (selectedPlanId === 'personalizado') planType = 'personalizado';
+
+  // Enforce read-only values for pre-configured plans
+  useEffect(() => {
+    if (planType === 'pago') {
+      // Valores sempre vêm do plano configurado (somente-leitura). Sem fallback
+      // fabricado: se o plano ainda não carregou, mantém o que já está no form.
+      const activePlans = (plansData?.active as any[]) ?? [];
+      const plan = activePlans.find((p: any) => p.slug === selectedPlanId);
+      if (plan) {
+        setValue('activation_fee', plan.activation_fee ?? 0);
+        setValue('monthly_value', plan.monthly_value ?? 0);
+      }
+    } else if (planType === 'livre') {
+      setValue('activation_fee', 0);
+      setValue('monthly_value', 0);
+    }
+  }, [selectedPlanId, planType, plansData, setValue]);
 
   const mutation = useMutation({
     mutationFn: tenantService.create,
@@ -28,6 +65,7 @@ export default function NewTenantPage() {
   const onSubmit = (data: CreateTenantInput) => {
     const payload = {
       ...data,
+      plan_type: planType,
       temporary_password: data.temporary_password || 'Unum@123456',
     };
     mutation.mutate(payload);
@@ -66,10 +104,13 @@ export default function NewTenantPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">CPF / CNPJ</label>
                   <input 
-                    {...register('documento', { required: 'Campo obrigatório' })}
+                    {...register('documento', { 
+                      required: planType !== 'livre' ? 'CPF/CNPJ é obrigatório para planos pagos' : false 
+                    })}
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
                     placeholder="000.000.000-00"
                   />
+                  {errors.documento && <span className="text-red-500 text-xs">{errors.documento.message}</span>}
                 </div>
 
                 <div className="space-y-2">
@@ -191,39 +232,100 @@ export default function NewTenantPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Plano</label>
+                  <label htmlFor="plan_id" className="text-sm font-semibold text-slate-700">Plano</label>
                   <select 
+                    id="plan_id"
                     {...register('plan_id')}
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
                   >
-                    <option value="lp_flash">LP Flash</option>
-                    <option value="lp_basico">LP Básico</option>
-                    <option value="lp_intermediario">LP Intermediário</option>
-                    <option value="lp_avancado">LP Avançado</option>
-                    <option value="lp_personalizado">LP Personalizado</option>
+                    <option value="livre">Livre</option>
+                    <option value="personalizado">Personalizado</option>
+                    {plansData?.active?.map((plan: any) => (
+                      <option key={plan.slug} value={plan.slug}>{plan.nome}</option>
+                    ))}
                   </select>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Ciclo</label>
-                  <select 
-                    {...register('plan_cycle')}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
-                  >
-                    <option value="mensal">Mensal</option>
-                    <option value="anual">Anual</option>
-                  </select>
-                </div>
+                {planType !== 'livre' && (
+                  <>
+                    <div className="md:col-span-2 pt-4 border-t border-slate-200 mt-2 mb-2">
+                      <h3 className="text-lg font-bold text-slate-800">Métodos de Pagamento</h3>
+                      <p className="text-sm text-slate-500">Selecione os métodos aceitos para este tenant (via Asaas).</p>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Valor (R$)</label>
-                  <input 
-                    {...register('plan_value', { valueAsNumber: true })}
-                    type="number"
-                    step="0.01"
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <label htmlFor="activation_billing_type" className="text-sm font-semibold text-slate-700">Método de Pagamento da Ativação</label>
+                      <select
+                        id="activation_billing_type"
+                        {...register('activation_billing_type')}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
+                      >
+                        <option value="pix">PIX</option>
+                        <option value="credit_card">Cartão de Crédito</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="subscription_billing_type" className="text-sm font-semibold text-slate-700">Método de Pagamento da Assinatura</label>
+                      <select
+                        id="subscription_billing_type"
+                        {...register('subscription_billing_type')}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
+                      >
+                        <option value="pix">PIX</option>
+                        <option value="credit_card">Cartão de Crédito</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="plan_cycle" className="text-sm font-semibold text-slate-700">Ciclo</label>
+                      <select 
+                        id="plan_cycle"
+                        {...register('plan_cycle')}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
+                      >
+                        <option value="mensal">Mensal</option>
+                        <option value="anual">Anual</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="activation_fee" className="text-sm font-semibold text-slate-700">Valor de Ativação</label>
+                      <Controller
+                        name="activation_fee"
+                        control={control}
+                        render={({ field }) => (
+                          <CurrencyInputBR
+                            id="activation_fee"
+                            name={field.name}
+                            value={field.value ?? 0}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            readOnly={planType === 'pago'}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="monthly_value" className="text-sm font-semibold text-slate-700">Mensalidade</label>
+                      <Controller
+                        name="monthly_value"
+                        control={control}
+                        render={({ field }) => (
+                          <CurrencyInputBR
+                            id="monthly_value"
+                            name={field.name}
+                            value={field.value ?? 0}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            readOnly={planType === 'pago'}
+                          />
+                        )}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

@@ -73,16 +73,21 @@ export default function TenantsPage() {
                     <td className="px-6 py-4 text-slate-600">{tenant.documento}</td>
                     <td className="px-6 py-4">
                       <div className="text-slate-900 font-medium capitalize">{tenant.plan_id.replace('lp_', '')}</div>
-                      <div className="text-xs text-slate-500">R$ {tenant.plan_value.toLocaleString('pt-BR')} / {tenant.plan_cycle}</div>
+                      <div className="text-xs text-slate-500">R$ {(tenant.plan_value ?? 0).toLocaleString('pt-BR')} / {tenant.plan_cycle}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        tenant.plan_status === 'ativo' ? 'bg-green-100 text-green-800' :
-                        tenant.plan_status === 'em_atraso' ? 'bg-amber-100 text-amber-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {tenant.plan_status.toUpperCase()}
-                      </span>
+                      {(() => {
+                        const status = (tenant.status || '').toLowerCase();
+                        const cls =
+                          status === 'ativo' ? 'bg-green-100 text-green-800' :
+                          status === 'inadimplente' ? 'bg-amber-100 text-amber-800' :
+                          'bg-red-100 text-red-800';
+                        return (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+                            {(tenant.status || '—').toUpperCase()}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       <Link href={`/tenants/${tenant.id}`} className="text-primary-600 hover:text-primary-900 text-sm font-medium">
