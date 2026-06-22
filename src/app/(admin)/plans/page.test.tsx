@@ -84,4 +84,68 @@ describe('PlansPage', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Criar Novo Plano/i })).toBeInTheDocument();
   });
+
+  it('clicar em Editar num plano ativo abre o drawer preenchido, sem permitir alterar o slug', async () => {
+    const { useQuery } = await import('@tanstack/react-query');
+    (useQuery as any).mockReturnValue({
+      data: {
+        active: [{
+          slug: 'intermediario',
+          nome: 'Intermediário',
+          descricao: 'Site + Blog',
+          activation_fee: 200,
+          monthly_value: 149,
+          included_services: ['site', 'blog'],
+          is_active: true,
+        }],
+        inactive: []
+      },
+      isLoading: false
+    });
+
+    render(<PlansPage />);
+
+    const editBtn = screen.getByRole('button', { name: /Editar Intermediário/i });
+    fireEvent.click(editBtn);
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Editar Plano — Intermediário/i })).toBeInTheDocument();
+
+    const slugInput = screen.getByPlaceholderText(/ex: basico_mensal/i) as HTMLInputElement;
+    expect(slugInput.value).toBe('intermediario');
+    expect(slugInput).toHaveAttribute('readonly');
+
+    const nomeInput = screen.getByPlaceholderText(/ex: Básico Mensal/i) as HTMLInputElement;
+    expect(nomeInput.value).toBe('Intermediário');
+  });
+
+  it('o slug fica editável ao abrir o drawer de Novo Plano (não fica preso no modo edição anterior)', async () => {
+    const { useQuery } = await import('@tanstack/react-query');
+    (useQuery as any).mockReturnValue({
+      data: {
+        active: [{
+          slug: 'intermediario',
+          nome: 'Intermediário',
+          activation_fee: 200,
+          monthly_value: 149,
+          included_services: ['site', 'blog'],
+          is_active: true,
+        }],
+        inactive: []
+      },
+      isLoading: false
+    });
+
+    render(<PlansPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Editar Intermediário/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Cancelar/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+    expect(screen.getByRole('heading', { name: /Criar Novo Plano/i })).toBeInTheDocument();
+    const slugInput = screen.getByPlaceholderText(/ex: basico_mensal/i) as HTMLInputElement;
+    expect(slugInput.value).toBe('');
+    expect(slugInput).not.toHaveAttribute('readonly');
+  });
 });

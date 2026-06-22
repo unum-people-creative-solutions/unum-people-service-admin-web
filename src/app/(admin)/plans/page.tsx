@@ -17,31 +17,81 @@ export default function PlansPage() {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const defaultPlanValues: Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'> = {
+    slug: '',
+    nome: '',
+    descricao: '',
+    activation_fee: 0,
+    monthly_value: 0,
+    included_services: [],
+    is_active: true,
+  };
+
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>>({
+    defaultValues: defaultPlanValues,
+  });
 
   const createMutation = useMutation({
     mutationFn: (newPlan: Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>) => planService.createPlan(newPlan),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
       setIsDrawerOpen(false);
-      reset();
+      reset(defaultPlanValues);
+    },
+    onError: (error: any) => {
+      setFormError(error?.message || 'Falha ao criar o plano. Tente novamente.');
     },
   });
 
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>>({
-    defaultValues: {
-      slug: '',
-      nome: '',
-      descricao: '',
-      activation_fee: 0,
-      monthly_value: 0,
-      included_services: [],
-      is_active: true,
-    }
+  const updateMutation = useMutation({
+    mutationFn: ({ slug, plan }: { slug: string; plan: Partial<Plan> }) => planService.updatePlan(slug, plan),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      setIsDrawerOpen(false);
+      setEditingPlan(null);
+      reset(defaultPlanValues);
+    },
+    onError: (error: any) => {
+      setFormError(error?.message || 'Falha ao salvar o plano. Tente novamente.');
+    },
   });
 
+  const handleDrawerOpenChange = (open: boolean) => {
+    setIsDrawerOpen(open);
+    if (!open) {
+      setEditingPlan(null);
+      setFormError(null);
+      reset(defaultPlanValues);
+    }
+  };
+
+  const openCreateDrawer = () => {
+    setEditingPlan(null);
+    setFormError(null);
+    reset(defaultPlanValues);
+    setIsDrawerOpen(true);
+  };
+
+  const openEditDrawer = (plan: Plan) => {
+    setEditingPlan(plan);
+    setFormError(null);
+    reset({
+      slug: plan.slug,
+      nome: plan.nome,
+      descricao: plan.descricao,
+      activation_fee: plan.activation_fee,
+      monthly_value: plan.monthly_value,
+      included_services: plan.included_services,
+      is_active: plan.is_active,
+    });
+    setIsDrawerOpen(true);
+  };
+
   const onSubmit = (data: Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>) => {
-    // Convert comma-separated string back to array if needed, but for simplicity let's handle it as is
-    // Actually, for included_services we might need a custom input, but let's just make it empty for now or parse it if it was string
+    setFormError(null);
     const payload = {
       ...data,
       activation_fee: Number(data.activation_fee),
@@ -50,7 +100,13 @@ export default function PlansPage() {
     if (typeof payload.included_services === 'string') {
       payload.included_services = (payload.included_services as string).split(',').map(s => s.trim()).filter(Boolean);
     }
-    createMutation.mutate(payload);
+    if (editingPlan) {
+      // Preserva created_at original: o backend não o gera de novo no Update,
+      // só sobrescreve updated_at (plan_service.go:42).
+      updateMutation.mutate({ slug: editingPlan.slug, plan: { ...payload, created_at: editingPlan.created_at } });
+    } else {
+      createMutation.mutate(payload);
+    }
   };
 
   const deleteMutation = useMutation({
@@ -77,20 +133,23 @@ export default function PlansPage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">Planos</h1>
-        <Dialog.Root open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-          <Dialog.Trigger asChild>
-            <button className="bg-primary-600 text-white px-4 py-2 rounded-lg">Novo Plano</button>
-          </Dialog.Trigger>
+        <Dialog.Root open={isDrawerOpen} onOpenChange={handleDrawerOpenChange}>
+          <button onClick={openCreateDrawer} className="bg-primary-600 text-white px-4 py-2 rounded-lg">Novo Plano</button>
           <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 bg-black/50" />
             <Dialog.Content className="fixed right-0 top-0 bottom-0 w-[400px] bg-white p-6 shadow-xl" role="dialog">
               <Dialog.Title asChild>
-                <h2 className="text-xl font-bold mb-4">Criar Novo Plano</h2>
+                <h2 className="text-xl font-bold mb-4">{editingPlan ? `Editar Plano — ${editingPlan.nome}` : 'Criar Novo Plano'}</h2>
               </Dialog.Title>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold mb-1">Slug do Plano</label>
-                  <input {...register('slug', { required: true })} className="w-full border p-2 rounded" placeholder="ex: basico_mensal" />
+                  <input
+                    {...register('slug', { required: true })}
+                    readOnly={!!editingPlan}
+                    className="w-full border p-2 rounded read-only:bg-slate-100 read-only:text-slate-500"
+                    placeholder="ex: basico_mensal"
+                  />
                   {errors.slug && <span className="text-red-500 text-xs">Obrigatório</span>}
                 </div>
                 <div>
@@ -148,12 +207,15 @@ export default function PlansPage() {
                   <input type="checkbox" id="is_active" {...register('is_active')} />
                   <label htmlFor="is_active" className="text-sm font-semibold">Ativo</label>
                 </div>
+                {formError && (
+                  <p role="alert" className="text-red-600 text-sm">{formError}</p>
+                )}
                 <div className="mt-8 flex justify-end gap-2">
                   <Dialog.Close asChild>
                     <button type="button" className="px-4 py-2 border rounded">Cancelar</button>
                   </Dialog.Close>
-                  <button type="submit" disabled={createMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded disabled:opacity-50">
-                    {createMutation.isPending ? 'Salvando...' : 'Salvar Plano'}
+                  <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded disabled:opacity-50">
+                    {createMutation.isPending || updateMutation.isPending ? 'Salvando...' : 'Salvar Plano'}
                   </button>
                 </div>
               </form>
@@ -170,8 +232,20 @@ export default function PlansPage() {
         <h2 className="text-xl font-bold mb-4">Planos Ativos</h2>
         <div className="grid gap-4">
           {activePlans.map((plan) => (
-            <div key={plan.slug} className="border p-4 rounded-xl">
-              <h3>{plan.nome}</h3>
+            <div key={plan.slug} className="border p-4 rounded-xl flex justify-between items-center">
+              <div>
+                <h3>{plan.nome}</h3>
+                <p className="text-xs text-slate-500">
+                  Taxa de ativação: R$ {(plan.activation_fee ?? 0).toLocaleString('pt-BR')} · Mensalidade: R$ {(plan.monthly_value ?? 0).toLocaleString('pt-BR')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => openEditDrawer(plan)}
+                className="px-4 py-2 border rounded hover:bg-slate-50"
+              >
+                Editar {plan.nome}
+              </button>
             </div>
           ))}
         </div>

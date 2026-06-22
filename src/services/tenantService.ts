@@ -66,7 +66,10 @@ async function fetchWithAuth(path: string, options: RequestInit = {}): Promise<a
     throw new Error(error.error || 'Request failed');
   }
 
-  return response.json();
+  // 204 No Content (DELETE) ou 201/200 sem corpo: response.json() em string vazia
+  // lança "Unexpected end of JSON input". Só faz parse se houver conteúdo.
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 export const tenantService = {

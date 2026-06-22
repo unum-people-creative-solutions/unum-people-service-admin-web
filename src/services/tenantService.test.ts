@@ -49,6 +49,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ total_tenants: 5 }),
+        text: async () => JSON.stringify(({ total_tenants: 5 })),
       })
 
       await tenantService.getStats()
@@ -62,6 +63,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ total_tenants: 5 }),
+        text: async () => JSON.stringify(({ total_tenants: 5 })),
       })
 
       await tenantService.getStats()
@@ -78,6 +80,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => [],
+        text: async () => JSON.stringify([]),
       })
 
       await tenantService.getLogs()
@@ -91,6 +94,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => [],
+        text: async () => JSON.stringify([]),
       })
 
       await tenantService.getLogs()
@@ -117,6 +121,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => mockUsers,
+        text: async () => JSON.stringify(mockUsers),
       })
 
       const result = await tenantService.listUsers(tenantId)
@@ -145,6 +150,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'User added to tenant' }),
+        text: async () => JSON.stringify(({ message: 'User added to tenant' })),
       })
 
       const result = await tenantService.addUser(tenantId, input)
@@ -170,6 +176,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'User removed from tenant' }),
+        text: async () => JSON.stringify(({ message: 'User removed from tenant' })),
       })
 
       const result = await tenantService.removeUser(tenantId, email)
@@ -195,6 +202,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'Role updated' }),
+        text: async () => JSON.stringify(({ message: 'Role updated' })),
       })
 
       const result = await tenantService.updateUserRole(tenantId, email, role)
@@ -221,6 +229,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'Name updated' }),
+        text: async () => JSON.stringify(({ message: 'Name updated' })),
       })
 
       const result = await tenantService.updateUserName(tenantId, email, newName)
@@ -247,6 +256,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'User blocked' }),
+        text: async () => JSON.stringify(({ message: 'User blocked' })),
       })
 
       const result = await tenantService.blockUser(tenantId, email, isBlocked)
@@ -272,6 +282,7 @@ describe('tenantService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'Password reset code sent' }),
+        text: async () => JSON.stringify(({ message: 'Password reset code sent' })),
       })
 
 
@@ -303,6 +314,7 @@ describe('tenantService', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ total_tenants: 10 }),
+          text: async () => JSON.stringify(({ total_tenants: 10 })),
         })
 
       const result = await tenantService.getStats()
