@@ -16,10 +16,26 @@ import { useState, useEffect } from 'react';
 import { TenantUsersSection } from '@/components/TenantUsersSection';
 import { BillingCard } from '@/components/tenants/BillingCard';
 
-const getStatusBadge = (tenant: Tenant) => {
+const getStatusBadge = (tenant: Tenant & { delinquency_since?: string | null }) => {
   if (tenant.is_blocked) {
     return { label: 'BLOQUEADA', classes: 'bg-red-50 text-red-700 border-red-200' };
   }
+
+  const getDaysText = () => {
+    if (!tenant.delinquency_since) return '';
+    try {
+      const start = new Date(tenant.delinquency_since);
+      const now = new Date();
+      start.setHours(0, 0, 0, 0);
+      now.setHours(0, 0, 0, 0);
+      const diffTime = now.getTime() - start.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 ? ` (há ${diffDays} dias)` : '';
+    } catch (e) {
+      return '';
+    }
+  };
+
   switch (tenant.status) {
     case 'aguardando_ativacao':
       return { label: 'AGUARDANDO ATIVAÇÃO', classes: 'bg-yellow-50 text-yellow-700 border-yellow-200' };
@@ -28,11 +44,11 @@ const getStatusBadge = (tenant: Tenant) => {
     case 'ativo':
       return { label: 'ATIVO', classes: 'bg-green-50 text-green-700 border-green-200' };
     case 'inadimplente':
-      return { label: 'INADIMPLENTE', classes: 'bg-red-50 text-red-700 border-red-200' };
+      return { label: `INADIMPLENTE${getDaysText()}`, classes: 'bg-red-50 text-red-700 border-red-200' };
     case 'suspenso':
-      return { label: 'SUSPENSO', classes: 'bg-orange-50 text-orange-700 border-orange-200' };
+      return { label: `SUSPENSO${getDaysText()}`, classes: 'bg-orange-50 text-orange-700 border-orange-200' };
     case 'pausado':
-      return { label: 'PAUSADO', classes: 'bg-slate-50 text-slate-700 border-slate-200' };
+      return { label: `PAUSADO${getDaysText()}`, classes: 'bg-slate-50 text-slate-700 border-slate-200' };
     case 'cancelado':
       return { label: 'CANCELADO', classes: 'bg-slate-100 text-slate-800 border-slate-300' };
     default:

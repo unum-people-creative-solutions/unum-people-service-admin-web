@@ -331,4 +331,46 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       });
     });
   });
+
+  describe('[TASK-FE-004] Tempo no estado', () => {
+    const statuses = ['inadimplente', 'suspenso', 'pausado'];
+
+    statuses.forEach((status) => {
+      test(`deve exibir há quantos dias está no estado quando status for "${status}" e delinquency_since existir`, async () => {
+        const fiveDaysAgo = new Date();
+        fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+        
+        vi.mocked(tenantService.getById).mockResolvedValue({ 
+          ...mockTenant, 
+          status,
+          delinquency_since: fiveDaysAgo.toISOString() 
+        } as any);
+
+        render(
+          <QueryClientProvider client={queryClient}>
+            <TenantDetailsPage />
+          </QueryClientProvider>
+        );
+
+        expect(await screen.findByText(/há \d+ dias/i)).toBeInTheDocument();
+      });
+    });
+
+    test('não deve quebrar ou exibir tempo no estado se delinquency_since não existir', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ 
+        ...mockTenant, 
+        status: 'inadimplente',
+        delinquency_since: undefined 
+      } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      expect(await screen.findByDisplayValue('Empresa Teste')).toBeInTheDocument();
+      expect(screen.queryByText(/há \d+ dias/i)).toBeNull();
+    });
+  });
 });

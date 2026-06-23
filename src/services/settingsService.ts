@@ -16,6 +16,7 @@ export interface GlobalSettings {
   institutional_email: string;
   redirection_email: string;
   vapid_email: string;
+  operator_email: string;
   updated_at: string;
 }
 
@@ -29,7 +30,7 @@ export const settingsService = {
     return api.get('/admin/settings');
   },
 
-  updateSettings: async (data: { institutional_email: string; redirection_email: string; vapid_email: string }): Promise<void> => {
+  updateSettings: async (data: { institutional_email: string; redirection_email: string; vapid_email: string; operator_email: string }): Promise<void> => {
     await api.post('/admin/settings', data);
   },
 };
