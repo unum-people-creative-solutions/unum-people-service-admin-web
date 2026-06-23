@@ -53,6 +53,8 @@ export interface Tenant {
   is_blocked: boolean;
   created_at: string;
   contract?: Contract;
+  asaas_subscription_id?: string;
+  delinquency_since?: string;
 }
 
 export interface CreateTenantInput {

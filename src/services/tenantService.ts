@@ -158,4 +158,14 @@ export const tenantService = {
     fetchWithAuth(`/admin/tenants/${tenantId}/activation/retry`, {
       method: 'POST',
     }),
+
+  reactivateTenant: (tenantId: string): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${tenantId}/reactivate`, {
+      method: 'POST',
+    }),
+
+  cancelTenant: (id: string): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${id}/cancel`, {
+      method: 'POST',
+    }),
 };

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { z } from 'zod';
 import { 
   Save, 
   Mail, 
@@ -22,6 +23,8 @@ export default function SettingsPage() {
   const [institutionalEmail, setInstitutionalEmail] = useState('');
   const [redirectionEmail, setRedirectionEmail] = useState('');
   const [vapidEmail, setVapidEmail] = useState('');
+  const [operatorEmail, setOperatorEmail] = useState('');
+  const [operatorEmailError, setOperatorEmailError] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -38,6 +41,7 @@ export default function SettingsPage() {
         setInstitutionalEmail(resp.settings.institutional_email || '');
         setRedirectionEmail(resp.settings.redirection_email || '');
         setVapidEmail(resp.settings.vapid_email || '');
+        setOperatorEmail(resp.settings.operator_email || '');
       } else {
         throw new Error('Formato de resposta inválido');
       }
@@ -51,12 +55,22 @@ export default function SettingsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const emailSchema = z.string().email('E-mail inválido');
+    const emailValidation = emailSchema.safeParse(operatorEmail);
+    if (!emailValidation.success) {
+      setOperatorEmailError('E-mail inválido');
+      return;
+    }
+    setOperatorEmailError('');
+
     setSaving(true);
     try {
       await settingsService.updateSettings({ 
         institutional_email: institutionalEmail,
         redirection_email: redirectionEmail,
-        vapid_email: vapidEmail
+        vapid_email: vapidEmail,
+        operator_email: operatorEmail
       });
       await fetchSettings();
       alert('Configurações salvas com sucesso!');
@@ -149,6 +163,35 @@ export default function SettingsPage() {
               <p className="mt-2 text-xs text-slate-500">
                 Endereço exigido pelo protocolo Web Push (deve começar com mailto:).
               </p>
+            </div>
+
+            <div>
+              <label htmlFor="operatorEmail" className="block text-sm font-medium text-slate-700 mb-1">
+                E-mail do operador
+              </label>
+              <input 
+                id="operatorEmail"
+                type="text" 
+                value={operatorEmail}
+                onChange={(e) => {
+                  setOperatorEmail(e.target.value);
+                  if (operatorEmailError) setOperatorEmailError('');
+                }}
+                className={cn(
+                  "w-full px-4 py-2 rounded-lg border outline-none transition-all",
+                  operatorEmailError 
+                    ? "border-red-500 focus:ring-red-500 focus:ring-2" 
+                    : "border-slate-200 focus:ring-2 focus:ring-primary-500"
+                )}
+                placeholder="operador@unumpeople.com.br"
+                aria-invalid={operatorEmailError ? "true" : "false"}
+                aria-errormessage={operatorEmailError ? "operatorEmailErrorMsg" : undefined}
+              />
+              {operatorEmailError && (
+                <p id="operatorEmailErrorMsg" className="mt-1 text-sm text-red-600">
+                  {operatorEmailError}
+                </p>
+              )}
             </div>
           </div>
 

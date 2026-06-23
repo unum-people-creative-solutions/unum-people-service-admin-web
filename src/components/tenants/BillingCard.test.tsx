@@ -3,12 +3,28 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BillingCard } from './BillingCard';
 import { Tenant, Contract } from '@/types/tenant';
 import { tenantService } from '@/services/tenantService';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
+const renderWithQuery = (ui: React.ReactElement) => {
+  const testQueryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={testQueryClient}>
+      {ui}
+    </QueryClientProvider>
+  );
+};
 
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
     getById: vi.fn(),
     retryBilling: vi.fn(),
     retryActivation: vi.fn(),
+    reactivateTenant: vi.fn(),
+    cancelTenant: vi.fn(),
   },
 }));
 
@@ -52,23 +68,23 @@ describe('BillingCard Component', () => {
   });
 
   it('T16 - deve exibir estado "aguardando_ativacao"', () => {
-    render(<BillingCard tenant={baseTenant} contract={createContract('aguardando_ativacao')} />);
+    renderWithQuery(<BillingCard tenant={baseTenant} contract={createContract('aguardando_ativacao')} />);
     expect(screen.getByText(/aguardando ativação|pendente/i)).toBeInTheDocument();
   });
 
   it('T16 - deve exibir estado "gerando"', () => {
-    render(<BillingCard tenant={baseTenant} contract={createContract('gerando')} />);
+    renderWithQuery(<BillingCard tenant={baseTenant} contract={createContract('gerando')} />);
     expect(screen.getByText(/gerando/i)).toBeInTheDocument();
   });
 
   it('T16 - deve exibir estado "disponivel" com botão de copiar', () => {
-    render(<BillingCard tenant={baseTenant} contract={createContract('disponivel')} />);
+    renderWithQuery(<BillingCard tenant={baseTenant} contract={createContract('disponivel')} />);
     expect(screen.getByRole('button', { name: /copiar/i })).toBeInTheDocument();
     expect(screen.getByText(/link de pagamento/i)).toBeInTheDocument();
   });
 
   it('T16 - deve exibir estado "erro"', () => {
-    render(<BillingCard tenant={baseTenant} contract={createContract('erro')} />);
+    renderWithQuery(<BillingCard tenant={baseTenant} contract={createContract('erro')} />);
     expect(screen.getByText(/erro ao gerar/i)).toBeInTheDocument();
   });
 
@@ -78,7 +94,7 @@ describe('BillingCard Component', () => {
       contract: createContract('disponivel'),
     });
 
-    render(<BillingCard tenant={baseTenant} contract={createContract('gerando')} />);
+    renderWithQuery(<BillingCard tenant={baseTenant} contract={createContract('gerando')} />);
     
     expect(tenantService.getById).not.toHaveBeenCalled();
 
@@ -90,7 +106,7 @@ describe('BillingCard Component', () => {
   });
 
   it('T17 - deve exibir botão de tentar novamente e disparar retryBilling se erro', async () => {
-    render(<BillingCard tenant={baseTenant} contract={createContract('erro')} />);
+    renderWithQuery(<BillingCard tenant={baseTenant} contract={createContract('erro')} />);
     
     const retryBtn = screen.getByRole('button', { name: /tentar novamente/i });
     expect(retryBtn).toBeInTheDocument();
@@ -105,7 +121,7 @@ describe('BillingCard Component', () => {
   });
 
   it('T21 - deve disparar toast/alerta de erro se retryBilling falhar', async () => {
-    render(<BillingCard tenant={baseTenant} contract={createContract('erro')} />);
+    renderWithQuery(<BillingCard tenant={baseTenant} contract={createContract('erro')} />);
 
     const retryBtn = screen.getByRole('button', { name: /tentar novamente/i });
 
@@ -122,7 +138,7 @@ describe('BillingCard Component', () => {
     const contract = createContract('aguardando_ativacao');
     contract.activation_invoice_url = 'https://asaas.com/activation-link';
     const awaitingTenant: Tenant = { ...baseTenant, status: 'aguardando_ativacao' };
-    render(<BillingCard tenant={awaitingTenant} contract={contract} />);
+    renderWithQuery(<BillingCard tenant={awaitingTenant} contract={contract} />);
     expect(screen.getByRole('link', { name: /link de ativação/i })).toHaveAttribute(
       'href',
       'https://asaas.com/activation-link'
@@ -131,7 +147,7 @@ describe('BillingCard Component', () => {
 
   it('UI-06 - tenant PENDENTE_ASAAS exibe aviso e botão "Tentar ativação"', async () => {
     const pendingTenant: Tenant = { ...baseTenant, status: 'pendente_asaas' };
-    render(<BillingCard tenant={pendingTenant} contract={undefined} />);
+    renderWithQuery(<BillingCard tenant={pendingTenant} contract={undefined} />);
 
     const retryBtn = screen.getByRole('button', { name: /tentar ativação/i });
     expect(retryBtn).toBeInTheDocument();
@@ -143,5 +159,68 @@ describe('BillingCard Component', () => {
     });
 
     expect(tenantService.retryActivation).toHaveBeenCalledWith('t-123');
+  });
+
+  it('UI-07 - botão "Reativar assinatura" NÃO deve aparecer se status não for "pausado"', () => {
+    const activeTenant: Tenant = { ...baseTenant, status: 'ativo' };
+    renderWithQuery(<BillingCard tenant={activeTenant} contract={undefined} />);
+    
+    expect(screen.queryByRole('button', { name: /reativar/i })).not.toBeInTheDocument();
+  });
+
+  it('UI-08 - botão "Reativar assinatura" DEVE aparecer e acionar reactivate se status for "pausado"', async () => {
+    const pausedTenant: Tenant = { ...baseTenant, status: 'pausado' };
+    renderWithQuery(<BillingCard tenant={pausedTenant} contract={undefined} />);
+    
+    const reactivateBtn = screen.getByRole('button', { name: /reativar/i });
+    expect(reactivateBtn).toBeInTheDocument();
+
+    (tenantService.reactivateTenant as any).mockResolvedValue({ message: 'ok' });
+
+    await act(async () => {
+      fireEvent.click(reactivateBtn);
+    });
+
+    expect(tenantService.reactivateTenant).toHaveBeenCalledWith('t-123');
+  });
+
+  it('TASK-FE-003 - deve exigir confirmação dupla para cancelar contrato e exibir erro se falhar', async () => {
+    const activeTenant: Tenant = { ...baseTenant, status: 'ativo' };
+    renderWithQuery(<BillingCard tenant={activeTenant} contract={createContract('disponivel')} />);
+    
+    // 1. Clicar no botão principal de cancelar contrato
+    const cancelBtn = screen.getByRole('button', { name: /cancelar contrato/i });
+    expect(cancelBtn).toBeInTheDocument();
+    expect(tenantService.cancelTenant).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+
+    // 2. Primeira confirmação
+    const firstConfirmBtn = screen.getByRole('button', { name: /confirmar/i });
+    expect(firstConfirmBtn).toBeInTheDocument();
+    expect(tenantService.cancelTenant).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(firstConfirmBtn);
+    });
+
+    // 3. Segunda confirmação
+    const secondConfirmBtn = screen.getByRole('button', { name: /tenho certeza/i });
+    expect(secondConfirmBtn).toBeInTheDocument();
+
+    (tenantService.cancelTenant as any).mockRejectedValue(new Error('Erro simulado ao cancelar'));
+
+    await act(async () => {
+      fireEvent.click(secondConfirmBtn);
+    });
+
+    // 4. Verificação de que a API foi chamada e que o erro não silencioso apareceu
+    expect(tenantService.cancelTenant).toHaveBeenCalledWith('t-123');
+    
+    const alert = screen.getByRole('alert');
+    expect(alert).toBeInTheDocument();
+    expect(alert).toHaveTextContent(/erro|falha/i);
   });
 });
