@@ -9,6 +9,7 @@ vi.mock('@/services/tenantService', () => ({
   tenantService: {
     getById: vi.fn(),
     update: vi.fn(),
+    changePlan: vi.fn(),
     delete: vi.fn(),
     resetPassword: vi.fn(),
     listUsers: vi.fn().mockResolvedValue([]),
@@ -371,6 +372,85 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
       expect(await screen.findByDisplayValue('Empresa Teste')).toBeInTheDocument();
       expect(screen.queryByText(/há \d+ dias/i)).toBeNull();
+    });
+  });
+
+  describe('T11 e T12 - Paridade da Edição com a Criação', () => {
+    test('ao mudar para plano PAGO (pré-configurado), valores ficam read-only e CPF obrigatório', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const planSelect = await screen.findByRole('combobox', { name: /plano/i });
+      fireEvent.change(planSelect, { target: { value: 'lp_basico' } }); // Um plano pago
+
+      await waitFor(() => {
+        // Valores de ativação e mensalidade devem estar na tela e read-only
+        const activationInput = screen.getByRole('textbox', { name: /valor de ativação/i });
+        const monthlyInput = screen.getByRole('textbox', { name: /mensalidade/i });
+        
+        expect(activationInput).toHaveAttribute('readonly');
+        expect(monthlyInput).toHaveAttribute('readonly');
+
+        // Documento deve ser obrigatório
+        const docInput = screen.getByRole('textbox', { name: /documento/i });
+        expect(docInput).toBeRequired();
+      });
+    });
+
+    test('ao mudar para plano LIVRE, métodos de pagamento são ocultados', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const planSelect = await screen.findByRole('combobox', { name: /plano/i });
+      fireEvent.change(planSelect, { target: { value: 'livre' } });
+
+      await waitFor(() => {
+        expect(screen.queryByText(/métodos de pagamento/i)).toBeNull();
+        expect(screen.queryByRole('combobox', { name: /método de pagamento da ativação/i })).toBeNull();
+        expect(screen.queryByRole('combobox', { name: /método de pagamento da assinatura/i })).toBeNull();
+      });
+    });
+  });
+
+  describe('[TASK-FE-003] Troca de Plano com Confirmação', () => {
+    test('deve exibir modal de confirmação antes de chamar tenantService.changePlan ao salvar alteração de plano', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const planSelect = await screen.findByRole('combobox', { name: /plano/i });
+      // Change to a different plan
+      fireEvent.change(planSelect, { target: { value: 'livre' } });
+
+      const saveBtn = screen.getByRole('button', { name: /salvar alterações/i });
+      fireEvent.click(saveBtn);
+
+      // Modal OBRIGATORIAMENTE aparece (Q-PC-4)
+      const modalTitle = await screen.findByText(/Confirmar Troca de Plano/i);
+      expect(modalTitle).toBeInTheDocument();
+
+      // Garantir que a requisição ainda NÃO foi feita
+      expect(tenantService.changePlan).not.toHaveBeenCalled();
+
+      // Confirma no modal
+      const confirmChangeBtn = screen.getByRole('button', { name: /confirmar troca/i });
+      fireEvent.click(confirmChangeBtn);
+
+      // Agora a requisição DEVE ser feita
+      await waitFor(() => {
+        expect(tenantService.changePlan).toHaveBeenCalledWith('tenant-123', expect.objectContaining({
+          plan_id: 'livre',
+          plan_type: 'livre'
+        }));
+      });
     });
   });
 });

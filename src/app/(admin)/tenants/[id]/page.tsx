@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { planService } from '@/services/planService';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { Tenant } from '@/types/tenant';
+import { useForm, FormProvider, useWatch } from 'react-hook-form';
+import { Tenant, ChangePlanInput } from '@/types/tenant';
 import Link from 'next/link';
+import { PlanConfigFields } from '@/components/tenants/PlanConfigFields';
 import { 
   ArrowLeft, Save, Loader2, ShieldAlert, Key,
   CheckCircle2, Eye, EyeOff, Copy, Trash2, 
@@ -61,6 +62,7 @@ export default function TenantDetailsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   // UI States
   const [showApiKey, setShowApiKey] = useState(false);
@@ -68,9 +70,13 @@ export default function TenantDetailsPage() {
   const [isHardDelete, setIsHardDelete] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  
+  const [showChangePlanModal, setShowChangePlanModal] = useState(false);
+  const [pendingPlanData, setPendingPlanData] = useState<Partial<Tenant> | null>(null);
 
-  const { register, handleSubmit, reset, setValue, formState: { dirtyFields, isDirty } } = useForm<Partial<Tenant>>();
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  const methods = useForm<Partial<Tenant>>();
+  const { register, handleSubmit, reset, setValue, control, formState: { dirtyFields, isDirty } } = methods;
+  const selectedPlanId = useWatch({ control, name: 'plan_id' }) || '';
 
   const { data: tenant, isLoading, error } = useQuery({
     queryKey: ['tenant', id],
@@ -99,7 +105,6 @@ export default function TenantDetailsPage() {
         enabled_services: tenant.enabled_services || [],
       };
       reset(sanitizedTenant);
-      setSelectedPlanId(tenant.plan_id || '');
     }
   }, [tenant, reset]);
 
@@ -122,6 +127,27 @@ export default function TenantDetailsPage() {
       setSuccessMsg('Dados atualizados com sucesso!');
       setTimeout(() => setSuccessMsg(null), 3000);
     },
+    onError: (err: any) => {
+      setErrorMsg(err?.message || 'Erro ao atualizar os dados do tenant.');
+      setTimeout(() => setErrorMsg(null), 5000);
+    }
+  });
+
+  const changePlanMutation = useMutation({
+    mutationFn: (input: ChangePlanInput) => tenantService.changePlan(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant', id] });
+      setSuccessMsg('Plano alterado com sucesso!');
+      setTimeout(() => setSuccessMsg(null), 3000);
+      setShowChangePlanModal(false);
+      setPendingPlanData(null);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err?.message || 'Erro ao alterar o plano. Tente novamente.');
+      setTimeout(() => setErrorMsg(null), 5000);
+      setShowChangePlanModal(false);
+      setPendingPlanData(null);
+    }
   });
 
   const deleteMutation = useMutation({
@@ -147,20 +173,6 @@ export default function TenantDetailsPage() {
   // editáveis manualmente pelo operador.
   const isPlanoPreConfigurado = selectedPlanId !== 'livre' && selectedPlanId !== 'personalizado' && selectedPlanId !== '';
 
-  const planIdField = register('plan_id');
-  const handlePlanChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    planIdField.onChange(e);
-    const slug = e.target.value;
-    setSelectedPlanId(slug);
-    if (slug !== 'livre' && slug !== 'personalizado') {
-      const allPlans = [...(plansData?.active ?? []), ...(plansData?.inactive ?? [])];
-      const plan = allPlans.find((p: any) => p.slug === slug);
-      if (plan) {
-        setValue('enabled_services', plan.included_services ?? [], { shouldDirty: true });
-      }
-    }
-  };
-
   const onSubmit = (data: Partial<Tenant>) => {
     const dirtyData = Object.keys(dirtyFields).reduce((acc, key) => {
       acc[key as keyof Tenant] = data[key as keyof Tenant];
@@ -172,7 +184,48 @@ export default function TenantDetailsPage() {
       dirtyData.plan_id = data.plan_id;
     }
 
-    updateMutation.mutate(dirtyData);
+    if (dirtyFields.plan_id && data.plan_id !== tenant.plan_id) {
+      setPendingPlanData(dirtyData);
+      setShowChangePlanModal(true);
+    } else {
+      updateMutation.mutate(dirtyData);
+    }
+  };
+
+  const confirmChangePlan = async () => {
+    if (pendingPlanData && pendingPlanData.plan_id) {
+      try {
+        const selectedPlanId = pendingPlanData.plan_id;
+        const selectedPlan = plansData?.find((p: any) => p.slug === selectedPlanId);
+        
+        const isLivre = selectedPlanId === 'livre';
+        const isPersonalizado = selectedPlanId === 'personalizado';
+        const planType = isLivre ? 'livre' : (isPersonalizado ? 'personalizado' : 'pago');
+
+        const payload: ChangePlanInput = {
+          plan_id: selectedPlanId,
+          plan_type: planType,
+          monthly_value: pendingPlanData.plan_value ?? selectedPlan?.monthly_value ?? 0,
+          activation_fee: selectedPlan?.activation_fee ?? 0,
+          activation_billing_type: tenant?.contract?.activation_billing_type || 'pix',
+          subscription_billing_type: tenant?.contract?.subscription_billing_type || 'pix',
+          enabled_services: isLivre || isPersonalizado 
+            ? (pendingPlanData.enabled_services || tenant?.enabled_services || []) 
+            : (selectedPlan?.included_services || []),
+        };
+
+        await changePlanMutation.mutateAsync(payload);
+        
+        const otherData = { ...pendingPlanData };
+        delete otherData.plan_id;
+        delete otherData.plan_value;
+        if (Object.keys(otherData).length > 0) {
+          await updateMutation.mutateAsync(otherData);
+        }
+      } catch (e) {
+        // Error already handled by onError of the mutations
+      }
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -234,7 +287,15 @@ export default function TenantDetailsPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        {errorMsg && (
+          <div className="fixed top-24 right-8 z-[110] p-4 bg-white border-l-4 border-red-500 text-slate-800 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
+            <ShieldAlert size={20} className="text-red-500" />
+            <span className="text-sm font-medium">{errorMsg}</span>
+          </div>
+        )}
+
+        <FormProvider {...methods}>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div>
               <div className="flex items-center gap-3 mb-1">
@@ -283,13 +344,7 @@ export default function TenantDetailsPage() {
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-slate-700">Documento (CPF/CNPJ)</label>
-                      <input 
-                        {...register('documento')}
-                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                      />
-                    </div>
+
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-slate-700">Nicho de Atuação</label>
                       <input 
@@ -444,48 +499,7 @@ export default function TenantDetailsPage() {
                 </div>
                 
                 <div className="p-8">
-                  <div className="space-y-4 text-sm">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Plano</label>
-                      <select aria-label="plano" {...planIdField} onChange={handlePlanChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium">
-                        <option value="livre">Livre</option>
-                        <option value="personalizado">Personalizado</option>
-                        
-                        {plansData?.active?.length > 0 && <optgroup label="Planos Ativos">
-                          {plansData.active.map((plan: any) => (
-                            <option key={plan.slug} value={plan.slug}>{plan.nome}</option>
-                          ))}
-                        </optgroup>}
-                        
-                        {plansData?.inactive?.length > 0 && <optgroup label="Planos Desativados">
-                          {plansData.inactive.map((plan: any) => (
-                            <option key={plan.slug} value={plan.slug}>{plan.nome} (Desativado)</option>
-                          ))}
-                        </optgroup>}
-
-                        {/* Fallback to display the current plan if it's somehow not in the fetched list but is on the tenant */}
-                        {tenant?.plan_id && 
-                          tenant.plan_id !== 'livre' && 
-                          tenant.plan_id !== 'personalizado' &&
-                          !plansData?.active?.some((p: any) => p.slug === tenant.plan_id) && 
-                          !plansData?.inactive?.some((p: any) => p.slug === tenant.plan_id) && (
-                            <option value={tenant.plan_id}>{tenant.plan_id}</option>
-                        )}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Valor do Ciclo</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
-                        <input 
-                          {...register('plan_value', { valueAsNumber: true })}
-                          type="number"
-                          step="0.01"
-                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <PlanConfigFields plansData={plansData} currentPlanId={tenant?.plan_id} />
 
                   <div className="mt-8 space-y-3 pt-6 border-t border-slate-100">
                     <div className="flex justify-between text-xs">
@@ -574,7 +588,8 @@ export default function TenantDetailsPage() {
               </div>
             </div>
           </div>
-        </form>
+          </form>
+        </FormProvider>
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -627,6 +642,45 @@ export default function TenantDetailsPage() {
                   className="flex-2 px-8 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-red-500/30"
                 >
                   {deleteMutation.isPending ? <Loader2 className="animate-spin mx-auto" /> : 'Confirmar Exclusão'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Change Plan Confirmation Modal */}
+      {showChangePlanModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b flex items-center gap-3 bg-amber-50 border-amber-100 text-amber-800">
+              <AlertTriangle size={24} />
+              <h3 className="text-xl font-bold">Confirmar Troca de Plano</h3>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Você está prestes a alterar o plano deste tenant. Esta ação pode redefinir o ciclo de faturamento e serviços incluídos.
+              </p>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChangePlanModal(false);
+                    setPendingPlanData(null);
+                  }}
+                  disabled={changePlanMutation.isPending || updateMutation.isPending}
+                  className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={changePlanMutation.isPending || updateMutation.isPending}
+                  onClick={confirmChangePlan}
+                  className="flex-2 px-8 py-3 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-amber-500/30"
+                >
+                  {(changePlanMutation.isPending || updateMutation.isPending) ? <Loader2 className="animate-spin mx-auto" /> : 'Confirmar Troca'}
                 </button>
               </div>
             </div>
