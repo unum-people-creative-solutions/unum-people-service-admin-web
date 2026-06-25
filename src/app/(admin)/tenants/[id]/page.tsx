@@ -188,6 +188,7 @@ export default function TenantDetailsPage() {
       setPendingPlanData(dirtyData);
       setShowChangePlanModal(true);
     } else {
+      delete dirtyData.plan_cycle;
       updateMutation.mutate(dirtyData);
     }
   };
@@ -224,6 +225,7 @@ export default function TenantDetailsPage() {
         const otherData = { ...pendingPlanData };
         delete otherData.plan_id;
         delete otherData.plan_value;
+        delete otherData.plan_cycle;
         if (Object.keys(otherData).length > 0) {
           await updateMutation.mutateAsync(otherData);
         }
