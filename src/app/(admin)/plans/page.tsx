@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { planService } from '@/services/planService';
 import { Plan } from '@/types/tenant';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -28,11 +28,15 @@ export default function PlansPage() {
     monthly_value: 0,
     included_services: [],
     is_active: true,
+    cycle: 'mensal',
   };
 
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm<Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>>({
     defaultValues: defaultPlanValues,
   });
+
+  const cycle = useWatch({ control, name: 'cycle' });
+  const isAnual = cycle === 'anual';
 
   const createMutation = useMutation({
     mutationFn: (newPlan: Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>) => planService.createPlan(newPlan),
@@ -86,6 +90,7 @@ export default function PlansPage() {
       monthly_value: plan.monthly_value,
       included_services: plan.included_services,
       is_active: plan.is_active,
+      cycle: plan.cycle,
     });
     setIsDrawerOpen(true);
   };
@@ -97,6 +102,9 @@ export default function PlansPage() {
       activation_fee: Number(data.activation_fee),
       monthly_value: Number(data.monthly_value),
     };
+    if (payload.cycle === 'anual') {
+      payload.monthly_value = 0;
+    }
     if (typeof payload.included_services === 'string') {
       payload.included_services = (payload.included_services as string).split(',').map(s => s.trim()).filter(Boolean);
     }
@@ -161,15 +169,23 @@ export default function PlansPage() {
                   <label className="block text-sm font-semibold mb-1">Descrição</label>
                   <textarea {...register('descricao')} className="w-full border p-2 rounded" placeholder="Descrição comercial" />
                 </div>
+                <div>
+                  <label htmlFor="cycle" className="block text-sm font-semibold mb-1">Ciclo</label>
+                  <select id="cycle" {...register('cycle')} className="w-full border p-2 rounded">
+                    <option value="mensal">Mensal</option>
+                    <option value="anual">Anual</option>
+                  </select>
+                </div>
                 <div className="flex gap-4">
                   <div className="flex-1">
-                    <label className="block text-sm font-semibold mb-1">Taxa de Adesão</label>
+                    <label htmlFor="activation_fee" className="block text-sm font-semibold mb-1">{isAnual ? 'Valor Anual' : 'Taxa de Adesão'}</label>
                     <Controller
                       name="activation_fee"
                       control={control}
                       rules={{ validate: (v) => v > 0 || 'Obrigatório' }}
                       render={({ field }) => (
                         <CurrencyInputBR
+                          id="activation_fee"
                           name={field.name}
                           value={field.value}
                           onChange={field.onChange}
@@ -180,24 +196,27 @@ export default function PlansPage() {
                     />
                     {errors.activation_fee && <span className="text-red-500 text-xs">Obrigatório</span>}
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold mb-1">Mensalidade</label>
-                    <Controller
-                      name="monthly_value"
-                      control={control}
-                      rules={{ validate: (v) => v > 0 || 'Obrigatório' }}
-                      render={({ field }) => (
-                        <CurrencyInputBR
-                          name={field.name}
-                          value={field.value}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          className="w-full pl-9 pr-4 py-2 border rounded"
-                        />
-                      )}
-                    />
-                    {errors.monthly_value && <span className="text-red-500 text-xs">Obrigatório</span>}
-                  </div>
+                  {!isAnual && (
+                    <div className="flex-1">
+                      <label htmlFor="monthly_value" className="block text-sm font-semibold mb-1">Mensalidade</label>
+                      <Controller
+                        name="monthly_value"
+                        control={control}
+                        rules={{ validate: (v) => v > 0 || 'Obrigatório' }}
+                        render={({ field }) => (
+                          <CurrencyInputBR
+                            id="monthly_value"
+                            name={field.name}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            className="w-full pl-9 pr-4 py-2 border rounded"
+                          />
+                        )}
+                      />
+                      {errors.monthly_value && <span className="text-red-500 text-xs">Obrigatório</span>}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1">Serviços Inclusos (vírgula)</label>

@@ -188,6 +188,7 @@ export default function TenantDetailsPage() {
       setPendingPlanData(dirtyData);
       setShowChangePlanModal(true);
     } else {
+      delete dirtyData.plan_cycle;
       updateMutation.mutate(dirtyData);
     }
   };
@@ -205,10 +206,15 @@ export default function TenantDetailsPage() {
         const payload: ChangePlanInput = {
           plan_id: selectedPlanId,
           plan_type: planType,
-          monthly_value: pendingPlanData.plan_value ?? selectedPlan?.monthly_value ?? 0,
-          activation_fee: selectedPlan?.activation_fee ?? 0,
+          monthly_value: (pendingPlanData.plan_value !== undefined && pendingPlanData.plan_value !== null && String(pendingPlanData.plan_value).trim() !== '') 
+            ? Number(pendingPlanData.plan_value) 
+            : (selectedPlan?.monthly_value ?? 0),
+          activation_fee: ((pendingPlanData as any).activation_fee !== undefined && (pendingPlanData as any).activation_fee !== null && String((pendingPlanData as any).activation_fee).trim() !== '')
+            ? Number((pendingPlanData as any).activation_fee)
+            : (selectedPlan?.activation_fee ?? 0),
           activation_billing_type: tenant?.contract?.activation_billing_type || 'pix',
           subscription_billing_type: tenant?.contract?.subscription_billing_type || 'pix',
+          plan_cycle: pendingPlanData.plan_cycle ?? selectedPlan?.cycle ?? 'mensal',
           enabled_services: isLivre || isPersonalizado 
             ? (pendingPlanData.enabled_services || tenant?.enabled_services || []) 
             : (selectedPlan?.included_services || []),
@@ -219,6 +225,7 @@ export default function TenantDetailsPage() {
         const otherData = { ...pendingPlanData };
         delete otherData.plan_id;
         delete otherData.plan_value;
+        delete otherData.plan_cycle;
         if (Object.keys(otherData).length > 0) {
           await updateMutation.mutateAsync(otherData);
         }

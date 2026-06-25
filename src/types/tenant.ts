@@ -10,6 +10,7 @@ export interface Plan {
   monthly_value: number;
   included_services: string[];
   is_active: boolean;
+  cycle: PlanCycle;
   tenant_count?: number;
   created_at?: string;
   updated_at?: string;
@@ -101,6 +102,7 @@ export interface ChangePlanInput {
   activation_fee: number;
   activation_billing_type?: 'pix' | 'credit_card';
   subscription_billing_type?: 'pix' | 'credit_card';
+  plan_cycle?: 'mensal' | 'anual';
   enabled_services?: string[];
 }
 

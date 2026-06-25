@@ -6,6 +6,8 @@ import PlansPage from './page';
 vi.mock('@/services/planService', () => ({
   planService: {
     listPlans: vi.fn(),
+    createPlan: vi.fn(),
+    updatePlan: vi.fn(),
   }
 }));
 
@@ -147,5 +149,89 @@ describe('PlansPage', () => {
     const slugInput = screen.getByPlaceholderText(/ex: basico_mensal/i) as HTMLInputElement;
     expect(slugInput.value).toBe('');
     expect(slugInput).not.toHaveAttribute('readonly');
+  });
+
+  // T07 — Tela mestre: campo Ciclo e regra anual (FE)
+  it('ao selecionar Ciclo "Anual" o campo Mensalidade desaparece e a Taxa de Adesão é relabelada para "Valor Anual"', async () => {
+    const { useQuery } = await import('@tanstack/react-query');
+    (useQuery as any).mockReturnValue({
+      data: { active: [], inactive: [] },
+      isLoading: false
+    });
+
+    render(<PlansPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+    const cycleSelect = screen.getByLabelText('Ciclo') as HTMLSelectElement;
+    fireEvent.change(cycleSelect, { target: { value: 'anual' } });
+
+    expect(screen.queryByLabelText('Mensalidade')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Valor Anual')).toBeInTheDocument();
+  });
+
+  it('ao submeter o formulário com Ciclo "Anual" o payload enviado a createPlan inclui cycle: "anual"', async () => {
+    const { useQuery, useMutation } = await import('@tanstack/react-query');
+    (useQuery as any).mockReturnValue({
+      data: { active: [], inactive: [] },
+      isLoading: false
+    });
+
+    const mutateSpy = vi.fn();
+    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
+      mutate: (variables: any) => {
+        mutationFn(variables);
+        mutateSpy(variables);
+      },
+      isPending: false,
+    }));
+
+    const { planService } = await import('@/services/planService');
+
+    render(<PlansPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+    fireEvent.change(screen.getByPlaceholderText(/ex: basico_mensal/i), { target: { value: 'plano_anual' } });
+    fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'Plano Anual' } });
+    fireEvent.change(screen.getByLabelText('Ciclo'), { target: { value: 'anual' } });
+    fireEvent.change(screen.getByLabelText('Valor Anual'), { target: { value: '1200' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+    await waitFor(() => {
+      expect(planService.createPlan).toHaveBeenCalled();
+    });
+
+    const payload = (planService.createPlan as any).mock.calls[0][0];
+    expect(payload.cycle).toBe('anual');
+    expect(payload.monthly_value).toBe(0);
+  });
+
+  it('ao editar um plano existente com cycle "anual" o select de Ciclo vem pré-selecionado em "Anual"', async () => {
+    const { useQuery } = await import('@tanstack/react-query');
+    (useQuery as any).mockReturnValue({
+      data: {
+        active: [{
+          slug: 'anual_premium',
+          nome: 'Anual Premium',
+          descricao: 'Plano anual',
+          activation_fee: 1200,
+          monthly_value: 0,
+          included_services: ['site'],
+          is_active: true,
+          cycle: 'anual',
+        }],
+        inactive: []
+      },
+      isLoading: false
+    });
+
+    render(<PlansPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Editar Anual Premium/i }));
+
+    const cycleSelect = screen.getByLabelText('Ciclo') as HTMLSelectElement;
+    expect(cycleSelect.value).toBe('anual');
   });
 });

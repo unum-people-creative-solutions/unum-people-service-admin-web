@@ -13,11 +13,23 @@ interface PlanConfigFieldsProps {
 export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsProps) {
   const { register, control, setValue, formState } = useFormContext();
   const selectedPlanId = useWatch({ control, name: 'plan_id' });
+  const selectedCycle = useWatch({ control, name: 'plan_cycle' });
 
   // Derive plan_type
   let planType: 'livre' | 'personalizado' | 'pago' = 'pago';
   if (selectedPlanId === 'livre') planType = 'livre';
   else if (selectedPlanId === 'personalizado') planType = 'personalizado';
+
+  // Ciclo resultante: travado pelo plano para `pago`; livremente escolhido para `personalizado`.
+  let resolvedCycle: 'mensal' | 'anual' = 'mensal';
+  if (planType === 'pago') {
+    const activePlans = plansData?.active ?? [];
+    const plan = activePlans.find((p: any) => p.slug === selectedPlanId);
+    resolvedCycle = plan?.cycle ?? 'mensal';
+  } else if (planType === 'personalizado') {
+    resolvedCycle = selectedCycle ?? 'mensal';
+  }
+  const isAnualCycle = resolvedCycle === 'anual';
 
   // Enforce read-only values for pre-configured plans
   useEffect(() => {
@@ -39,6 +51,17 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
       setValue('monthly_value', 0, { shouldDirty: true });
     }
   }, [selectedPlanId, planType, plansData, setValue, formState.defaultValues]);
+
+  // Ciclo é sempre derivado/travado a partir do plano para `pago` (RF-CY-04),
+  // independente de o plano ter sido alterado nesta sessão ou já vir selecionado.
+  useEffect(() => {
+    if (planType !== 'pago') return;
+    const activePlans = plansData?.active ?? [];
+    const plan = activePlans.find((p: any) => p.slug === selectedPlanId);
+    if (plan) {
+      setValue('plan_cycle', plan.cycle ?? 'mensal', { shouldDirty: true });
+    }
+  }, [selectedPlanId, planType, plansData, setValue]);
 
   return (
     <>
@@ -126,9 +149,10 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
 
             <div className="space-y-2">
               <label htmlFor="plan_cycle" className="text-sm font-semibold text-slate-700">Ciclo</label>
-              <select 
+              <select
                 id="plan_cycle"
                 {...register('plan_cycle')}
+                disabled={planType === 'pago'}
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
               >
                 <option value="mensal">Mensal</option>
@@ -154,6 +178,7 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
               />
             </div>
 
+            {!isAnualCycle && (
             <div className="space-y-2">
               <label htmlFor="monthly_value" className="text-sm font-semibold text-slate-700">Mensalidade</label>
               <Controller
@@ -171,6 +196,7 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
                 )}
               />
             </div>
+            )}
           </>
         )}
       </div>
