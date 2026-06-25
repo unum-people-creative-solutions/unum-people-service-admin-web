@@ -94,4 +94,13 @@ export interface AddTenantUserInput {
   role: TenantUserRole;
 }
 
+export interface ChangePlanInput {
+  plan_id: string;
+  plan_type: PlanType;
+  monthly_value: number;
+  activation_fee: number;
+  activation_billing_type?: 'pix' | 'credit_card';
+  subscription_billing_type?: 'pix' | 'credit_card';
+  enabled_services?: string[];
+}
 

@@ -1,7 +1,7 @@
 import { CognitoUser, CognitoRefreshToken } from 'amazon-cognito-identity-js';
 import { useAuthStore } from "@/store/useAuthStore";
 import { userPool } from "@/lib/cognito";
-import { Tenant, CreateTenantInput, TenantUser, TenantUserRole, AddTenantUserInput } from "@/types/tenant";
+import { Tenant, CreateTenantInput, TenantUser, TenantUserRole, AddTenantUserInput, ChangePlanInput } from "@/types/tenant";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.unumpeople.com/v1';
 
@@ -80,6 +80,11 @@ export const tenantService = {
   create: (data: CreateTenantInput): Promise<Tenant> => fetchWithAuth('/admin/tenants', {
     method: 'POST',
     body: JSON.stringify(data),
+  }),
+  
+  changePlan: (tenantId: string, input: ChangePlanInput): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${tenantId}/plan`, {
+    method: 'POST',
+    body: JSON.stringify(input),
   }),
   
   update: (id: string, data: Partial<Tenant>): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}`, {
