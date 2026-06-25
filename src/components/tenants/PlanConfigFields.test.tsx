@@ -67,9 +67,54 @@ describe('PlanConfigFields', () => {
 
   it('deve exigir Documento/CPF quando o plano for pago (ex: personalizado)', async () => {
     render(<Wrapper defaultValues={{ plan_id: 'personalizado' }} />);
-    
+
     const documentoInput = screen.getByRole('textbox', { name: /documento/i });
     expect(documentoInput).toBeRequired();
+  });
+
+  // T08 — Atribuição ao tenant: ciclo read-only para pago, editável para personalizado
+  const mockPlansWithAnnual = {
+    active: [
+      { slug: 'lp_basico', nome: 'LP Básico', activation_fee: 100, monthly_value: 50, included_services: ['lp'], cycle: 'anual' },
+    ],
+  };
+
+  it('deve desabilitar o select plan_cycle e fixar seu valor no cycle do plano quando o plano selecionado for PAGO', async () => {
+    render(<Wrapper plansData={mockPlansWithAnnual} defaultValues={{ plan_id: 'lp_basico', plan_cycle: 'mensal' }} />);
+
+    const cycleSelect = await screen.findByLabelText('Ciclo') as HTMLSelectElement;
+
+    expect(cycleSelect).toBeDisabled();
+    await waitFor(() => {
+      expect(cycleSelect.value).toBe('anual');
+    });
+  });
+
+  it('deve manter o select plan_cycle habilitado quando o plano selecionado for PERSONALIZADO', async () => {
+    render(<Wrapper defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal' }} />);
+
+    const cycleSelect = await screen.findByLabelText('Ciclo') as HTMLSelectElement;
+
+    expect(cycleSelect).not.toBeDisabled();
+  });
+
+  it('deve ocultar a Mensalidade quando o plano PAGO selecionado tiver cycle anual', async () => {
+    render(<Wrapper plansData={mockPlansWithAnnual} defaultValues={{ plan_id: 'lp_basico' }} />);
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Mensalidade')).not.toBeInTheDocument();
+    });
+  });
+
+  it('deve ocultar a Mensalidade quando o plano PERSONALIZADO tiver Ciclo anual selecionado manualmente', async () => {
+    render(<Wrapper defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal' }} />);
+
+    const cycleSelect = await screen.findByLabelText('Ciclo') as HTMLSelectElement;
+    fireEvent.change(cycleSelect, { target: { value: 'anual' } });
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Mensalidade')).not.toBeInTheDocument();
+    });
   });
 
 });
