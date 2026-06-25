@@ -205,11 +205,11 @@ export default function TenantDetailsPage() {
         const payload: ChangePlanInput = {
           plan_id: selectedPlanId,
           plan_type: planType,
-          monthly_value: (pendingPlanData.plan_value !== undefined && pendingPlanData.plan_value !== '') 
+          monthly_value: (pendingPlanData.plan_value !== undefined && pendingPlanData.plan_value !== null && String(pendingPlanData.plan_value).trim() !== '') 
             ? Number(pendingPlanData.plan_value) 
             : (selectedPlan?.monthly_value ?? 0),
-          activation_fee: (pendingPlanData.activation_fee !== undefined && pendingPlanData.activation_fee !== '')
-            ? Number(pendingPlanData.activation_fee)
+          activation_fee: ((pendingPlanData as any).activation_fee !== undefined && (pendingPlanData as any).activation_fee !== null && String((pendingPlanData as any).activation_fee).trim() !== '')
+            ? Number((pendingPlanData as any).activation_fee)
             : (selectedPlan?.activation_fee ?? 0),
           activation_billing_type: tenant?.contract?.activation_billing_type || 'pix',
           subscription_billing_type: tenant?.contract?.subscription_billing_type || 'pix',
