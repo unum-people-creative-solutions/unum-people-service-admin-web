@@ -19,7 +19,7 @@ vi.mock('@/services/tenantService', () => ({
 vi.mock('@/services/planService', () => ({
   planService: {
     listPlans: vi.fn().mockResolvedValue({
-      active: [{ slug: 'lp_basico', nome: 'LP Básico', included_services: ['site', 'blog'] }],
+      active: [{ slug: 'lp_basico', nome: 'LP Básico', monthly_value: 199, activation_fee: 0, included_services: ['site', 'blog'] }],
       inactive: [{ slug: 'plano-desativado-legacy', nome: 'Plano Legacy', included_services: ['crm'] }]
     }),
   },
@@ -44,7 +44,7 @@ const mockTenant = {
   nicho: 'SAUDE',
   site_url: 'https://teste.com',
   api_key: 'up_test_key_123456789',
-  enabled_services: ['crm'],
+  enabled_services: ['site', 'blog'],
   google_ads_customer_id: '123-456-7890',
   use_mcc_auth: false,
   plan_id: 'lp_basico',

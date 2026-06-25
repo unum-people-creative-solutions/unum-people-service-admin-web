@@ -103,6 +103,10 @@ export default function TenantDetailsPage() {
         slug: tenant.slug || '',
         google_ads_customer_id: tenant.google_ads_customer_id || '',
         enabled_services: tenant.enabled_services || [],
+        activation_fee: tenant.contract?.activation_fee ?? 0,
+        monthly_value: tenant.contract?.monthly_value ?? tenant.plan_value ?? 0,
+        activation_billing_type: tenant.contract?.activation_billing_type ?? 'pix',
+        subscription_billing_type: tenant.contract?.subscription_billing_type ?? 'pix',
       };
       reset(sanitizedTenant);
     }

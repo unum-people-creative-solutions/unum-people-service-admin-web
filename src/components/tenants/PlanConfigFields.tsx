@@ -36,21 +36,21 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
     const defaultPlanId = formState.defaultValues?.plan_id;
     const isPlanChanged = selectedPlanId !== defaultPlanId;
 
-    if (!isPlanChanged) return; // Só sobrescreve se o usuário mudar o plano ativamente
-
     if (planType === 'pago') {
       const activePlans = plansData?.active ?? [];
-      const plan = activePlans.find((p: any) => p.slug === selectedPlanId);
+      const inactivePlans = plansData?.inactive ?? [];
+      const allPlans = [...activePlans, ...inactivePlans];
+      const plan = allPlans.find((p: any) => p.slug === selectedPlanId);
       if (plan) {
-        setValue('activation_fee', plan.activation_fee ?? 0, { shouldDirty: true });
-        setValue('monthly_value', plan.monthly_value ?? 0, { shouldDirty: true });
-        setValue('enabled_services', plan.included_services ?? [], { shouldDirty: true });
+        setValue('activation_fee', plan.activation_fee ?? 0, { shouldDirty: isPlanChanged });
+        setValue('monthly_value', plan.monthly_value ?? 0, { shouldDirty: isPlanChanged });
+        setValue('enabled_services', plan.included_services ?? [], { shouldDirty: isPlanChanged });
       }
     } else if (planType === 'livre') {
-      setValue('activation_fee', 0, { shouldDirty: true });
-      setValue('monthly_value', 0, { shouldDirty: true });
+      setValue('activation_fee', 0, { shouldDirty: isPlanChanged });
+      setValue('monthly_value', 0, { shouldDirty: isPlanChanged });
     }
-  }, [selectedPlanId, planType, plansData, setValue, formState.defaultValues]);
+  }, [selectedPlanId, planType, plansData, setValue, formState.defaultValues?.plan_id]);
 
   // Ciclo é sempre derivado/travado a partir do plano para `pago` (RF-CY-04),
   // independente de o plano ter sido alterado nesta sessão ou já vir selecionado.
