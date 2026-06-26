@@ -126,12 +126,23 @@ export default function NewTenantPage() {
 
                 <div className="space-y-2 flex flex-col justify-center">
                   <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mt-6 cursor-pointer">
-                    <input 
+                    <input
                       type="checkbox"
                       {...register('use_mcc_auth')}
                       className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
                     />
                     <span>Utilizar Autenticação MCC (Gerenciador de Contas)</span>
+                  </label>
+                </div>
+
+                <div className="space-y-2 flex flex-col justify-center">
+                  <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 mt-6 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      {...register('is_test_tenant')}
+                      className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
+                    />
+                    <span>Tenant de teste (sem dados reais de clientes)</span>
                   </label>
                 </div>
               </div>

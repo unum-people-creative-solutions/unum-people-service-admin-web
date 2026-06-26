@@ -86,7 +86,7 @@ export const tenantService = {
     method: 'POST',
     body: JSON.stringify(input),
   }),
-  
+
   update: (id: string, data: Partial<Tenant>): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -169,7 +169,12 @@ export const tenantService = {
       method: 'POST',
     }),
 
-  cancelTenant: (id: string): Promise<{ message: string }> =>
+  pauseSubscription: (id: string): Promise<{ message: string }> =>
+    fetchWithAuth(`/admin/tenants/${id}/pause`, {
+      method: 'POST',
+    }),
+
+  cancelContract: (id: string): Promise<{ message: string }> =>
     fetchWithAuth(`/admin/tenants/${id}/cancel`, {
       method: 'POST',
     }),

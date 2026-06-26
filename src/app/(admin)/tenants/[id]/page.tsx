@@ -8,10 +8,11 @@ import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { Tenant, ChangePlanInput } from '@/types/tenant';
 import Link from 'next/link';
 import { PlanConfigFields } from '@/components/tenants/PlanConfigFields';
+import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { 
   ArrowLeft, Save, Loader2, ShieldAlert, Key,
   CheckCircle2, Eye, EyeOff, Copy, Trash2, 
-  Globe, LayoutGrid, CreditCard, AlertTriangle 
+  Globe, LayoutGrid, CreditCard, AlertTriangle, PauseCircle, XCircle
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { TenantUsersSection } from '@/components/TenantUsersSection';
@@ -71,6 +72,9 @@ export default function TenantDetailsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   
+  const [showImmediateDeleteOption, setShowImmediateDeleteOption] = useState(false);
+  const [immediateDeleteConfirmText, setImmediateDeleteConfirmText] = useState('');
+
   const [showChangePlanModal, setShowChangePlanModal] = useState(false);
   const [pendingPlanData, setPendingPlanData] = useState<Partial<Tenant> | null>(null);
 
@@ -103,6 +107,10 @@ export default function TenantDetailsPage() {
         slug: tenant.slug || '',
         google_ads_customer_id: tenant.google_ads_customer_id || '',
         enabled_services: tenant.enabled_services || [],
+        activation_fee: tenant.contract?.activation_fee ?? 0,
+        monthly_value: tenant.contract?.monthly_value ?? tenant.plan_value ?? 0,
+        activation_billing_type: tenant.contract?.activation_billing_type ?? 'pix',
+        subscription_billing_type: tenant.contract?.subscription_billing_type ?? 'pix',
       };
       reset(sanitizedTenant);
     }
@@ -158,12 +166,48 @@ export default function TenantDetailsPage() {
     },
   });
 
+  const immediateDeleteMutation = useMutation({
+    mutationFn: () => tenantService.delete(id, true),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
+      router.push('/tenants');
+    },
+  });
+
   const toggleBlockMutation = useMutation({
     mutationFn: (is_blocked: boolean) => tenantService.update(id, { is_blocked }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant', id] });
     },
   });
+
+  const pauseMutation = useMutation({
+    mutationFn: () => tenantService.pauseSubscription(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant', id] });
+      setSuccessMsg('Assinatura pausada com sucesso!');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err?.message || 'Erro ao pausar assinatura.');
+      setTimeout(() => setErrorMsg(null), 5000);
+    }
+  });
+
+  const cancelContractMutation = useMutation({
+    mutationFn: () => tenantService.cancelContract(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant', id] });
+      setSuccessMsg('Contrato cancelado com sucesso!');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err?.message || 'Erro ao cancelar contrato.');
+      setTimeout(() => setErrorMsg(null), 5000);
+    }
+  });
+
+  const [cancelContractConfirmText, setCancelContractConfirmText] = useState('');
 
   if (isLoading) return <div className="p-8 animate-pulse">Carregando detalhes...</div>;
   if (error || !tenant) return <div className="p-8 text-red-600">Erro: Tenant não encontrado.</div>;
@@ -247,6 +291,12 @@ export default function TenantDetailsPage() {
     }
   };
 
+  const handleImmediateDelete = () => {
+    if (immediateDeleteConfirmText === 'excluir tenant de teste') {
+      immediateDeleteMutation.mutate();
+    }
+  };
+
   // Verificações rigorosas de estado 'dirty' por seção
   const isBasicsDirty = ['nome_negocio', 'documento', 'nicho', 'site_url', 'slug'].some(
     field => dirtyFields[field as keyof Tenant] === true
@@ -261,6 +311,11 @@ export default function TenantDetailsPage() {
   const isSubscriptionDirty = ['plan_id', 'plan_value'].some(
     field => dirtyFields[field as keyof Tenant] === true
   );
+
+  const currentStatus = tenant.status || (tenant as any).plan_status;
+  const isPausarEnabled = ['ativo', 'inadimplente', 'suspenso'].includes(currentStatus as string);
+  const isCancelarEnabled = !['cancelado', 'excluindo'].includes(currentStatus as string);
+  const canDelete = currentStatus === 'cancelado';
 
   const StatusLed = ({ active }: { active: boolean }) => {
     const label = active ? 'Alterações Pendentes' : 'Sincronizado';
@@ -547,48 +602,178 @@ export default function TenantDetailsPage() {
                         <span className="text-sm font-bold text-red-900 block">Bloquear Tenant</span>
                         <p className="text-[10px] text-red-600 max-w-[120px]">Interrompe acesso imediato de todos os usuários.</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleBlockMutation.mutate(!tenant.is_blocked)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${tenant.is_blocked ? 'bg-red-600' : 'bg-slate-300'}`}
-                      >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${tenant.is_blocked ? 'translate-x-6' : 'translate-x-1'}`} />
-                      </button>
+                      
+                      <AlertDialog.Root>
+                        <AlertDialog.Trigger asChild>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={tenant.is_blocked}
+                            aria-label="Bloquear Tenant"
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${tenant.is_blocked ? 'bg-red-600' : 'bg-slate-300'}`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${tenant.is_blocked ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                        </AlertDialog.Trigger>
+                        <AlertDialog.Portal>
+                          <AlertDialog.Overlay className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" />
+                          <AlertDialog.Content className="fixed left-[50%] top-[50%] z-[100] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 bg-white p-6 shadow-lg sm:rounded-2xl">
+                            <div className={`p-6 border-b flex items-center gap-3 ${tenant.is_blocked ? 'bg-green-50 border-green-100 text-green-800' : 'bg-red-50 border-red-100 text-red-800'} -mx-6 -mt-6 px-6 pt-6 mb-2 rounded-t-2xl`}>
+                              <AlertTriangle size={24} />
+                              <AlertDialog.Title className="text-xl font-bold">
+                                Confirmar {tenant.is_blocked ? 'Desbloqueio' : 'Bloqueio'}
+                              </AlertDialog.Title>
+                            </div>
+                            <AlertDialog.Description className="text-slate-600 text-sm leading-relaxed">
+                              Você tem certeza que deseja {tenant.is_blocked ? 'desbloquear' : 'bloquear'} este tenant?
+                            </AlertDialog.Description>
+                            <div className="flex gap-4 mt-2">
+                              <AlertDialog.Cancel asChild>
+                                <button className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 transition-colors">
+                                  Cancelar
+                                </button>
+                              </AlertDialog.Cancel>
+                              <AlertDialog.Action asChild>
+                                <button 
+                                  onClick={() => toggleBlockMutation.mutate(!tenant.is_blocked)}
+                                  className={`flex-2 px-8 py-3 text-white rounded-xl font-bold transition-all shadow-lg ${tenant.is_blocked ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+                                >
+                                  Confirmar
+                                </button>
+                              </AlertDialog.Action>
+                            </div>
+                          </AlertDialog.Content>
+                        </AlertDialog.Portal>
+                      </AlertDialog.Root>
                     </div>
 
                     <div className="pt-4 border-t border-red-100 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="relative inline-flex h-5 w-9 items-center rounded-full bg-slate-300 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            id="hard_delete_toggle"
-                            className="sr-only peer" 
-                            checked={isHardDelete}
-                            onChange={(e) => setIsHardDelete(e.target.checked)}
-                          />
-                          <div className={`h-3 w-3 ml-1 rounded-full bg-white transition-all peer-checked:translate-x-4 ${isHardDelete ? 'bg-red-600' : ''}`}></div>
-                          <label htmlFor="hard_delete_toggle" className="absolute inset-0 cursor-pointer">
-                            <span className="sr-only">Hard Delete</span>
-                          </label>
-                        </div>
-                        <span className="text-xs font-bold text-slate-700">MODO EXCLUSÃO FÍSICA</span>
-                      </div>
-
-                      {isHardDelete && (
-                        <div className="p-3 bg-red-100 border border-red-200 rounded-lg text-red-700 text-[10px] font-bold animate-pulse">
-                          <AlertTriangle size={14} className="inline mr-1" />
-                          Atenção: Deleção Física Ativada! Isto removerá permanentemente todos os registros do banco.
-                        </div>
+                      {isPausarEnabled && (
+                        <AlertDialog.Root>
+                          <AlertDialog.Trigger asChild>
+                            <button
+                              type="button"
+                              className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 transition-all shadow-md active:scale-95"
+                            >
+                              <PauseCircle size={18} />
+                              Pausar Assinatura
+                            </button>
+                          </AlertDialog.Trigger>
+                          <AlertDialog.Portal>
+                            <AlertDialog.Overlay className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" />
+                            <AlertDialog.Content className="fixed left-[50%] top-[50%] z-[100] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 bg-white p-6 shadow-lg sm:rounded-2xl">
+                              <div className="border-b flex items-center gap-3 bg-amber-50 border-amber-100 text-amber-800 -mx-6 -mt-6 px-6 py-6 mb-2 rounded-t-2xl">
+                                <AlertTriangle size={24} />
+                                <AlertDialog.Title className="text-xl font-bold">
+                                  Confirmar Pausa
+                                </AlertDialog.Title>
+                              </div>
+                              <AlertDialog.Description className="text-slate-600 text-sm leading-relaxed">
+                                A assinatura será pausada. O tenant não será cobrado no próximo ciclo, mas o acesso aos serviços pode ser restrito. Deseja continuar?
+                              </AlertDialog.Description>
+                              <div className="flex gap-4 mt-2">
+                                <AlertDialog.Cancel asChild>
+                                  <button className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 transition-colors">
+                                    Cancelar
+                                  </button>
+                                </AlertDialog.Cancel>
+                                <AlertDialog.Action asChild>
+                                  <button 
+                                    onClick={() => pauseMutation.mutate()}
+                                    className="flex-2 px-8 py-3 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-all shadow-lg"
+                                  >
+                                    Confirmar Pausa
+                                  </button>
+                                </AlertDialog.Action>
+                              </div>
+                            </AlertDialog.Content>
+                          </AlertDialog.Portal>
+                        </AlertDialog.Root>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => setShowDeleteModal(true)}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-all shadow-md active:scale-95"
-                      >
-                        <Trash2 size={18} />
-                        Excluir Tenant
-                      </button>
+                      {isCancelarEnabled && (
+                        <AlertDialog.Root>
+                          <AlertDialog.Trigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => setCancelContractConfirmText('')}
+                              className="w-full flex items-center justify-center gap-2 py-3 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition-all shadow-md active:scale-95"
+                            >
+                              <XCircle size={18} />
+                              Cancelar Contrato
+                            </button>
+                          </AlertDialog.Trigger>
+                          <AlertDialog.Portal>
+                            <AlertDialog.Overlay className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" />
+                            <AlertDialog.Content className="fixed left-[50%] top-[50%] z-[100] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 bg-white p-6 shadow-lg sm:rounded-2xl outline-none">
+                              <div className="border-b flex items-center gap-3 bg-orange-50 border-orange-100 text-orange-800 -mx-6 -mt-6 px-6 py-6 mb-2 rounded-t-2xl">
+                                <AlertTriangle size={24} />
+                                <AlertDialog.Title className="text-xl font-bold">
+                                  Cancelar Contrato
+                                </AlertDialog.Title>
+                              </div>
+                              <AlertDialog.Description asChild>
+                                <div className="text-slate-600 text-sm leading-relaxed space-y-4">
+                                  <p>
+                                    O contrato será cancelado e a assinatura será encerrada. Serviços serão interrompidos de acordo com as regras de cancelamento.
+                                  </p>
+                                  <div className="space-y-3">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                      Para confirmar, digite as palavras abaixo:
+                                    </label>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center font-mono font-bold text-slate-400 select-none">
+                                      cancelar contrato
+                                    </div>
+                                    <input 
+                                      placeholder='Digite "cancelar contrato"'
+                                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all text-center font-bold"
+                                      value={cancelContractConfirmText}
+                                      onChange={(e) => setCancelContractConfirmText(e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                              </AlertDialog.Description>
+                              <div className="flex gap-4 mt-2">
+                                <AlertDialog.Cancel asChild>
+                                  <button onClick={() => setCancelContractConfirmText('')} className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 transition-colors">
+                                    Cancelar
+                                  </button>
+                                </AlertDialog.Cancel>
+                                <AlertDialog.Action asChild>
+                                  <button 
+                                    disabled={cancelContractConfirmText !== 'cancelar contrato' || cancelContractMutation.isPending}
+                                    onClick={(e) => {
+                                      if (cancelContractConfirmText !== 'cancelar contrato') {
+                                        e.preventDefault();
+                                        return;
+                                      }
+                                      cancelContractMutation.mutate();
+                                    }}
+                                    className="flex-2 px-8 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
+                                  >
+                                    {cancelContractMutation.isPending ? <Loader2 className="animate-spin mx-auto" /> : 'Confirmar Cancelamento'}
+                                  </button>
+                                </AlertDialog.Action>
+                              </div>
+                            </AlertDialog.Content>
+                          </AlertDialog.Portal>
+                        </AlertDialog.Root>
+                      )}
+
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          disabled={!canDelete}
+                          onClick={() => setShowDeleteModal(true)}
+                          className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 size={18} />
+                          Excluir Tenant
+                        </button>
+                        {!canDelete && (
+                          <p role="alert" className="text-xs text-red-600 text-center font-medium">Apenas tenants com status CANCELADO podem ser excluídos.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -612,10 +797,34 @@ export default function TenantDetailsPage() {
             
             <div className="p-8 space-y-6">
               <p className="text-slate-600 text-sm leading-relaxed">
-                {isHardDelete 
-                  ? 'Você está prestes a realizar uma deleção física e IRREVERSÍVEL. O tenant será removido permanentemente do banco de dados, o usuário será deletado do Cognito e os leads serão anonimizados imediatamente.'
-                  : 'O tenant será marcado para exclusão (Soft Delete). O acesso será bloqueado e os dados serão anonimizados conforme a política de privacidade, mantendo apenas logs de auditoria legal.'}
+                {isHardDelete
+                  ? 'Você está solicitando uma deleção física e IRREVERSÍVEL. O acesso será bloqueado imediatamente, mas a remoção definitiva dos dados (banco de dados e Cognito) é processada de forma assíncrona, respeitando o período de retenção legal de 30 dias.'
+                  : 'O tenant será marcado para exclusão (Soft Delete). O acesso será bloqueado e os dados serão anonimizados conforme a política de privacidade, mantendo apenas logs de auditoria legal durante o período de retenção.'}
               </p>
+
+              <div className="flex items-center gap-3">
+                <div className="relative inline-flex h-5 w-9 items-center rounded-full bg-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="hard_delete_toggle"
+                    className="sr-only peer"
+                    checked={isHardDelete}
+                    onChange={(e) => setIsHardDelete(e.target.checked)}
+                  />
+                  <div className={`h-3 w-3 ml-1 rounded-full bg-white transition-all peer-checked:translate-x-4 ${isHardDelete ? 'bg-red-600' : ''}`}></div>
+                  <label htmlFor="hard_delete_toggle" className="absolute inset-0 cursor-pointer">
+                    <span className="sr-only">Hard Delete</span>
+                  </label>
+                </div>
+                <span className="text-xs font-bold text-slate-700">MODO EXCLUSÃO FÍSICA</span>
+              </div>
+
+              {isHardDelete && (
+                <div className="p-3 bg-red-100 border border-red-200 rounded-lg text-red-700 text-[10px] font-bold animate-pulse">
+                  <AlertTriangle size={14} className="inline mr-1" />
+                  Atenção: Deleção Física Ativada! Isto removerá permanentemente todos os registros do banco (processamento assíncrono, dentro do período de retenção legal).
+                </div>
+              )}
 
               <div className="space-y-3">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -638,6 +847,8 @@ export default function TenantDetailsPage() {
                   onClick={() => {
                     setShowDeleteModal(false);
                     setDeleteConfirmText('');
+                    setShowImmediateDeleteOption(false);
+                    setImmediateDeleteConfirmText('');
                   }}
                   className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                 >
@@ -651,6 +862,49 @@ export default function TenantDetailsPage() {
                   {deleteMutation.isPending ? <Loader2 className="animate-spin mx-auto" /> : 'Confirmar Exclusão'}
                 </button>
               </div>
+
+              {tenant.is_test_tenant && (
+                <div className="pt-6 border-t border-slate-100 space-y-4">
+                  {!showImmediateDeleteOption ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowImmediateDeleteOption(true)}
+                      className="w-full px-4 py-3 border-2 border-dashed border-red-300 rounded-xl text-red-700 font-bold hover:bg-red-50 transition-colors text-sm"
+                    >
+                      Excluir definitivamente agora (tenant de teste, sem espera)
+                    </button>
+                  ) : (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-4">
+                      <p className="text-red-700 text-xs leading-relaxed font-medium">
+                        Este é um tenant de teste. Ao confirmar abaixo, a exclusão física ocorrerá AGORA, sem aguardar o período de retenção de 30 dias usado para tenants reais. Esta ação é IRREVERSÍVEL.
+                      </p>
+
+                      <div className="space-y-3">
+                        <label className="text-xs font-bold text-red-500 uppercase tracking-wider">
+                          Para confirmar, digite as palavras abaixo:
+                        </label>
+                        <div className="bg-white p-3 rounded-lg border border-red-200 text-center font-mono font-bold text-slate-400 select-none">
+                          excluir tenant de teste
+                        </div>
+                        <input
+                          placeholder='Digite "excluir tenant de teste"'
+                          className="w-full px-4 py-3 border border-red-300 rounded-xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all text-center font-bold"
+                          value={immediateDeleteConfirmText}
+                          onChange={(e) => setImmediateDeleteConfirmText(e.target.value)}
+                        />
+                      </div>
+
+                      <button
+                        disabled={immediateDeleteConfirmText !== 'excluir tenant de teste' || immediateDeleteMutation.isPending}
+                        onClick={handleImmediateDelete}
+                        className="w-full px-8 py-3 bg-red-700 text-white rounded-xl font-bold hover:bg-red-800 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-red-700/30"
+                      >
+                        {immediateDeleteMutation.isPending ? <Loader2 className="animate-spin mx-auto" /> : 'Confirmar Exclusão Imediata'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

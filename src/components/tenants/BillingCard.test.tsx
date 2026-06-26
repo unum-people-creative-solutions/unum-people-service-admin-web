@@ -184,43 +184,10 @@ describe('BillingCard Component', () => {
     expect(tenantService.reactivateTenant).toHaveBeenCalledWith('t-123');
   });
 
-  it('TASK-FE-003 - deve exigir confirmação dupla para cancelar contrato e exibir erro se falhar', async () => {
+  it('T10 - não deve exibir o botão de cancelar contrato no BillingCard', () => {
     const activeTenant: Tenant = { ...baseTenant, status: 'ativo' };
     renderWithQuery(<BillingCard tenant={activeTenant} contract={createContract('disponivel')} />);
     
-    // 1. Clicar no botão principal de cancelar contrato
-    const cancelBtn = screen.getByRole('button', { name: /cancelar contrato/i });
-    expect(cancelBtn).toBeInTheDocument();
-    expect(tenantService.cancelTenant).not.toHaveBeenCalled();
-
-    await act(async () => {
-      fireEvent.click(cancelBtn);
-    });
-
-    // 2. Primeira confirmação
-    const firstConfirmBtn = screen.getByRole('button', { name: /confirmar/i });
-    expect(firstConfirmBtn).toBeInTheDocument();
-    expect(tenantService.cancelTenant).not.toHaveBeenCalled();
-
-    await act(async () => {
-      fireEvent.click(firstConfirmBtn);
-    });
-
-    // 3. Segunda confirmação
-    const secondConfirmBtn = screen.getByRole('button', { name: /tenho certeza/i });
-    expect(secondConfirmBtn).toBeInTheDocument();
-
-    (tenantService.cancelTenant as any).mockRejectedValue(new Error('Erro simulado ao cancelar'));
-
-    await act(async () => {
-      fireEvent.click(secondConfirmBtn);
-    });
-
-    // 4. Verificação de que a API foi chamada e que o erro não silencioso apareceu
-    expect(tenantService.cancelTenant).toHaveBeenCalledWith('t-123');
-    
-    const alert = screen.getByRole('alert');
-    expect(alert).toBeInTheDocument();
-    expect(alert).toHaveTextContent(/erro|falha/i);
+    expect(screen.queryByRole('button', { name: /cancelar contrato/i })).not.toBeInTheDocument();
   });
 });
