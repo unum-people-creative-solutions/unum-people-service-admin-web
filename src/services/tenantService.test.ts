@@ -397,4 +397,52 @@ describe('tenantService', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('pauseSubscription', () => {
+    it('calls POST /admin/tenants/{id}/pause endpoint', async () => {
+      const tenantId = 'tenant-123'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Subscription paused' }),
+        text: async () => JSON.stringify(({ message: 'Subscription paused' })),
+      })
+
+      const result = await tenantService.pauseSubscription(tenantId)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/pause`),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual({ message: 'Subscription paused' })
+    })
+  })
+
+  describe('cancelContract', () => {
+    it('calls POST /admin/tenants/{id}/cancel endpoint', async () => {
+      const tenantId = 'tenant-123'
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Contract cancelled' }),
+        text: async () => JSON.stringify(({ message: 'Contract cancelled' })),
+      })
+
+      const result = await tenantService.cancelContract(tenantId)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/cancel`),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual({ message: 'Contract cancelled' })
+    })
+  })
 })

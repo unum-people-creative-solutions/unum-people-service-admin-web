@@ -206,6 +206,77 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
   });
 });
 
+describe('NewTenantPage - RF-TT-03: Flag Tenant de Teste', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as any);
+  });
+
+  test('deve renderizar o checkbox "Tenant de teste" acessível por role', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const checkbox = screen.getByRole('checkbox', { name: /tenant de teste/i });
+    expect(checkbox).toBeInTheDocument();
+  });
+
+  test('o checkbox deve estar desmarcado por padrão', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const checkbox = screen.getByRole('checkbox', { name: /tenant de teste/i });
+    expect(checkbox).not.toBeChecked();
+  });
+
+  test('ao marcar o checkbox e submeter, o payload enviado a tenantService.create deve conter is_test_tenant: true', async () => {
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /tenant de teste/i }));
+
+    fireEvent.change(container.querySelector('[name="nome_negocio"]')!, { target: { value: 'Empresa Teste' } });
+    fireEvent.change(container.querySelector('[name="documento"]')!, { target: { value: '94.586.814/0001-01' } });
+    fireEvent.change(container.querySelector('[name="nicho"]')!, { target: { value: 'Tech' } });
+    fireEvent.change(container.querySelector('[name="nome_admin"]')!, { target: { value: 'Admin Teste' } });
+    fireEvent.change(container.querySelector('[name="email_contato"]')!, { target: { value: 'admin@teste.com' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
+
+    await waitFor(() => expect(tenantService.create).toHaveBeenCalled());
+    const payload = (tenantService.create as any).mock.calls[0][0];
+    expect(payload.is_test_tenant).toBe(true);
+  });
+
+  test('sem marcar o checkbox, o payload enviado deve conter is_test_tenant: false (ou ausente)', async () => {
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    fireEvent.change(container.querySelector('[name="nome_negocio"]')!, { target: { value: 'Empresa Teste' } });
+    fireEvent.change(container.querySelector('[name="documento"]')!, { target: { value: '94.586.814/0001-01' } });
+    fireEvent.change(container.querySelector('[name="nicho"]')!, { target: { value: 'Tech' } });
+    fireEvent.change(container.querySelector('[name="nome_admin"]')!, { target: { value: 'Admin Teste' } });
+    fireEvent.change(container.querySelector('[name="email_contato"]')!, { target: { value: 'admin@teste.com' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
+
+    await waitFor(() => expect(tenantService.create).toHaveBeenCalled());
+    const payload = (tenantService.create as any).mock.calls[0][0];
+    expect(payload.is_test_tenant ?? false).toBe(false);
+  });
+});
+
 describe('NewTenantPage - T20: CPF obrigatório p/ pago + seletores de método (UI-07)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

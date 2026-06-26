@@ -56,6 +56,7 @@ export interface Tenant {
   contract?: Contract;
   asaas_subscription_id?: string;
   delinquency_since?: string;
+  is_test_tenant?: boolean;
 }
 
 export interface CreateTenantInput {
@@ -77,6 +78,7 @@ export interface CreateTenantInput {
   temporary_password?: string;
   activation_billing_type?: 'pix' | 'credit_card';
   subscription_billing_type?: 'pix' | 'credit_card';
+  is_test_tenant?: boolean;
 }
 
 export type TenantUserRole = 'admin' | 'user';

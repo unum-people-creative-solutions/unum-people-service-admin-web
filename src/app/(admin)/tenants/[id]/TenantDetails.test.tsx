@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import TenantDetailsPage from './page';
 import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -77,6 +77,17 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     expect(screen.getByDisplayValue('https://teste.com')).toBeDefined();
   });
 
+  test('[RF-TT-03] não deve renderizar o checkbox "Tenant de teste" na tela de edição (flag imutável após criação)', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    await screen.findByDisplayValue('SAUDE');
+    expect(screen.queryByRole('checkbox', { name: /tenant de teste/i })).toBeNull();
+  });
+
   test('deve exibir a API Key ofuscada e permitir revelação', async () => {
     render(
       <QueryClientProvider client={queryClient}>
@@ -96,6 +107,8 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
   });
 
   test('deve exigir confirmação textual para exclusão lógica', async () => {
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado' } as any);
+
     render(
       <QueryClientProvider client={queryClient}>
         <TenantDetailsPage />
@@ -120,7 +133,9 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     expect(confirmBtn).not.toBeDisabled();
   });
 
-  test('deve exibir aviso crítico ao habilitar Hard Delete', async () => {
+  test('deve exibir aviso crítico ao habilitar Hard Delete dentro do modal de confirmação', async () => {
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado' } as any);
+
     render(
       <QueryClientProvider client={queryClient}>
         <TenantDetailsPage />
@@ -130,11 +145,23 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
     fireEvent.click(showActionsBtn);
 
+    // O toggle de exclusão física não deve existir fora do modal de confirmação
+    expect(screen.queryByLabelText(/Hard Delete/i)).toBeNull();
+
+    const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+    fireEvent.click(deleteBtn);
+
+    // Modal deve aparecer, e o toggle agora vive dentro dele
+    expect(await screen.findByText(/Confirmar Exclusão Lógica/i)).toBeDefined();
+
     const hardDeleteSwitch = await screen.findByLabelText(/Hard Delete/i);
     fireEvent.click(hardDeleteSwitch);
 
     // Deve mostrar aviso de que a deleção será física
     expect(await screen.findByText(/Atenção: Deleção Física Ativada/i)).toBeDefined();
+
+    // O cabeçalho do modal deve refletir o modo físico
+    expect(await screen.findByText(/Confirmar Exclusão Física/i)).toBeDefined();
   });
 
   test('deve alternar LED de Sincronizado (Verde) para Alterações Pendentes (Vermelho) ao editar', async () => {
@@ -450,6 +477,170 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
           plan_id: 'livre',
           plan_type: 'livre'
         }));
+      });
+    });
+  });
+
+  describe('[TASK-FE-003 e TASK-FE-004] Danger Zone (T10, T11, T12, T13)', () => {
+    test('T10 — UI: "Pausar Assinatura" sai do BillingCard, entra na Área de Perigo', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+      
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+      
+      const billingCard = await screen.findByTestId('billing-card');
+      expect(within(billingCard).queryByRole('button', { name: /pausar assinatura/i })).toBeNull();
+      expect(within(billingCard).queryByRole('button', { name: /cancelar contrato/i })).toBeNull();
+      
+      const pausarBtn = await screen.findByRole('button', { name: /pausar assinatura/i });
+      const cancelarContratoBtn = await screen.findByRole('button', { name: /cancelar contrato/i });
+      
+      expect(pausarBtn).toBeInTheDocument();
+      expect(cancelarContratoBtn).toBeInTheDocument();
+    });
+
+    test('T11 — UI: "Cancelar Contrato" exige frase digitada', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+      
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+      
+      const cancelarContratoBtn = await screen.findByRole('button', { name: /cancelar contrato/i });
+      fireEvent.click(cancelarContratoBtn);
+      
+      const modalHeading = await screen.findByRole('heading', { name: /cancelar contrato/i });
+      expect(modalHeading).toBeInTheDocument();
+      
+      const confirmBtn = screen.getByRole('button', { name: /confirmar/i });
+      expect(confirmBtn).toBeDisabled();
+      
+      const input = screen.getByPlaceholderText(/digite "cancelar contrato"/i);
+      fireEvent.change(input, { target: { value: 'cancelar contrato' } });
+      
+      expect(confirmBtn).not.toBeDisabled();
+    });
+
+    test('T12 — UI: "Excluir Tenant" desabilitado fora de CANCELADO', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'ativo' } as any);
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+      
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+      
+      const excluirBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+      expect(excluirBtn).toBeDisabled();
+      
+      const alertMsg = screen.getByText(/apenas tenants com status CANCELADO podem ser excluídos/i);
+      expect(alertMsg).toBeInTheDocument();
+    });
+
+    test('[RF-TT-07] exibe opção de exclusão imediata para tenant de teste cancelado', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+      fireEvent.click(deleteBtn);
+
+      expect(await screen.findByText(/Confirmar Exclusão Lógica/i)).toBeDefined();
+
+      expect(screen.getByRole('button', { name: /excluir definitivamente agora/i })).toBeInTheDocument();
+    });
+
+    test('[RF-TT-07] não exibe opção de exclusão imediata para tenant não-teste (ou flag ausente)', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: false } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+      fireEvent.click(deleteBtn);
+
+      expect(await screen.findByText(/Confirmar Exclusão Lógica/i)).toBeDefined();
+
+      expect(screen.queryByRole('button', { name: /excluir definitivamente agora/i })).toBeNull();
+      expect(screen.queryByText(/excluir tenant de teste/i)).toBeNull();
+    });
+
+    test('[RF-TT-07] confirmação imediata de tenant de teste exige frase própria e chama delete com immediate=true', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+      fireEvent.click(deleteBtn);
+
+      const immediateBtn = await screen.findByRole('button', { name: /excluir definitivamente agora/i });
+      fireEvent.click(immediateBtn);
+
+      const confirmImmediateBtn = screen.getByRole('button', { name: /confirmar exclusão imediata/i });
+      expect(confirmImmediateBtn).toBeDisabled();
+
+      const input = screen.getByPlaceholderText(/digite "excluir tenant de teste"/i);
+      fireEvent.change(input, { target: { value: 'excluir tenant de teste' } });
+
+      expect(confirmImmediateBtn).not.toBeDisabled();
+
+      fireEvent.click(confirmImmediateBtn);
+
+      await waitFor(() => {
+        expect(tenantService.delete).toHaveBeenCalledWith('tenant-123', true);
+      });
+    });
+
+    test('T13 — UI: "Bloquear Tenant" exige confirmação leve', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+      
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+      
+      const bloquearSwitch = await screen.findByRole('switch', { name: /bloquear tenant/i });
+      fireEvent.click(bloquearSwitch);
+      
+      const modalHeading = await screen.findByRole('heading', { name: /confirmar bloqueio/i });
+      expect(modalHeading).toBeInTheDocument();
+      
+      const cancelDialogBtn = screen.getByRole('button', { name: /cancelar/i });
+      fireEvent.click(cancelDialogBtn);
+      
+      await waitFor(() => {
+        expect(screen.queryByRole('heading', { name: /confirmar bloqueio/i })).not.toBeInTheDocument();
       });
     });
   });

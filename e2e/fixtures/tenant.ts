@@ -128,9 +128,10 @@ export async function mockTenantApi(
     tenant: MockTenant;
     onReactivate?: () => Promise<{ status?: number; body?: unknown }> | { status?: number; body?: unknown };
     onCancel?: () => Promise<{ status?: number; body?: unknown }> | { status?: number; body?: unknown };
+    onPause?: () => Promise<{ status?: number; body?: unknown }> | { status?: number; body?: unknown };
   }
 ) {
-  const { tenant, onReactivate, onCancel } = options;
+  const { tenant, onReactivate, onCancel, onPause } = options;
 
   // Permite ler o tenant "atual" (mutável) entre chamadas, para refletir
   // efeitos colaterais simulados (ex: reativação muda o status).
@@ -172,6 +173,18 @@ export async function mockTenantApi(
     const result = onCancel ? await onCancel() : { status: 200, body: { message: 'ok' } };
     if ((result.status ?? 200) < 400) {
       currentTenant = { ...currentTenant, status: 'cancelado' };
+    }
+    await route.fulfill({
+      status: result.status ?? 200,
+      contentType: 'application/json',
+      body: JSON.stringify(result.body ?? { message: 'ok' }),
+    });
+  });
+
+  await page.route(`${FAKE_API_BASE}/admin/tenants/${tenant.id}/pause`, async (route) => {
+    const result = onPause ? await onPause() : { status: 200, body: { message: 'ok' } };
+    if ((result.status ?? 200) < 400) {
+      currentTenant = { ...currentTenant, status: 'pausado' };
     }
     await route.fulfill({
       status: result.status ?? 200,
