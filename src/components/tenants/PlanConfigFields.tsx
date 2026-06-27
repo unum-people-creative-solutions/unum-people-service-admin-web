@@ -8,9 +8,16 @@ interface PlanConfigFieldsProps {
     inactive?: any[];
   };
   currentPlanId?: string;
+  /**
+   * RF-CY-17 (spec.md §7): true na tela de edição de tenant — oculta o Método
+   * de Pagamento da Ativação (evento único de onboarding, não se aplica a
+   * tenant já ativo) e ajusta a exibição/label do Valor de Ativação por
+   * ciclo. Ausente/false preserva o comportamento da tela de criação.
+   */
+  isEditMode?: boolean;
 }
 
-export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsProps) {
+export function PlanConfigFields({ plansData, currentPlanId, isEditMode }: PlanConfigFieldsProps) {
   const { register, control, setValue, formState } = useFormContext();
   const selectedPlanId = useWatch({ control, name: 'plan_id' });
   const selectedCycle = useWatch({ control, name: 'plan_cycle' });
@@ -51,6 +58,16 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
       setValue('monthly_value', 0, { shouldDirty: isPlanChanged });
     }
   }, [selectedPlanId, planType, plansData, setValue, formState.defaultValues?.plan_id]);
+
+  // D-CY-2: ciclo anual reutiliza activation_fee; monthly_value=0. Para
+  // `personalizado` o ciclo é editável (RF-CY-04), então ocultar o campo no
+  // DOM não basta — o valor precisa ser zerado no form state, senão o
+  // payload enviado ainda carrega a mensalidade do ciclo mensal anterior.
+  useEffect(() => {
+    if (planType === 'personalizado' && isAnualCycle) {
+      setValue('monthly_value', 0, { shouldDirty: true });
+    }
+  }, [planType, isAnualCycle, setValue]);
 
   // Ciclo é sempre derivado/travado a partir do plano para `pago` (RF-CY-04),
   // independente de o plano ter sido alterado nesta sessão ou já vir selecionado.
@@ -123,6 +140,7 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
               <p className="text-sm text-slate-500">Selecione os métodos aceitos para este tenant (via Asaas).</p>
             </div>
 
+            {!isEditMode && (
             <div className="space-y-2">
               <label htmlFor="activation_billing_type" className="text-sm font-semibold text-slate-700">Método de Pagamento da Ativação</label>
               <select
@@ -134,6 +152,7 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
                 <option value="credit_card">Cartão de Crédito</option>
               </select>
             </div>
+            )}
 
             <div className="space-y-2">
               <label htmlFor="subscription_billing_type" className="text-sm font-semibold text-slate-700">Método de Pagamento da Assinatura</label>
@@ -160,8 +179,11 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
               </select>
             </div>
 
+            {(!isEditMode || isAnualCycle) && (
             <div className="space-y-2">
-              <label htmlFor="activation_fee" className="text-sm font-semibold text-slate-700">Valor de Ativação</label>
+              <label htmlFor="activation_fee" className="text-sm font-semibold text-slate-700">
+                {isEditMode && isAnualCycle ? 'Valor da Assinatura Anual' : 'Valor de Ativação'}
+              </label>
               <Controller
                 name="activation_fee"
                 control={control}
@@ -177,6 +199,7 @@ export function PlanConfigFields({ plansData, currentPlanId }: PlanConfigFieldsP
                 )}
               />
             </div>
+            )}
 
             {!isAnualCycle && (
             <div className="space-y-2">

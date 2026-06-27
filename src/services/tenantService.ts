@@ -87,6 +87,11 @@ export const tenantService = {
     body: JSON.stringify(input),
   }),
 
+  updateBillingMethod: (tenantId: string, subscriptionBillingType: string): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${tenantId}/billing-method`, {
+    method: 'POST',
+    body: JSON.stringify({ subscription_billing_type: subscriptionBillingType }),
+  }),
+
   update: (id: string, data: Partial<Tenant>): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),

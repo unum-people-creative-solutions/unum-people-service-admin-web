@@ -158,6 +158,21 @@ export default function TenantDetailsPage() {
     }
   });
 
+  // RF-CY-12/D-PC-5: troca de forma de pagamento da assinatura tem efeito de
+  // cobrança real (UpdateSubscription no Asaas) e não vive no PATCH genérico.
+  const updateBillingMethodMutation = useMutation({
+    mutationFn: (subscriptionBillingType: string) => tenantService.updateBillingMethod(id, subscriptionBillingType),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant', id] });
+      setSuccessMsg('Método de pagamento da assinatura atualizado com sucesso!');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err?.message || 'Erro ao atualizar o método de pagamento da assinatura.');
+      setTimeout(() => setErrorMsg(null), 5000);
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => tenantService.delete(id, isHardDelete),
     onSuccess: () => {
@@ -231,8 +246,17 @@ export default function TenantDetailsPage() {
     if (dirtyFields.plan_id && data.plan_id !== tenant.plan_id) {
       setPendingPlanData(dirtyData);
       setShowChangePlanModal(true);
-    } else {
-      delete dirtyData.plan_cycle;
+      return;
+    }
+
+    delete dirtyData.plan_cycle;
+
+    if (dirtyFields.subscription_billing_type) {
+      delete dirtyData.subscription_billing_type;
+      updateBillingMethodMutation.mutate(data.subscription_billing_type as string);
+    }
+
+    if (Object.keys(dirtyData).length > 0) {
       updateMutation.mutate(dirtyData);
     }
   };
@@ -377,10 +401,10 @@ export default function TenantDetailsPage() {
             <div className="flex items-center gap-4 w-full md:w-auto">
               <button
                 type="submit"
-                disabled={updateMutation.isPending || !isDirty}
+                disabled={updateMutation.isPending || updateBillingMethodMutation.isPending || !isDirty}
                 className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 disabled:opacity-30 disabled:grayscale ${isDirty ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-500/20' : 'bg-slate-200 text-slate-400'}`}
               >
-                {updateMutation.isPending ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                {(updateMutation.isPending || updateBillingMethodMutation.isPending) ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                 Salvar Alterações
               </button>
             </div>
@@ -561,7 +585,7 @@ export default function TenantDetailsPage() {
                 </div>
                 
                 <div className="p-8">
-                  <PlanConfigFields plansData={plansData} currentPlanId={tenant?.plan_id} />
+                  <PlanConfigFields plansData={plansData} currentPlanId={tenant?.plan_id} isEditMode />
 
                   <div className="mt-8 space-y-3 pt-6 border-t border-slate-100">
                     <div className="flex justify-between text-xs">

@@ -57,6 +57,8 @@ export interface Tenant {
   asaas_subscription_id?: string;
   delinquency_since?: string;
   is_test_tenant?: boolean;
+  activation_billing_type?: 'pix' | 'credit_card';
+  subscription_billing_type?: 'pix' | 'credit_card';
 }
 
 export interface CreateTenantInput {

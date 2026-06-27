@@ -10,6 +10,7 @@ vi.mock('@/services/tenantService', () => ({
     getById: vi.fn(),
     update: vi.fn(),
     changePlan: vi.fn(),
+    updateBillingMethod: vi.fn(),
     delete: vi.fn(),
     resetPassword: vi.fn(),
     listUsers: vi.fn().mockResolvedValue([]),
@@ -414,12 +415,14 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       fireEvent.change(planSelect, { target: { value: 'lp_basico' } }); // Um plano pago
 
       await waitFor(() => {
-        // Valores de ativação e mensalidade devem estar na tela e read-only
-        const activationInput = screen.getByRole('textbox', { name: /valor de ativação/i });
+        // Mensalidade deve estar na tela e read-only.
         const monthlyInput = screen.getByRole('textbox', { name: /mensalidade/i });
-        
-        expect(activationInput).toHaveAttribute('readonly');
         expect(monthlyInput).toHaveAttribute('readonly');
+
+        // RF-CY-17: em modo de edição (tenant já ativo), "Valor de Ativação"
+        // fica oculto para ciclo mensal — é evento único de onboarding, não
+        // se aplica a um tenant que já passou pela ativação.
+        expect(screen.queryByLabelText('Valor de Ativação')).not.toBeInTheDocument();
 
         // Documento deve ser obrigatório
         const docInput = screen.getByRole('textbox', { name: /documento/i });
@@ -441,6 +444,31 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
         expect(screen.queryByText(/métodos de pagamento/i)).toBeNull();
         expect(screen.queryByRole('combobox', { name: /método de pagamento da ativação/i })).toBeNull();
         expect(screen.queryByRole('combobox', { name: /método de pagamento da assinatura/i })).toBeNull();
+      });
+    });
+  });
+
+  describe('[Achado /local-review Fase 5] RF-CY-12 — Troca de método de pagamento da assinatura via endpoint dedicado', () => {
+    test('ao editar apenas o Método de Pagamento da Assinatura (sem trocar de plano), chama tenantService.updateBillingMethod e não envia o campo pelo PATCH genérico', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const billingSelect = await screen.findByRole('combobox', { name: /método de pagamento da assinatura/i });
+      fireEvent.change(billingSelect, { target: { value: 'credit_card' } });
+
+      const saveBtn = screen.getByRole('button', { name: /salvar alterações/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(tenantService.updateBillingMethod).toHaveBeenCalledWith('tenant-123', 'credit_card');
+      });
+
+      const updateCalls = (tenantService.update as any).mock.calls;
+      updateCalls.forEach((call: any[]) => {
+        expect(call[1]).not.toHaveProperty('subscription_billing_type');
       });
     });
   });

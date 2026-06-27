@@ -4,7 +4,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { PlanConfigFields } from './PlanConfigFields';
 
 // Wrapper component to provide react-hook-form context
-const Wrapper = ({ plansData = { active: [] } as any, defaultValues = {} as any }) => {
+const Wrapper = ({ plansData = { active: [] } as any, defaultValues = {} as any, isEditMode = undefined as boolean | undefined, onSubmit = vi.fn() }) => {
   const methods = useForm({
     defaultValues: {
       plan_id: 'livre',
@@ -17,8 +17,8 @@ const Wrapper = ({ plansData = { active: [] } as any, defaultValues = {} as any 
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={methods.handleSubmit(vi.fn())}>
-        <PlanConfigFields plansData={plansData} />
+      <form onSubmit={methods.handleSubmit(onSubmit)}>
+        <PlanConfigFields plansData={plansData} isEditMode={isEditMode} />
         <button type="submit">Submit</button>
       </form>
     </FormProvider>
@@ -114,6 +114,70 @@ describe('PlanConfigFields', () => {
 
     await waitFor(() => {
       expect(screen.queryByLabelText('Mensalidade')).not.toBeInTheDocument();
+    });
+  });
+
+  // Achado no /local-review da Fase 5 (D-CY-2/BUG-05/07 reintroduzido): ocultar
+  // o campo no DOM não basta — o valor precisa ser zerado no form state,
+  // senão o payload enviado ainda carrega o monthly_value antigo.
+  it('deve zerar monthly_value no form state (não só ocultar) quando o plano PERSONALIZADO mudar para Ciclo anual', async () => {
+    const onSubmit = vi.fn();
+    render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal', monthly_value: 150, documento: '12345678900' }} />);
+
+    const cycleSelect = await screen.findByLabelText('Ciclo') as HTMLSelectElement;
+    fireEvent.change(cycleSelect, { target: { value: 'anual' } });
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Mensalidade')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    const submittedData = onSubmit.mock.calls[0][0];
+    expect(submittedData.monthly_value).toBe(0);
+  });
+
+  // RF-CY-17 (spec.md §7) — regras visuais de modo de edição. Achado no
+  // /local-review da Fase 5: a prop isEditMode nunca existiu no componente.
+  describe('RF-CY-17 — regras visuais de edição (isEditMode)', () => {
+    it('em modo de edição, oculta o Método de Pagamento da Ativação (ação de onboarding, não se aplica a tenant já ativo)', async () => {
+      render(<Wrapper isEditMode defaultValues={{ plan_id: 'personalizado' }} />);
+
+      await screen.findByLabelText('Ciclo');
+      expect(screen.queryByRole('combobox', { name: /método de pagamento da ativação/i })).not.toBeInTheDocument();
+      // O método de pagamento da assinatura continua editável (RF-CY-12/13).
+      expect(screen.getByRole('combobox', { name: /método de pagamento da assinatura/i })).toBeInTheDocument();
+    });
+
+    it('em modo de edição com ciclo mensal, oculta o Valor de Ativação (não gera nova cobrança)', async () => {
+      render(<Wrapper isEditMode defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal' }} />);
+
+      await screen.findByLabelText('Ciclo');
+      expect(screen.queryByLabelText('Valor de Ativação')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Valor da Assinatura Anual')).not.toBeInTheDocument();
+    });
+
+    it('em modo de edição com ciclo anual, exibe o mesmo campo relabelado como "Valor da Assinatura Anual"', async () => {
+      render(<Wrapper isEditMode defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal' }} />);
+
+      const cycleSelect = await screen.findByLabelText('Ciclo') as HTMLSelectElement;
+      fireEvent.change(cycleSelect, { target: { value: 'anual' } });
+
+      await waitFor(() => {
+        expect(screen.queryByLabelText('Valor de Ativação')).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Valor da Assinatura Anual')).toBeInTheDocument();
+      });
+    });
+
+    it('fora do modo de edição (isEditMode ausente, tela de criação), mantém o comportamento anterior', async () => {
+      render(<Wrapper defaultValues={{ plan_id: 'personalizado' }} />);
+
+      await screen.findByLabelText('Ciclo');
+      expect(screen.getByRole('combobox', { name: /método de pagamento da ativação/i })).toBeInTheDocument();
+      expect(screen.getByLabelText('Valor de Ativação')).toBeInTheDocument();
     });
   });
 
