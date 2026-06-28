@@ -187,7 +187,39 @@ describe('BillingCard Component', () => {
   it('T10 - não deve exibir o botão de cancelar contrato no BillingCard', () => {
     const activeTenant: Tenant = { ...baseTenant, status: 'ativo' };
     renderWithQuery(<BillingCard tenant={activeTenant} contract={createContract('disponivel')} />);
-    
+
     expect(screen.queryByRole('button', { name: /cancelar contrato/i })).not.toBeInTheDocument();
+  });
+
+  describe('[Bug reportado] tenant.status vem em MAIÚSCULAS do backend (enum TenantStatus)', () => {
+    it('com status real "PAUSADO", exibe e aciona o botão "Reativar assinatura"', async () => {
+      const pausedTenant: Tenant = { ...baseTenant, status: 'PAUSADO' as any };
+      renderWithQuery(<BillingCard tenant={pausedTenant} contract={undefined} />);
+
+      const reactivateBtn = screen.getByRole('button', { name: /reativar/i });
+      expect(reactivateBtn).toBeInTheDocument();
+
+      (tenantService.reactivateTenant as any).mockResolvedValue({ message: 'ok' });
+      await act(async () => {
+        fireEvent.click(reactivateBtn);
+      });
+      expect(tenantService.reactivateTenant).toHaveBeenCalledWith('t-123');
+    });
+
+    it('com status real "PENDENTE_ASAAS", exibe o aviso e o botão "Tentar Ativação"', async () => {
+      const pendingTenant: Tenant = { ...baseTenant, status: 'PENDENTE_ASAAS' as any };
+      renderWithQuery(<BillingCard tenant={pendingTenant} contract={undefined} />);
+
+      expect(screen.getByRole('button', { name: /tentar ativação/i })).toBeInTheDocument();
+    });
+
+    it('com status real "AGUARDANDO_ATIVACAO", exibe "Aguardando confirmação" em vez de "Ativação paga"', () => {
+      const contract = createContract('aguardando_ativacao');
+      const awaitingTenant: Tenant = { ...baseTenant, status: 'AGUARDANDO_ATIVACAO' as any };
+      renderWithQuery(<BillingCard tenant={awaitingTenant} contract={{ ...contract, activation_invoice_url: 'https://asaas.com/ativacao' }} />);
+
+      expect(screen.getByText(/aguardando confirmação do pagamento da ativação/i)).toBeInTheDocument();
+      expect(screen.queryByText(/ativação paga/i)).not.toBeInTheDocument();
+    });
   });
 });
