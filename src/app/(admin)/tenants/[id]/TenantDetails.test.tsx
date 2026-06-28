@@ -134,8 +134,8 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     expect(confirmBtn).not.toBeDisabled();
   });
 
-  test('deve exibir aviso crítico ao habilitar Hard Delete dentro do modal de confirmação', async () => {
-    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado' } as any);
+  test('deve exibir aviso crítico ao habilitar Hard Delete dentro do modal de confirmação (tenant de teste)', async () => {
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -156,13 +156,144 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     expect(await screen.findByText(/Confirmar Exclusão Lógica/i)).toBeDefined();
 
     const hardDeleteSwitch = await screen.findByLabelText(/Hard Delete/i);
+    expect(hardDeleteSwitch).not.toBeDisabled();
     fireEvent.click(hardDeleteSwitch);
 
-    // Deve mostrar aviso de que a deleção será física
-    expect(await screen.findByText(/Atenção: Deleção Física Ativada/i)).toBeDefined();
+    // Deve mostrar aviso de que a exclusão é física e imediata
+    expect(await screen.findByText(/exclusão física imediata ativada/i)).toBeDefined();
 
     // O cabeçalho do modal deve refletir o modo físico
     expect(await screen.findByText(/Confirmar Exclusão Física/i)).toBeDefined();
+  });
+
+  describe('[Achado] "Modo Exclusão Física" bloqueado para tenant real; área separada de tenant de teste removida (redundante)', () => {
+    test('switch fica desabilitado/bloqueado para tenant real, com texto explicativo no espaço reservado', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: false } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+      fireEvent.click(deleteBtn);
+
+      const hardDeleteSwitch = await screen.findByLabelText(/Hard Delete/i);
+      expect(hardDeleteSwitch).toBeDisabled();
+      expect(hardDeleteSwitch).not.toBeChecked();
+
+      expect(await screen.findByText(/disponível apenas para tenants de teste/i)).toBeInTheDocument();
+      expect(screen.queryByText(/exclusão física imediata ativada/i)).toBeNull();
+    });
+
+    test('switch fica habilitado para tenant de teste; texto do espaço reservado muda ao ativar/desativar', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+      fireEvent.click(deleteBtn);
+
+      const hardDeleteSwitch = await screen.findByLabelText(/Hard Delete/i);
+      expect(hardDeleteSwitch).not.toBeDisabled();
+
+      // Antes de ativar: texto informativo, não o alerta forte
+      expect(await screen.findByText(/ative para excluir definitivamente agora/i)).toBeInTheDocument();
+      expect(screen.queryByText(/exclusão física imediata ativada/i)).toBeNull();
+
+      fireEvent.click(hardDeleteSwitch);
+      expect(hardDeleteSwitch).toBeChecked();
+      expect(await screen.findByText(/exclusão física imediata ativada/i)).toBeInTheDocument();
+    });
+
+    test('a área separada "Excluir definitivamente agora" não existe mais, nem para tenant de teste', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+      fireEvent.click(deleteBtn);
+
+      await screen.findByText(/Confirmar Exclusão Lógica/i);
+      expect(screen.queryByRole('button', { name: /excluir definitivamente agora/i })).toBeNull();
+      expect(screen.queryByPlaceholderText(/excluir tenant de teste/i)).toBeNull();
+    });
+
+    test('tenant de teste com switch ativo chama tenantService.delete com immediate=true ao confirmar', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+      fireEvent.click(deleteBtn);
+
+      const hardDeleteSwitch = await screen.findByLabelText(/Hard Delete/i);
+      fireEvent.click(hardDeleteSwitch);
+
+      const confirmBtn = screen.getByRole('button', { name: /confirmar exclusão/i });
+      const input = screen.getByPlaceholderText(/digite "excluir tenant"/i);
+      fireEvent.change(input, { target: { value: 'excluir tenant' } });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(tenantService.delete).toHaveBeenCalledWith('tenant-123', true);
+      });
+    });
+  });
+
+  test('[Achado] ao cancelar o modal de exclusão, o "Modo Exclusão Física" volta à posição original ao reabrir', async () => {
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado' } as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+    fireEvent.click(showActionsBtn);
+
+    const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+    fireEvent.click(deleteBtn);
+
+    const hardDeleteSwitch = await screen.findByLabelText(/Hard Delete/i);
+    fireEvent.click(hardDeleteSwitch);
+    expect(hardDeleteSwitch).toBeChecked();
+
+    const cancelBtn = screen.getByRole('button', { name: /^cancelar$/i });
+    fireEvent.click(cancelBtn);
+
+    expect(screen.queryByText(/Confirmar Exclusão (Lógica|Física)/i)).toBeNull();
+
+    fireEvent.click(deleteBtn);
+    const reopenedSwitch = await screen.findByLabelText(/Hard Delete/i);
+    expect(reopenedSwitch).not.toBeChecked();
+    expect(await screen.findByText(/Confirmar Exclusão Lógica/i)).toBeDefined();
   });
 
   test('deve alternar LED de Sincronizado (Verde) para Alterações Pendentes (Vermelho) ao editar', async () => {
@@ -574,79 +705,10 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       expect(alertMsg).toBeInTheDocument();
     });
 
-    test('[RF-TT-07] exibe opção de exclusão imediata para tenant de teste cancelado', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
-
-      render(
-        <QueryClientProvider client={queryClient}>
-          <TenantDetailsPage />
-        </QueryClientProvider>
-      );
-
-      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
-      fireEvent.click(showActionsBtn);
-
-      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
-      fireEvent.click(deleteBtn);
-
-      expect(await screen.findByText(/Confirmar Exclusão Lógica/i)).toBeDefined();
-
-      expect(screen.getByRole('button', { name: /excluir definitivamente agora/i })).toBeInTheDocument();
-    });
-
-    test('[RF-TT-07] não exibe opção de exclusão imediata para tenant não-teste (ou flag ausente)', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: false } as any);
-
-      render(
-        <QueryClientProvider client={queryClient}>
-          <TenantDetailsPage />
-        </QueryClientProvider>
-      );
-
-      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
-      fireEvent.click(showActionsBtn);
-
-      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
-      fireEvent.click(deleteBtn);
-
-      expect(await screen.findByText(/Confirmar Exclusão Lógica/i)).toBeDefined();
-
-      expect(screen.queryByRole('button', { name: /excluir definitivamente agora/i })).toBeNull();
-      expect(screen.queryByText(/excluir tenant de teste/i)).toBeNull();
-    });
-
-    test('[RF-TT-07] confirmação imediata de tenant de teste exige frase própria e chama delete com immediate=true', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
-
-      render(
-        <QueryClientProvider client={queryClient}>
-          <TenantDetailsPage />
-        </QueryClientProvider>
-      );
-
-      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
-      fireEvent.click(showActionsBtn);
-
-      const deleteBtn = await screen.findByRole('button', { name: /excluir tenant/i });
-      fireEvent.click(deleteBtn);
-
-      const immediateBtn = await screen.findByRole('button', { name: /excluir definitivamente agora/i });
-      fireEvent.click(immediateBtn);
-
-      const confirmImmediateBtn = screen.getByRole('button', { name: /confirmar exclusão imediata/i });
-      expect(confirmImmediateBtn).toBeDisabled();
-
-      const input = screen.getByPlaceholderText(/digite "excluir tenant de teste"/i);
-      fireEvent.change(input, { target: { value: 'excluir tenant de teste' } });
-
-      expect(confirmImmediateBtn).not.toBeDisabled();
-
-      fireEvent.click(confirmImmediateBtn);
-
-      await waitFor(() => {
-        expect(tenantService.delete).toHaveBeenCalledWith('tenant-123', true);
-      });
-    });
+    // RF-TT-07 (área separada "Excluir definitivamente agora") foi removida —
+    // ver describe "[Achado] Modo Exclusão Física bloqueado..." no topo do
+    // arquivo: o mesmo resultado (immediate=true para tenant de teste) agora
+    // é alcançado só pelo switch + botão primário "Confirmar Exclusão".
 
     describe('[Bug reportado] tenant.status vem em MAIÚSCULAS do backend (enum TenantStatus), mas a UI comparava contra strings minúsculas', () => {
       test('com status real "CANCELADO", habilita "Excluir Tenant" e oculta Pausar/Cancelar Contrato', async () => {
