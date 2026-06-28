@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useFormContext, useWatch, Controller } from 'react-hook-form';
 import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
+import { formatCpfCnpj, isValidCpfCnpj } from '@/lib/cpfCnpj';
 
 interface PlanConfigFieldsProps {
   plansData: {
@@ -85,10 +86,17 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode }: PlanC
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <label htmlFor="documento" className="text-sm font-semibold text-slate-700">Documento (CPF/CNPJ)</label>
-          <input 
+          <input
             id="documento"
             {...register('documento', {
-              required: selectedPlanId !== 'livre' ? 'CPF/CNPJ é obrigatório para planos pagos' : false
+              required: selectedPlanId !== 'livre' ? 'CPF/CNPJ é obrigatório para planos pagos' : false,
+              validate: (value) => {
+                if (selectedPlanId === 'livre' && !value) return true;
+                return isValidCpfCnpj(value ?? '') || 'CPF/CNPJ inválido';
+              },
+              onChange: (e) => {
+                e.target.value = formatCpfCnpj(e.target.value);
+              },
             })}
             required={selectedPlanId !== 'livre'}
             className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"

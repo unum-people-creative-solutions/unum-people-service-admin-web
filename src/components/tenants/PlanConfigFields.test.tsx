@@ -72,6 +72,60 @@ describe('PlanConfigFields', () => {
     expect(documentoInput).toBeRequired();
   });
 
+  // Achado em produção: CPF/CNPJ inválido só era descoberto quando o Asaas
+  // rejeitava a criação do customer com 400 (status genérico, sem nenhum
+  // feedback útil ao operador no formulário).
+  describe('Documento (CPF/CNPJ): máscara progressiva e validação de dígito verificador', () => {
+    it('formata o Documento como CPF/CNPJ enquanto o operador digita', () => {
+      render(<Wrapper defaultValues={{ plan_id: 'personalizado' }} />);
+
+      const documentoInput = screen.getByRole('textbox', { name: /documento/i }) as HTMLInputElement;
+      fireEvent.change(documentoInput, { target: { value: '12345678909' } });
+
+      expect(documentoInput.value).toBe('123.456.789-09');
+    });
+
+    it('exibe erro "CPF/CNPJ inválido" ao submeter com dígito verificador errado', async () => {
+      const onSubmit = vi.fn();
+      render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'personalizado' }} />);
+
+      const documentoInput = screen.getByRole('textbox', { name: /documento/i });
+      fireEvent.change(documentoInput, { target: { value: '111.111.111-11' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+      expect(await screen.findByText(/cpf\/cnpj inválido/i)).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('não exibe erro de validade ao submeter com um CPF válido', async () => {
+      const onSubmit = vi.fn();
+      render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'personalizado', activation_fee: 100, monthly_value: 50 }} />);
+
+      const documentoInput = screen.getByRole('textbox', { name: /documento/i });
+      fireEvent.change(documentoInput, { target: { value: '12345678909' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(/cpf\/cnpj inválido/i)).toBeNull();
+    });
+
+    it('não valida o Documento quando o plano for LIVRE (campo não exigido)', async () => {
+      const onSubmit = vi.fn();
+      render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'livre', documento: '' }} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(/cpf\/cnpj inválido/i)).toBeNull();
+    });
+  });
+
   // T08 — Atribuição ao tenant: ciclo read-only para pago, editável para personalizado
   const mockPlansWithAnnual = {
     active: [
@@ -122,7 +176,7 @@ describe('PlanConfigFields', () => {
   // senão o payload enviado ainda carrega o monthly_value antigo.
   it('deve zerar monthly_value no form state (não só ocultar) quando o plano PERSONALIZADO mudar para Ciclo anual', async () => {
     const onSubmit = vi.fn();
-    render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal', monthly_value: 150, documento: '12345678900' }} />);
+    render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal', monthly_value: 150, documento: '12345678909' }} />);
 
     const cycleSelect = await screen.findByLabelText('Ciclo') as HTMLSelectElement;
     fireEvent.change(cycleSelect, { target: { value: 'anual' } });
