@@ -648,6 +648,47 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       });
     });
 
+    describe('[Bug reportado] tenant.status vem em MAIÚSCULAS do backend (enum TenantStatus), mas a UI comparava contra strings minúsculas', () => {
+      test('com status real "CANCELADO", habilita "Excluir Tenant" e oculta Pausar/Cancelar Contrato', async () => {
+        vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'CANCELADO' } as any);
+
+        render(
+          <QueryClientProvider client={queryClient}>
+            <TenantDetailsPage />
+          </QueryClientProvider>
+        );
+
+        const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+        fireEvent.click(showActionsBtn);
+
+        const excluirBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+        expect(excluirBtn).not.toBeDisabled();
+        expect(screen.queryByText(/apenas tenants com status CANCELADO podem ser excluídos/i)).toBeNull();
+
+        expect(screen.queryByRole('button', { name: /pausar assinatura/i })).toBeNull();
+        expect(screen.queryByRole('button', { name: /cancelar contrato/i })).toBeNull();
+      });
+
+      test('com status real "ATIVO", mantém "Excluir Tenant" desabilitado e exibe Pausar Assinatura / Cancelar Contrato', async () => {
+        vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'ATIVO' } as any);
+
+        render(
+          <QueryClientProvider client={queryClient}>
+            <TenantDetailsPage />
+          </QueryClientProvider>
+        );
+
+        const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+        fireEvent.click(showActionsBtn);
+
+        const excluirBtn = await screen.findByRole('button', { name: /excluir tenant/i });
+        expect(excluirBtn).toBeDisabled();
+
+        expect(screen.getByRole('button', { name: /pausar assinatura/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /cancelar contrato/i })).toBeInTheDocument();
+      });
+    });
+
     test('T13 — UI: "Bloquear Tenant" exige confirmação leve', async () => {
       render(
         <QueryClientProvider client={queryClient}>

@@ -38,7 +38,9 @@ const getStatusBadge = (tenant: Tenant & { delinquency_since?: string | null }) 
     }
   };
 
-  switch (tenant.status) {
+  // tenant.status vem do backend em MAIÚSCULAS (enum domain.TenantStatus,
+  // ex. "CANCELADO"); normaliza antes de comparar contra os cases abaixo.
+  switch (String(tenant.status || '').toLowerCase()) {
     case 'aguardando_ativacao':
       return { label: 'AGUARDANDO ATIVAÇÃO', classes: 'bg-yellow-50 text-yellow-700 border-yellow-200' };
     case 'pendente_asaas':
@@ -336,7 +338,9 @@ export default function TenantDetailsPage() {
     field => dirtyFields[field as keyof Tenant] === true
   );
 
-  const currentStatus = tenant.status || (tenant as any).plan_status;
+  // Idem: tenant.status vem em MAIÚSCULAS do backend; plan_status (legado)
+  // já é minúsculo. Normaliza os dois para a mesma convenção antes de comparar.
+  const currentStatus = String(tenant.status || (tenant as any).plan_status || '').toLowerCase();
   const isPausarEnabled = ['ativo', 'inadimplente', 'suspenso'].includes(currentStatus as string);
   const isCancelarEnabled = !['cancelado', 'excluindo'].includes(currentStatus as string);
   const canDelete = currentStatus === 'cancelado';
