@@ -154,6 +154,7 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode }: PlanC
             </div>
             )}
 
+            {(isEditMode || !isAnualCycle) && (
             <div className="space-y-2">
               <label htmlFor="subscription_billing_type" className="text-sm font-semibold text-slate-700">Método de Pagamento da Assinatura</label>
               <select
@@ -165,6 +166,7 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode }: PlanC
                 <option value="credit_card">Cartão de Crédito</option>
               </select>
             </div>
+            )}
 
             <div className="space-y-2">
               <label htmlFor="plan_cycle" className="text-sm font-semibold text-slate-700">Ciclo</label>

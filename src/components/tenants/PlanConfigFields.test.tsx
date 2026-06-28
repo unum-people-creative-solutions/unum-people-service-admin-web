@@ -140,6 +140,49 @@ describe('PlanConfigFields', () => {
     expect(submittedData.monthly_value).toBe(0);
   });
 
+  // Achado: no plano anual o backend cria UMA assinatura YEARLY usando o
+  // BillingType de activation_billing_type (tenant_service.go:251) — nunca lê
+  // subscription_billing_type na criação (só relevante para o ciclo mensal,
+  // que tem ativação + assinatura recorrente separadas). Mostrar os dois
+  // selects no anual é enganoso: o de "Assinatura" não tem efeito nenhum.
+  describe('Ciclo anual na criação: só "Método de Pagamento da Ativação" é usado pelo backend', () => {
+    it('deve ocultar o Método de Pagamento da Assinatura quando o plano PAGO selecionado tiver ciclo anual', async () => {
+      render(<Wrapper plansData={mockPlansWithAnnual} defaultValues={{ plan_id: 'lp_basico' }} />);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('combobox', { name: /método de pagamento da assinatura/i })).not.toBeInTheDocument();
+      });
+      expect(screen.getByRole('combobox', { name: /método de pagamento da ativação/i })).toBeInTheDocument();
+    });
+
+    it('deve ocultar o Método de Pagamento da Assinatura quando o plano PERSONALIZADO tiver Ciclo anual selecionado manualmente', async () => {
+      render(<Wrapper defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal' }} />);
+
+      expect(screen.getByRole('combobox', { name: /método de pagamento da assinatura/i })).toBeInTheDocument();
+
+      const cycleSelect = await screen.findByLabelText('Ciclo') as HTMLSelectElement;
+      fireEvent.change(cycleSelect, { target: { value: 'anual' } });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('combobox', { name: /método de pagamento da assinatura/i })).not.toBeInTheDocument();
+      });
+    });
+
+    it('deve manter visível o Método de Pagamento da Assinatura no ciclo mensal (campo usado pela assinatura recorrente)', async () => {
+      render(<Wrapper defaultValues={{ plan_id: 'personalizado', plan_cycle: 'mensal' }} />);
+
+      expect(screen.getByRole('combobox', { name: /método de pagamento da assinatura/i })).toBeInTheDocument();
+    });
+
+    it('em modo de edição, mantém o Método de Pagamento da Assinatura visível mesmo com ciclo anual (campo usado por UpdateSubscriptionBillingType, independente do ciclo original)', async () => {
+      render(<Wrapper isEditMode plansData={mockPlansWithAnnual} defaultValues={{ plan_id: 'lp_basico' }} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('combobox', { name: /método de pagamento da assinatura/i })).toBeInTheDocument();
+      });
+    });
+  });
+
   // RF-CY-17 (spec.md §7) — regras visuais de modo de edição. Achado no
   // /local-review da Fase 5: a prop isEditMode nunca existiu no componente.
   describe('RF-CY-17 — regras visuais de edição (isEditMode)', () => {
