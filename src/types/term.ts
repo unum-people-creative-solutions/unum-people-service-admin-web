@@ -17,6 +17,7 @@ export interface TermVersion {
   published_by: string;
   published_at: string;
   changelog: string;
+  content_html_url?: string;
 }
 
 export interface CreateTermInput {

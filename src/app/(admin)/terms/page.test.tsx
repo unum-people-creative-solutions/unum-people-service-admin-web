@@ -105,4 +105,34 @@ describe('TermsPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/Falha ao criar/i);
   });
+
+  it('abre o drawer de publicação de versão ao clicar em "Publicar nova versão"', async () => {
+    const { useQuery } = await import('@tanstack/react-query');
+    (useQuery as any).mockReturnValue({
+      data: [{ id: 't1', name: 'Termo Site', description: '', is_active: true, current_version: 1 }],
+      isLoading: false,
+    });
+
+    render(<TermsPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Publicar nova versão/i }));
+
+    expect(screen.getByRole('heading', { name: /Publicar nova versão — Termo Site/i })).toBeInTheDocument();
+  });
+
+  it('expande o histórico de versões ao clicar em "Ver versões"', async () => {
+    const { useQuery } = await import('@tanstack/react-query');
+    (useQuery as any).mockReturnValue({
+      data: [{ id: 't1', name: 'Termo Site', description: '', is_active: true, current_version: 1 }],
+      isLoading: false,
+    });
+
+    render(<TermsPage />);
+
+    expect(screen.queryByText(/Histórico de versões/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Ver versões/i }));
+
+    expect(screen.getByText(/Histórico de versões/i)).toBeInTheDocument();
+  });
 });

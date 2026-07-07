@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form';
 import { termService } from '@/services/termService';
 import { Term, CreateTermInput, UpdateTermInput } from '@/types/term';
 import * as Dialog from '@radix-ui/react-dialog';
+import { VersionHistoryList } from './_components/VersionHistoryList';
+import { PublishVersionDrawer } from './_components/PublishVersionDrawer';
 
 type TermFormValues = CreateTermInput & { is_active: boolean };
 
@@ -19,6 +21,8 @@ export default function TermsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingTerm, setEditingTerm] = useState<Term | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [expandedTermId, setExpandedTermId] = useState<string | null>(null);
+  const [publishDrawerTerm, setPublishDrawerTerm] = useState<Term | null>(null);
 
   const defaultValues: TermFormValues = { name: '', description: '', is_active: true };
   const { register, handleSubmit, reset, formState: { errors } } = useForm<TermFormValues>({ defaultValues });
@@ -102,8 +106,23 @@ export default function TermsPage() {
           >
             Editar {term.name}
           </button>
+          <button
+            type="button"
+            onClick={() => setPublishDrawerTerm(term)}
+            className="px-4 py-2 border rounded hover:bg-slate-50"
+          >
+            Publicar nova versão
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpandedTermId(expandedTermId === term.id ? null : term.id)}
+            className="px-4 py-2 border rounded hover:bg-slate-50"
+          >
+            {expandedTermId === term.id ? 'Fechar versões' : 'Ver versões'}
+          </button>
         </div>
       </div>
+      {expandedTermId === term.id && <VersionHistoryList term={term} />}
     </div>
   );
 
@@ -170,6 +189,14 @@ export default function TermsPage() {
           {inactiveTerms.map(renderTermCard)}
         </div>
       </section>
+
+      {publishDrawerTerm && (
+        <PublishVersionDrawer
+          term={publishDrawerTerm}
+          open={!!publishDrawerTerm}
+          onOpenChange={(open) => !open && setPublishDrawerTerm(null)}
+        />
+      )}
     </div>
   );
 }
