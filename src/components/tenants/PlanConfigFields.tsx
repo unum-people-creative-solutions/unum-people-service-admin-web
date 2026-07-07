@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useFormContext, useWatch, Controller } from 'react-hook-form';
 import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
 import { formatCpfCnpj, isValidCpfCnpj } from '@/lib/cpfCnpj';
+import { Term } from '@/types/term';
 
 interface PlanConfigFieldsProps {
   plansData: {
@@ -16,9 +17,15 @@ interface PlanConfigFieldsProps {
    * ciclo. Ausente/false preserva o comportamento da tela de criação.
    */
   isEditMode?: boolean;
+  /**
+   * TASK-FE-005: termos disponíveis para vínculo manual quando o plano é
+   * Personalizado ou Livre (nenhum dos dois tem um `Plan` associado, então
+   * não há um `term_id` implícito a herdar — diferente do plano Pago).
+   */
+  terms?: Term[];
 }
 
-export function PlanConfigFields({ plansData, currentPlanId, isEditMode }: PlanConfigFieldsProps) {
+export function PlanConfigFields({ plansData, currentPlanId, isEditMode, terms = [] }: PlanConfigFieldsProps) {
   const { register, control, setValue, formState } = useFormContext();
   const selectedPlanId = useWatch({ control, name: 'plan_id' });
   const selectedCycle = useWatch({ control, name: 'plan_cycle' });
@@ -140,6 +147,23 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode }: PlanC
             )}
           </select>
         </div>
+
+        {planType !== 'pago' && (
+          <div className="space-y-2">
+            <label htmlFor="term_id" className="text-sm font-semibold text-slate-700">Termo de Contratação</label>
+            <select
+              id="term_id"
+              {...register('term_id', { required: true })}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
+            >
+              <option value="">Selecione um termo</option>
+              {terms.filter((t) => t.is_active).map((term) => (
+                <option key={term.id} value={term.id}>{term.name}</option>
+              ))}
+            </select>
+            {formState.errors.term_id && <span className="text-red-500 text-xs">Selecione um termo de contratação</span>}
+          </div>
+        )}
 
         {planType !== 'livre' && (
           <>

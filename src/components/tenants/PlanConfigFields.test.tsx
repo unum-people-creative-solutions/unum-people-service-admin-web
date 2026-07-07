@@ -3,14 +3,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { useForm, FormProvider } from 'react-hook-form';
 import { PlanConfigFields } from './PlanConfigFields';
 
+const defaultTerms = [{ id: 't1', name: 'Termo Padrão', description: '', is_active: true, current_version: 1 }];
+
 // Wrapper component to provide react-hook-form context
-const Wrapper = ({ plansData = { active: [] } as any, defaultValues = {} as any, isEditMode = undefined as boolean | undefined, onSubmit = vi.fn() }) => {
+const Wrapper = ({ plansData = { active: [] } as any, terms = defaultTerms as any, defaultValues = {} as any, isEditMode = undefined as boolean | undefined, onSubmit = vi.fn() }) => {
   const methods = useForm({
     defaultValues: {
       plan_id: 'livre',
       documento: '',
       activation_fee: 0,
       monthly_value: 0,
+      term_id: terms[0]?.id ?? '',
       ...defaultValues,
     },
   });
@@ -18,7 +21,7 @@ const Wrapper = ({ plansData = { active: [] } as any, defaultValues = {} as any,
   return (
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmit)}>
-        <PlanConfigFields plansData={plansData} isEditMode={isEditMode} />
+        <PlanConfigFields plansData={plansData} terms={terms} isEditMode={isEditMode} />
         <button type="submit">Submit</button>
       </form>
     </FormProvider>
@@ -278,4 +281,67 @@ describe('PlanConfigFields', () => {
     });
   });
 
+  // TASK-FE-005 — select condicional de Termo de Contratação
+  describe('Termo de Contratação (Personalizado/Livre exigem seleção manual)', () => {
+    it('exibe o select de Termo quando o plano for Personalizado', () => {
+      render(<Wrapper defaultValues={{ plan_id: 'personalizado' }} />);
+      expect(screen.getByLabelText(/Termo de Contratação/i)).toBeInTheDocument();
+    });
+
+    it('exibe o select de Termo quando o plano for Livre', () => {
+      render(<Wrapper defaultValues={{ plan_id: 'livre' }} />);
+      expect(screen.getByLabelText(/Termo de Contratação/i)).toBeInTheDocument();
+    });
+
+    it('não exibe o select de Termo quando o plano for Pago (vem implícito do Plano)', () => {
+      render(<Wrapper plansData={mockPlans} defaultValues={{ plan_id: 'lp_basico' }} />);
+      expect(screen.queryByLabelText(/Termo de Contratação/i)).not.toBeInTheDocument();
+    });
+
+    it('lista só termos ativos no select', () => {
+      const terms = [
+        { id: 't1', name: 'Termo Ativo', description: '', is_active: true, current_version: 1 },
+        { id: 't2', name: 'Termo Inativo', description: '', is_active: false, current_version: 1 },
+      ];
+      render(<Wrapper terms={terms} defaultValues={{ plan_id: 'personalizado', term_id: 't1' }} />);
+      expect(screen.getByRole('option', { name: 'Termo Ativo' })).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: 'Termo Inativo' })).not.toBeInTheDocument();
+    });
+
+    it('bloqueia submissão sem selecionar termo quando o plano for Personalizado', async () => {
+      const onSubmit = vi.fn();
+      render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'personalizado', term_id: '', documento: '12345678909', activation_fee: 100, monthly_value: 50 }} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Selecione um termo de contratação/i)).toBeInTheDocument();
+      });
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('bloqueia submissão sem selecionar termo quando o plano for Livre', async () => {
+      const onSubmit = vi.fn();
+      render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'livre', term_id: '' }} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Selecione um termo de contratação/i)).toBeInTheDocument();
+      });
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('envia o term_id selecionado no submit quando o plano for Personalizado', async () => {
+      const onSubmit = vi.fn();
+      render(<Wrapper onSubmit={onSubmit} defaultValues={{ plan_id: 'personalizado', documento: '12345678909', activation_fee: 100, monthly_value: 50 }} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalled();
+      });
+      expect(onSubmit.mock.calls[0][0].term_id).toBe('t1');
+    });
+  });
 });

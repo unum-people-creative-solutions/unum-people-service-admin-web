@@ -14,6 +14,7 @@ vi.mock('@/services/tenantService', () => ({
     delete: vi.fn(),
     resetPassword: vi.fn(),
     listUsers: vi.fn().mockResolvedValue([]),
+    cancelContract: vi.fn(),
   },
 }));
 
@@ -23,6 +24,14 @@ vi.mock('@/services/planService', () => ({
       active: [{ slug: 'lp_basico', nome: 'LP Básico', monthly_value: 199, activation_fee: 0, included_services: ['site', 'blog'] }],
       inactive: [{ slug: 'plano-desativado-legacy', nome: 'Plano Legacy', included_services: ['crm'] }]
     }),
+  },
+}));
+
+vi.mock('@/services/termService', () => ({
+  termService: {
+    list: vi.fn().mockResolvedValue([
+      { id: 'term_mock_1', name: 'Termo Mock', description: '', is_active: true, current_version: 1 },
+    ]),
   },
 }));
 
@@ -615,6 +624,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       const planSelect = await screen.findByRole('combobox', { name: /plano/i });
       // Change to a different plan
       fireEvent.change(planSelect, { target: { value: 'livre' } });
+      fireEvent.change(await screen.findByLabelText(/Termo de Contratação/i), { target: { value: 'term_mock_1' } });
 
       const saveBtn = screen.getByRole('button', { name: /salvar alterações/i });
       fireEvent.click(saveBtn);
@@ -635,6 +645,51 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
         expect(tenantService.changePlan).toHaveBeenCalledWith('tenant-123', expect.objectContaining({
           plan_id: 'livre',
           plan_type: 'livre'
+        }));
+      });
+    });
+
+    // TASK-FE-005 — o backend exige term_id para Personalizado/Livre no ChangePlan
+    // (TenantService.ChangePlan, TASK-BE-009); sem UI para isso, todo upgrade/
+    // downgrade para esses planos bateria num 400 sem contexto pro operador.
+    test('bloqueia a troca de plano para Livre sem selecionar um termo', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const planSelect = await screen.findByRole('combobox', { name: /plano/i });
+      fireEvent.change(planSelect, { target: { value: 'livre' } });
+
+      const saveBtn = screen.getByRole('button', { name: /salvar alterações/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Selecione um termo de contratação/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/Confirmar Troca de Plano/i)).not.toBeInTheDocument();
+      expect(tenantService.changePlan).not.toHaveBeenCalled();
+    });
+
+    test('envia o term_id selecionado no payload de changePlan', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const planSelect = await screen.findByRole('combobox', { name: /plano/i });
+      fireEvent.change(planSelect, { target: { value: 'livre' } });
+      fireEvent.change(await screen.findByLabelText(/Termo de Contratação/i), { target: { value: 'term_mock_1' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
+      await screen.findByText(/Confirmar Troca de Plano/i);
+      fireEvent.click(screen.getByRole('button', { name: /confirmar troca/i }));
+
+      await waitFor(() => {
+        expect(tenantService.changePlan).toHaveBeenCalledWith('tenant-123', expect.objectContaining({
+          term_id: 'term_mock_1',
         }));
       });
     });
@@ -660,6 +715,37 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       
       expect(pausarBtn).toBeInTheDocument();
       expect(cancelarContratoBtn).toBeInTheDocument();
+    });
+
+    test('[Bug] após cancelar contrato, botão "Cancelar Contrato" some e "Excluir Tenant" fica habilitado', async () => {
+      vi.mocked(tenantService.getById)
+        .mockResolvedValueOnce({ ...mockTenant, status: 'ativo' } as any)
+        .mockResolvedValue({ ...mockTenant, status: 'cancelado' } as any);
+      vi.mocked(tenantService.cancelContract).mockResolvedValue({ message: 'ok' });
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      const cancelarContratoBtn = await screen.findByRole('button', { name: /cancelar contrato/i });
+      fireEvent.click(cancelarContratoBtn);
+
+      const input = screen.getByPlaceholderText(/digite "cancelar contrato"/i);
+      fireEvent.change(input, { target: { value: 'cancelar contrato' } });
+
+      const confirmBtn = screen.getByRole('button', { name: /confirmar cancelamento/i });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /cancelar contrato/i })).toBeNull();
+        const excluirBtn = screen.getByRole('button', { name: /excluir tenant/i });
+        expect(excluirBtn).not.toBeDisabled();
+      });
     });
 
     test('T11 — UI: "Cancelar Contrato" exige frase digitada', async () => {

@@ -82,6 +82,7 @@ export interface CreateTenantInput {
   activation_billing_type?: 'pix' | 'credit_card';
   subscription_billing_type?: 'pix' | 'credit_card';
   is_test_tenant?: boolean;
+  term_id?: string;
 }
 
 export type TenantUserRole = 'admin' | 'user';
@@ -109,5 +110,6 @@ export interface ChangePlanInput {
   subscription_billing_type?: 'pix' | 'credit_card';
   plan_cycle?: 'mensal' | 'anual';
   enabled_services?: string[];
+  term_id?: string;
 }
 

@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { planService } from '@/services/planService';
+import { termService } from '@/services/termService';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { Tenant, ChangePlanInput } from '@/types/tenant';
@@ -84,6 +85,11 @@ export default function TenantDetailsPage() {
   const { data: tenant, isLoading, error } = useQuery({
     queryKey: ['tenant', id],
     queryFn: () => tenantService.getById(id),
+  });
+
+  const { data: termsData } = useQuery({
+    queryKey: ['terms'],
+    queryFn: termService.list,
   });
 
   const { data: plansData } = useQuery({
@@ -203,6 +209,9 @@ export default function TenantDetailsPage() {
   const cancelContractMutation = useMutation({
     mutationFn: () => tenantService.cancelContract(id),
     onSuccess: () => {
+      queryClient.setQueryData(['tenant', id], (old: Tenant | undefined) =>
+        old ? { ...old, status: 'cancelado' as Tenant['status'] } : old
+      );
       queryClient.invalidateQueries({ queryKey: ['tenant', id] });
       setSuccessMsg('Contrato cancelado com sucesso!');
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -233,6 +242,12 @@ export default function TenantDetailsPage() {
     if (data.plan_id) {
       dirtyData.plan_id = data.plan_id;
     }
+    // term_id só existe no form quando o plano selecionado é Personalizado/Livre
+    // (PlanConfigFields); precisa ser forçado do mesmo jeito que plan_id, senão
+    // o dirty-tracking pode não capturá-lo a tempo do modal de confirmação.
+    if ((data as any).term_id) {
+      dirtyData.term_id = (data as any).term_id;
+    }
 
     if (dirtyFields.plan_id && data.plan_id !== tenant.plan_id) {
       setPendingPlanData(dirtyData);
@@ -256,7 +271,8 @@ export default function TenantDetailsPage() {
     if (pendingPlanData && pendingPlanData.plan_id) {
       try {
         const selectedPlanId = pendingPlanData.plan_id;
-        const selectedPlan = plansData?.find((p: any) => p.slug === selectedPlanId);
+        const allPlans = [...(plansData?.active ?? []), ...(plansData?.inactive ?? [])];
+        const selectedPlan = allPlans.find((p: any) => p.slug === selectedPlanId);
         
         const isLivre = selectedPlanId === 'livre';
         const isPersonalizado = selectedPlanId === 'personalizado';
@@ -265,6 +281,7 @@ export default function TenantDetailsPage() {
         const payload: ChangePlanInput = {
           plan_id: selectedPlanId,
           plan_type: planType,
+          term_id: (pendingPlanData as any).term_id,
           monthly_value: (pendingPlanData.plan_value !== undefined && pendingPlanData.plan_value !== null && String(pendingPlanData.plan_value).trim() !== '') 
             ? Number(pendingPlanData.plan_value) 
             : (selectedPlan?.monthly_value ?? 0),
@@ -572,7 +589,7 @@ export default function TenantDetailsPage() {
                 </div>
                 
                 <div className="p-8">
-                  <PlanConfigFields plansData={plansData} currentPlanId={tenant?.plan_id} isEditMode />
+                  <PlanConfigFields plansData={plansData} terms={termsData} currentPlanId={tenant?.plan_id} isEditMode />
 
                   <div className="mt-8 space-y-3 pt-6 border-t border-slate-100">
                     <div className="flex justify-between text-xs">

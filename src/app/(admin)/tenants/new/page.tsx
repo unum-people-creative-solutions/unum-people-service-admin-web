@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { planService } from '@/services/planService';
+import { termService } from '@/services/termService';
 import { useRouter } from 'next/navigation';
 import { useForm, useWatch, FormProvider } from 'react-hook-form';
 import { CreateTenantInput } from '@/types/tenant';
@@ -20,6 +21,10 @@ export default function NewTenantPage() {
       const plans = await planService.listPlans();
       return plans as any;
     },
+  });
+  const { data: termsData } = useQuery({
+    queryKey: ['terms'],
+    queryFn: termService.list,
   });
 
   const methods = useForm<CreateTenantInput>({
@@ -219,7 +224,7 @@ export default function NewTenantPage() {
 
             <div className="bg-slate-50 p-6 rounded-lg space-y-4">
               <h2 className="font-bold text-slate-900">Configuração do Plano</h2>
-              <PlanConfigFields plansData={plansData} />
+              <PlanConfigFields plansData={plansData} terms={termsData} />
             </div>
 
             <div className="flex justify-end pt-4">
