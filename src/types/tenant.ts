@@ -11,6 +11,7 @@ export interface Plan {
   included_services: string[];
   is_active: boolean;
   cycle: PlanCycle;
+  term_id?: string;
   tenant_count?: number;
   created_at?: string;
   updated_at?: string;
