@@ -18,6 +18,7 @@ import {
 import { useState, useEffect } from 'react';
 import { TenantUsersSection } from '@/components/TenantUsersSection';
 import { BillingCard } from '@/components/tenants/BillingCard';
+import { ServiceAgreementCard } from '@/components/tenants/ServiceAgreementCard';
 
 const getStatusBadge = (tenant: Tenant & { delinquency_since?: string | null }) => {
   if (tenant.is_blocked) {
@@ -578,6 +579,8 @@ export default function TenantDetailsPage() {
               {tenant.plan_type !== 'livre' && (
                 <BillingCard tenant={tenant} contract={tenant.contract} />
               )}
+
+              <ServiceAgreementCard tenant={tenant} />
 
               {/* Card Assinatura */}
               <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isSubscriptionDirty ? 'border-red-200 shadow-red-500/5' : 'border-slate-200'}`}>

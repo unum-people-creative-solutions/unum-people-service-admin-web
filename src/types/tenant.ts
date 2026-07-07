@@ -31,6 +31,19 @@ export interface Contract {
   created_at: string;
 }
 
+export interface ServiceAgreementStatus {
+  tenant_id: string;
+  term_id: string;
+  required_version: number;
+  status: 'pendente' | 'aceito';
+  accepted_version?: number;
+  accepted_at?: string;
+  accepted_by?: string;
+  ip_address?: string;
+  user_agent?: string;
+  updated_at?: string;
+}
+
 export interface Tenant {
   id: string;
   api_key: string;
@@ -55,6 +68,7 @@ export interface Tenant {
   is_blocked: boolean;
   created_at: string;
   contract?: Contract;
+  agreement?: ServiceAgreementStatus;
   asaas_subscription_id?: string;
   delinquency_since?: string;
   is_test_tenant?: boolean;
