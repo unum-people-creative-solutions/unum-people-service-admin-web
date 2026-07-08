@@ -118,7 +118,7 @@ export default function TermsPage() {
           <button onClick={openCreateDrawer} className="bg-primary-600 text-white px-4 py-2 rounded-lg">Novo Termo</button>
           <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 bg-black/50" />
-            <Dialog.Content className="fixed right-0 top-0 bottom-0 w-[400px] bg-white p-6 shadow-xl" role="dialog">
+            <Dialog.Content className="fixed right-0 top-0 bottom-0 w-[400px] bg-white p-6 shadow-xl overflow-y-auto" role="dialog">
               <Dialog.Title asChild>
                 <h2 className="text-xl font-bold mb-4">Criar Novo Termo</h2>
               </Dialog.Title>
