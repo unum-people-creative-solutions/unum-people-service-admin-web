@@ -34,6 +34,7 @@ export interface Contract {
 export interface ServiceAgreementStatus {
   tenant_id: string;
   term_id: string;
+  term_name?: string;
   required_version: number;
   status: 'pendente' | 'aceito';
   accepted_version?: number;

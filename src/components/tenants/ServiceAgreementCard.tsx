@@ -21,6 +21,10 @@ export function ServiceAgreementCard({ tenant }: ServiceAgreementCardProps) {
   return (
     <div className="p-4 border rounded shadow-sm bg-white" data-testid="service-agreement-card">
       <h2 className="text-lg font-semibold mb-4">Termo de Contratação</h2>
+      {agreement?.term_name && (
+        <p className="text-sm text-slate-700 font-medium">{agreement.term_name}</p>
+      )}
+      <p className="text-xs text-slate-500 mb-2">Versão exigida: v{agreement?.required_version}</p>
       {isAccepted ? (
         <div>
           <p className="text-green-600">

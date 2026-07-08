@@ -44,7 +44,23 @@ describe('ServiceAgreementCard', () => {
     };
     render(<ServiceAgreementCard tenant={tenant} />);
     expect(screen.getByText(/admin@empresa\.com/i)).toBeInTheDocument();
-    expect(screen.getByText(/v2/)).toBeInTheDocument();
+    expect(screen.getByText(/Aceito em.*\(v2\).*por/)).toBeInTheDocument();
+  });
+
+  it('exibe o nome do termo e a versão exigida', () => {
+    const tenant = {
+      ...baseTenant,
+      agreement: {
+        tenant_id: 't-123',
+        term_id: 'term-1',
+        term_name: 'Termo Pacote Site',
+        required_version: 3,
+        status: 'pendente' as const,
+      },
+    };
+    render(<ServiceAgreementCard tenant={tenant} />);
+    expect(screen.getByText('Termo Pacote Site')).toBeInTheDocument();
+    expect(screen.getByText(/Versão exigida: v3/)).toBeInTheDocument();
   });
 
   it('exibe estado neutro quando o tenant não tem nenhum registro de aceite (legado)', () => {
