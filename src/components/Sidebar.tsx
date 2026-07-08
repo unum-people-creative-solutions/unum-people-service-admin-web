@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Users,
   Tag,
+  FileText,
   AlertCircle,
   Settings,
   ChevronRight,
@@ -33,6 +34,11 @@ const menuItems = [
     title: 'Planos',
     href: '/plans',
     icon: Tag,
+  },
+  {
+    title: 'Termos',
+    href: '/terms',
+    icon: FileText,
   },
   {
     title: 'Monitoramento',

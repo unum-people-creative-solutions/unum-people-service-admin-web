@@ -33,6 +33,7 @@ describe('Sidebar Component', () => {
     expect(screen.getByText('Visão Geral')).toBeDefined();
     expect(screen.getByText('Gestão de Tenants')).toBeDefined();
     expect(screen.getByText('Planos')).toBeDefined();
+    expect(screen.getByText('Termos')).toBeDefined();
     expect(screen.getByText('Monitoramento')).toBeDefined();
   });
 
