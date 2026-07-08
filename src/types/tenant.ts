@@ -20,6 +20,7 @@ export interface Plan {
 export interface Contract {
   plan_id: string;
   plan_type: PlanType;
+  term_id?: string;
   activation_fee: number;
   monthly_value: number;
   activation_billing_type?: 'pix' | 'credit_card';

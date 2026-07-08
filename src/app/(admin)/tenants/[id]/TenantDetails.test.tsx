@@ -31,6 +31,7 @@ vi.mock('@/services/termService', () => ({
   termService: {
     list: vi.fn().mockResolvedValue([
       { id: 'term_mock_1', name: 'Termo Mock', description: '', is_active: true, current_version: 1 },
+      { id: 'term_mock_2', name: 'Termo Mock v2', description: '', is_active: true, current_version: 1 },
     ]),
   },
 }));
@@ -691,6 +692,88 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
         expect(tenantService.changePlan).toHaveBeenCalledWith('tenant-123', expect.objectContaining({
           term_id: 'term_mock_1',
         }));
+      });
+    });
+  });
+
+  // Achado do usuário: um tenant já Livre/Personalizado trocando SÓ o termo
+  // (sem trocar de plano) não disparava nada — term_id vive no Contract, e o
+  // Update genérico (usado quando plan_id não muda) não sabe gravá-lo.
+  describe('[Bug do usuário] Trocar só o Termo de Contratação de um tenant Livre', () => {
+    const livreTenant = {
+      ...mockTenant,
+      plan_id: 'livre',
+      plan_type: 'livre',
+      contract: { plan_id: 'livre', plan_type: 'livre', term_id: 'term_mock_1', activation_fee: 0, monthly_value: 0, created_at: new Date().toISOString() },
+    };
+
+    test('pré-seleciona o termo já vinculado ao tenant', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const termSelect = await screen.findByLabelText(/Termo de Contratação/i);
+      await waitFor(() => {
+        expect(termSelect).toHaveValue('term_mock_1');
+      });
+    });
+
+    test('LED de Assinatura acende e o modal de confirmação abre ao trocar só o termo', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const termSelect = await screen.findByLabelText(/Termo de Contratação/i);
+      await waitFor(() => expect(termSelect).toHaveValue('term_mock_1'));
+      fireEvent.change(termSelect, { target: { value: 'term_mock_2' } });
+
+      const subscriptionHeaderRow = screen.getByText('Assinatura').closest('div')!;
+      await waitFor(() => {
+        expect(within(subscriptionHeaderRow).getByText(/Alterações Pendentes/i)).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
+
+      expect(await screen.findByText(/Confirmar Troca de Termo de Contratação/i)).toBeInTheDocument();
+      expect(tenantService.changePlan).not.toHaveBeenCalled();
+    });
+
+    test('confirmar chama changePlan com o novo term_id e o mesmo plan_id (livre), nunca o Update genérico com term_id', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as any);
+      vi.mocked(tenantService.changePlan).mockResolvedValue({ message: 'ok' } as any);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const termSelect = await screen.findByLabelText(/Termo de Contratação/i);
+      await waitFor(() => expect(termSelect).toHaveValue('term_mock_1'));
+      fireEvent.change(termSelect, { target: { value: 'term_mock_2' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
+      await screen.findByText(/Confirmar Troca de Termo de Contratação/i);
+      fireEvent.click(screen.getByRole('button', { name: /confirmar troca/i }));
+
+      await waitFor(() => {
+        expect(tenantService.changePlan).toHaveBeenCalledWith('tenant-123', expect.objectContaining({
+          plan_id: 'livre',
+          term_id: 'term_mock_2',
+        }));
+      });
+
+      const updateCalls = (tenantService.update as any).mock.calls;
+      updateCalls.forEach((call: any[]) => {
+        expect(call[1]).not.toHaveProperty('term_id');
       });
     });
   });

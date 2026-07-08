@@ -117,6 +117,10 @@ export default function TenantDetailsPage() {
         monthly_value: tenant.contract?.monthly_value ?? tenant.plan_value ?? 0,
         activation_billing_type: tenant.contract?.activation_billing_type ?? 'pix',
         subscription_billing_type: tenant.contract?.subscription_billing_type ?? 'pix',
+        // term_id vive no Contract, não no Tenant — sem isso o select de
+        // "Termo de Contratação" sempre carregava vazio ("Selecione um
+        // termo"), escondendo qual termo já estava de fato vinculado.
+        term_id: tenant.contract?.term_id ?? '',
       };
       reset(sanitizedTenant);
     }
@@ -250,7 +254,11 @@ export default function TenantDetailsPage() {
       dirtyData.term_id = (data as any).term_id;
     }
 
-    if (dirtyFields.plan_id && data.plan_id !== tenant.plan_id) {
+    // term_id vive no Contract, não no Tenant — o Update genérico abaixo não
+    // sabe gravá-lo (só ChangePlan sincroniza o Contract e invalida o aceite
+    // anterior). Por isso, trocar só o termo (sem trocar de plano) também
+    // precisa passar pelo mesmo fluxo de confirmação de ChangePlan.
+    if ((dirtyFields.plan_id && data.plan_id !== tenant.plan_id) || (dirtyFields as any).term_id) {
       setPendingPlanData(dirtyData);
       setShowChangePlanModal(true);
       return;
@@ -303,6 +311,10 @@ export default function TenantDetailsPage() {
         delete otherData.plan_id;
         delete otherData.plan_value;
         delete otherData.plan_cycle;
+        // term_id já foi enviado via changePlanMutation acima (é campo do
+        // Contract, não do Tenant) — o Update genérico não sabe gravá-lo e
+        // ignoraria silenciosamente, então nem vale a pena mandar de novo.
+        delete (otherData as any).term_id;
         if (Object.keys(otherData).length > 0) {
           await updateMutation.mutateAsync(otherData);
         }
@@ -335,7 +347,7 @@ export default function TenantDetailsPage() {
     (Array.isArray(dirtyFields.enabled_services) && dirtyFields.enabled_services.some(v => v === true))
   );
   
-  const isSubscriptionDirty = ['plan_id', 'plan_value'].some(
+  const isSubscriptionDirty = ['plan_id', 'plan_value', 'term_id'].some(
     field => dirtyFields[field as keyof Tenant] === true
   );
 
@@ -902,17 +914,24 @@ export default function TenantDetailsPage() {
         </div>
       )}
       {/* Change Plan Confirmation Modal */}
-      {showChangePlanModal && (
+      {showChangePlanModal && (() => {
+        // Distingue "trocou de plano" de "só trocou o termo vinculado" (mesmo
+        // plano) — os dois passam pelo mesmo fluxo de ChangePlan, mas o texto
+        // de confirmação precisa refletir o que de fato vai acontecer.
+        const isOnlyTermChange = pendingPlanData?.plan_id === tenant.plan_id;
+        return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b flex items-center gap-3 bg-amber-50 border-amber-100 text-amber-800">
               <AlertTriangle size={24} />
-              <h3 className="text-xl font-bold">Confirmar Troca de Plano</h3>
+              <h3 className="text-xl font-bold">{isOnlyTermChange ? 'Confirmar Troca de Termo de Contratação' : 'Confirmar Troca de Plano'}</h3>
             </div>
-            
+
             <div className="p-8 space-y-6">
               <p className="text-slate-600 text-sm leading-relaxed">
-                Você está prestes a alterar o plano deste tenant. Esta ação pode redefinir o ciclo de faturamento e serviços incluídos.
+                {isOnlyTermChange
+                  ? 'Você está prestes a alterar o Termo de Contratação vinculado a este tenant. O aceite anterior será invalidado e um novo aceite será exigido.'
+                  : 'Você está prestes a alterar o plano deste tenant. Esta ação pode redefinir o ciclo de faturamento e serviços incluídos.'}
               </p>
 
               <div className="flex gap-4">
@@ -939,7 +958,8 @@ export default function TenantDetailsPage() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
