@@ -14,6 +14,11 @@ vi.mock('@/services/termService', () => ({
   }
 }));
 
+const mockPush = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
+
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal();
   return {
@@ -55,20 +60,20 @@ describe('TermsPage', () => {
     expect(screen.getByRole('heading', { name: /Criar Novo Termo/i })).toBeInTheDocument();
   });
 
-  it('submeter o formulário de criação chama termService.create com nome e descrição', async () => {
+  it('submeter o formulário de criação chama termService.create e navega para a tela de edição do termo criado', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
     (useQuery as any).mockReturnValue({ data: [], isLoading: false });
 
-    const mutateSpy = vi.fn();
-    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
-      mutate: (variables: any) => {
-        mutationFn(variables);
-        mutateSpy(variables);
+    (useMutation as any).mockImplementation(({ mutationFn, onSuccess }: any) => ({
+      mutate: async (variables: any) => {
+        const result = await mutationFn(variables);
+        onSuccess?.(result);
       },
       isPending: false,
     }));
 
     const { termService } = await import('@/services/termService');
+    (termService.create as any).mockResolvedValue({ id: 'new-term-id', name: 'Termo Pacote Site', description: 'Escopo do pacote de site', is_active: true, current_version: 0 });
 
     render(<TermsPage />);
 
@@ -82,6 +87,11 @@ describe('TermsPage', () => {
         expect.objectContaining({ name: 'Termo Pacote Site', description: 'Escopo do pacote de site' })
       );
     });
+    // Depois de criar, o próximo passo natural é publicar a primeira versão
+    // de conteúdo — leva direto para a tela de edição do termo criado.
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/terms/new-term-id');
+    });
   });
 
   it('erro de API ao criar termo é exibido, nunca engolido silenciosamente', async () => {
@@ -89,7 +99,7 @@ describe('TermsPage', () => {
     (useQuery as any).mockReturnValue({ data: [], isLoading: false });
 
     // Cada chamada a useMutation captura o SEU PRÓPRIO onError (não uma
-    // variável compartilhada) — com 3 mutações no componente (criar/editar/
+    // variável compartilhada) — com 2 mutações no componente (criar/
     // excluir), um "último a registrar vence" faria o clique em "Salvar"
     // disparar o onError errado (ex: o de excluir).
     (useMutation as any).mockImplementation(({ onError }: any) => ({
@@ -106,7 +116,11 @@ describe('TermsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/Falha ao criar/i);
   });
 
-  it('abre o drawer de publicação de versão ao clicar em "Publicar nova versão"', async () => {
+  // A edição de metadados, publicação de conteúdo e histórico de versões
+  // saíram dos drawers/expansões da listagem e viraram uma tela dedicada
+  // (/terms/[id]) — a área confinada de um drawer lateral não era adequada
+  // para ler/editar um texto jurídico longo (achado de UX do usuário).
+  it('card do termo linka para a tela de edição dedicada', async () => {
     const { useQuery } = await import('@tanstack/react-query');
     (useQuery as any).mockReturnValue({
       data: [{ id: 't1', name: 'Termo Site', description: '', is_active: true, current_version: 1 }],
@@ -115,9 +129,8 @@ describe('TermsPage', () => {
 
     render(<TermsPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Publicar nova versão/i }));
-
-    expect(screen.getByRole('heading', { name: /Publicar nova versão — Termo Site/i })).toBeInTheDocument();
+    const openLink = screen.getByRole('link', { name: /Abrir Termo Site/i });
+    expect(openLink).toHaveAttribute('href', '/terms/t1');
   });
 
   it('clicar em "Excluir" chama termService.remove com o id do termo', async () => {
@@ -167,21 +180,5 @@ describe('TermsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Excluir Termo Site/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/em uso por um plano ativo/i);
-  });
-
-  it('expande o histórico de versões ao clicar em "Ver versões"', async () => {
-    const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
-      data: [{ id: 't1', name: 'Termo Site', description: '', is_active: true, current_version: 1 }],
-      isLoading: false,
-    });
-
-    render(<TermsPage />);
-
-    expect(screen.queryByText(/Histórico de versões/i)).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Ver versões/i }));
-
-    expect(screen.getByText(/Histórico de versões/i)).toBeInTheDocument();
   });
 });

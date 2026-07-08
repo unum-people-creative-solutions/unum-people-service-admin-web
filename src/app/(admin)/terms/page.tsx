@@ -1,17 +1,16 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { termService } from '@/services/termService';
-import { Term, CreateTermInput, UpdateTermInput } from '@/types/term';
+import { Term, CreateTermInput } from '@/types/term';
 import * as Dialog from '@radix-ui/react-dialog';
-import { VersionHistoryList } from './_components/VersionHistoryList';
-import { PublishVersionDrawer } from './_components/PublishVersionDrawer';
-
-type TermFormValues = CreateTermInput & { is_active: boolean };
 
 export default function TermsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['terms'],
@@ -19,37 +18,24 @@ export default function TermsPage() {
   });
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [editingTerm, setEditingTerm] = useState<Term | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [expandedTermId, setExpandedTermId] = useState<string | null>(null);
-  const [publishDrawerTerm, setPublishDrawerTerm] = useState<Term | null>(null);
 
-  const defaultValues: TermFormValues = { name: '', description: '', is_active: true };
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<TermFormValues>({ defaultValues });
+  const defaultValues: CreateTermInput = { name: '', description: '' };
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateTermInput>({ defaultValues });
 
   const createMutation = useMutation({
     mutationFn: (input: CreateTermInput) => termService.create(input),
-    onSuccess: () => {
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['terms'] });
       setIsDrawerOpen(false);
       reset(defaultValues);
+      // Leva direto para a tela de edição — o próximo passo natural depois
+      // de criar o termo é publicar a primeira versão do conteúdo.
+      router.push(`/terms/${created.id}`);
     },
     onError: (error: any) => {
       setFormError(error?.message || 'Falha ao criar o termo. Tente novamente.');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateTermInput }) => termService.update(id, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['terms'] });
-      setIsDrawerOpen(false);
-      setEditingTerm(null);
-      reset(defaultValues);
-    },
-    onError: (error: any) => {
-      setFormError(error?.message || 'Falha ao salvar o termo. Tente novamente.');
     },
   });
 
@@ -71,33 +57,20 @@ export default function TermsPage() {
   const handleDrawerOpenChange = (open: boolean) => {
     setIsDrawerOpen(open);
     if (!open) {
-      setEditingTerm(null);
       setFormError(null);
       reset(defaultValues);
     }
   };
 
   const openCreateDrawer = () => {
-    setEditingTerm(null);
     setFormError(null);
     reset(defaultValues);
     setIsDrawerOpen(true);
   };
 
-  const openEditDrawer = (term: Term) => {
-    setEditingTerm(term);
+  const onSubmit = (values: CreateTermInput) => {
     setFormError(null);
-    reset({ name: term.name, description: term.description, is_active: term.is_active });
-    setIsDrawerOpen(true);
-  };
-
-  const onSubmit = (values: TermFormValues) => {
-    setFormError(null);
-    if (editingTerm) {
-      updateMutation.mutate({ id: editingTerm.id, input: values });
-    } else {
-      createMutation.mutate({ name: values.name, description: values.description });
-    }
+    createMutation.mutate(values);
   };
 
   if (isLoading) return <div>Carregando...</div>;
@@ -115,27 +88,12 @@ export default function TermsPage() {
           <p className="text-xs text-slate-400">Versão atual: v{term.current_version}</p>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => openEditDrawer(term)}
+          <Link
+            href={`/terms/${term.id}`}
             className="px-4 py-2 border rounded hover:bg-slate-50"
           >
-            Editar {term.name}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPublishDrawerTerm(term)}
-            className="px-4 py-2 border rounded hover:bg-slate-50"
-          >
-            Publicar nova versão
-          </button>
-          <button
-            type="button"
-            onClick={() => setExpandedTermId(expandedTermId === term.id ? null : term.id)}
-            className="px-4 py-2 border rounded hover:bg-slate-50"
-          >
-            {expandedTermId === term.id ? 'Fechar versões' : 'Ver versões'}
-          </button>
+            Abrir {term.name}
+          </Link>
           <button
             type="button"
             disabled={deleteMutation.isPending}
@@ -149,7 +107,6 @@ export default function TermsPage() {
           </button>
         </div>
       </div>
-      {expandedTermId === term.id && <VersionHistoryList term={term} />}
     </div>
   );
 
@@ -163,7 +120,7 @@ export default function TermsPage() {
             <Dialog.Overlay className="fixed inset-0 bg-black/50" />
             <Dialog.Content className="fixed right-0 top-0 bottom-0 w-[400px] bg-white p-6 shadow-xl" role="dialog">
               <Dialog.Title asChild>
-                <h2 className="text-xl font-bold mb-4">{editingTerm ? `Editar Termo — ${editingTerm.name}` : 'Criar Novo Termo'}</h2>
+                <h2 className="text-xl font-bold mb-4">Criar Novo Termo</h2>
               </Dialog.Title>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
@@ -180,12 +137,6 @@ export default function TermsPage() {
                   <label htmlFor="description" className="block text-sm font-semibold mb-1">Descrição</label>
                   <textarea id="description" {...register('description')} className="w-full border p-2 rounded" placeholder="Descrição interna do termo" />
                 </div>
-                {editingTerm && (
-                  <div className="flex items-center gap-2 mt-4">
-                    <input type="checkbox" id="is_active" {...register('is_active')} />
-                    <label htmlFor="is_active" className="text-sm font-semibold">Ativo</label>
-                  </div>
-                )}
                 {formError && (
                   <p role="alert" className="text-red-600 text-sm">{formError}</p>
                 )}
@@ -193,8 +144,8 @@ export default function TermsPage() {
                   <Dialog.Close asChild>
                     <button type="button" className="px-4 py-2 border rounded">Cancelar</button>
                   </Dialog.Close>
-                  <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded disabled:opacity-50">
-                    {createMutation.isPending || updateMutation.isPending ? 'Salvando...' : 'Salvar Termo'}
+                  <button type="submit" disabled={createMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded disabled:opacity-50">
+                    {createMutation.isPending ? 'Salvando...' : 'Salvar Termo'}
                   </button>
                 </div>
               </form>
@@ -220,14 +171,6 @@ export default function TermsPage() {
           {inactiveTerms.map(renderTermCard)}
         </div>
       </section>
-
-      {publishDrawerTerm && (
-        <PublishVersionDrawer
-          term={publishDrawerTerm}
-          open={!!publishDrawerTerm}
-          onOpenChange={(open) => !open && setPublishDrawerTerm(null)}
-        />
-      )}
     </div>
   );
 }
