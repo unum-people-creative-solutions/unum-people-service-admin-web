@@ -63,6 +63,33 @@ describe('ServiceAgreementCard', () => {
     expect(screen.getByText(/Versão exigida: v3/)).toBeInTheDocument();
   });
 
+  it('exibe o link para o Termo de Contratação quando document_url está presente', () => {
+    const tenant = {
+      ...baseTenant,
+      agreement: {
+        tenant_id: 't-123',
+        term_id: 'term-1',
+        term_name: 'Termo Pacote Site',
+        document_url: 'https://cdn.unumpeople.com.br/terms/term-1/v3.html',
+        required_version: 3,
+        status: 'pendente' as const,
+      },
+    };
+    render(<ServiceAgreementCard tenant={tenant} />);
+    const link = screen.getByRole('link', { name: /Ver Termo de Contratação/i });
+    expect(link).toHaveAttribute('href', 'https://cdn.unumpeople.com.br/terms/term-1/v3.html');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('não exibe link quando document_url ainda não está disponível (termo sem versão publicada)', () => {
+    const tenant = {
+      ...baseTenant,
+      agreement: { tenant_id: 't-123', term_id: 'term-1', required_version: 0, status: 'pendente' as const },
+    };
+    render(<ServiceAgreementCard tenant={tenant} />);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('exibe estado neutro quando o tenant não tem nenhum registro de aceite (legado)', () => {
     const tenant = { ...baseTenant, agreement: undefined };
     render(<ServiceAgreementCard tenant={tenant} />);

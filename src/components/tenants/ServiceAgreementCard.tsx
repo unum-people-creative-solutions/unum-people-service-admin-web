@@ -24,7 +24,17 @@ export function ServiceAgreementCard({ tenant }: ServiceAgreementCardProps) {
       {agreement?.term_name && (
         <p className="text-sm text-slate-700 font-medium">{agreement.term_name}</p>
       )}
-      <p className="text-xs text-slate-500 mb-2">Versão exigida: v{agreement?.required_version}</p>
+      <p className="text-xs text-slate-500 mb-1">Versão exigida: v{agreement?.required_version}</p>
+      {agreement?.document_url && (
+        <a
+          href={agreement.document_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-600 text-xs underline mb-2 inline-block"
+        >
+          Ver Termo de Contratação
+        </a>
+      )}
       {isAccepted ? (
         <div>
           <p className="text-green-600">
