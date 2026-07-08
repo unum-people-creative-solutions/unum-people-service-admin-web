@@ -21,6 +21,7 @@ export default function TermsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingTerm, setEditingTerm] = useState<Term | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [expandedTermId, setExpandedTermId] = useState<string | null>(null);
   const [publishDrawerTerm, setPublishDrawerTerm] = useState<Term | null>(null);
 
@@ -49,6 +50,21 @@ export default function TermsPage() {
     },
     onError: (error: any) => {
       setFormError(error?.message || 'Falha ao salvar o termo. Tente novamente.');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => termService.remove(id),
+    onSuccess: () => {
+      setDeleteError(null);
+      queryClient.invalidateQueries({ queryKey: ['terms'] });
+    },
+    onError: (error: any) => {
+      if (error?.response?.status === 409) {
+        setDeleteError('Não é possível excluir um termo com aceites registrados ou em uso por um plano ativo.');
+      } else {
+        setDeleteError('Falha ao excluir o termo. Tente novamente.');
+      }
     },
   });
 
@@ -120,6 +136,17 @@ export default function TermsPage() {
           >
             {expandedTermId === term.id ? 'Fechar versões' : 'Ver versões'}
           </button>
+          <button
+            type="button"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              setDeleteError(null);
+              deleteMutation.mutate(term.id);
+            }}
+            className="px-4 py-2 bg-secondary-600 text-white rounded disabled:opacity-50"
+          >
+            Excluir {term.name}
+          </button>
         </div>
       </div>
       {expandedTermId === term.id && <VersionHistoryList term={term} />}
@@ -175,6 +202,10 @@ export default function TermsPage() {
           </Dialog.Portal>
         </Dialog.Root>
       </div>
+
+      {deleteError && (
+        <p role="alert" className="mb-4 text-red-600 text-sm">{deleteError}</p>
+      )}
 
       <section className="mb-12">
         <h2 className="text-xl font-bold mb-4">Termos Ativos</h2>
