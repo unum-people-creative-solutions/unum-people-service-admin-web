@@ -150,7 +150,10 @@ export function BillingCard({ tenant, contract }: BillingCardProps) {
       );
     }
 
-    if (localContract?.activation_invoice_url) {
+    const activationUrl = localContract?.activation_invoice_url ||
+      (currentStatus === 'aguardando_ativacao' ? localContract?.subscription_invoice_url : '');
+
+    if (activationUrl) {
       const isPaid = currentStatus !== 'aguardando_ativacao';
       return (
         <div className="mb-4 pb-4 border-b">
@@ -158,7 +161,7 @@ export function BillingCard({ tenant, contract }: BillingCardProps) {
             {isPaid ? 'Ativação paga' : 'Aguardando confirmação do pagamento da ativação'}
           </p>
           <a
-            href={localContract.activation_invoice_url}
+            href={activationUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 underline break-all"
