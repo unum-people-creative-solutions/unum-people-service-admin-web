@@ -1,36 +1,12 @@
-# AGENTS.md - Orientação e Orquestração (TLC 2.0)
+# AGENTS.md — unum-people-services-admin-web
 
-Este repositório opera sob a metodologia **Elite SaaS** e o ciclo de vida **TLC 2.0**.
-
-## 🏛️ Máquina de Estados do Ciclo de Vida
-Diretriz absoluta: **NENHUMA LINHA DE CÓDIGO DE PRODUÇÃO OU TESTE DEVE SER ESCRITA ANTES DA FASE 5.**
-
-1. **FASE 1: DISCOVERY** - Alinhamento de escopo e restrições.
-2. **FASE 2: ARCHITECTURE** - Mapeamento via `codenavi` e criação do `TDD-*.md`.
-3. **FASE 3: DESIGN & UI** - Definição visual via `frontend-blueprint`.
-4. **FASE 4: SPECIFICATION** - Backlog e Planos de Teste via `tlc-spec-driven`.
-5. **FASE 5: EXECUTION** - Implementação via Pipeline de Personas.
-
-## 🎭 Pipeline de Execução (Handoff Sequencial)
-A Fase 5 exige a separação rígida de responsabilidades:
-
-### 1. Agente QA (Analista de Qualidade)
-- **Objetivo**: Criar testes que falham (**RED**) baseados no `TDD-*.md`.
-- **Foco**: Acessibilidade (`getByRole`), Happy Path e Edge Cases.
-- **Handoff**: "Testes escritos e falhando. Handoff para o Agente Executor."
-
-### 2. Agente Executor (Engenheiro de Software)
-- **Objetivo**: Implementar o código mínimo para passar os testes (**GREEN**).
-- **Skills**: `tailwind-expert`, `react-best-practices`, `terraform-expert`, etc.
-- **Handoff**: "Código implementado. Testes passando. Handoff para o Agente Auditor."
-
-### 3. Agente Auditor (Revisor)
-- **Objetivo**: Validar segurança (`security-best-practices`), convenções e cobertura. E garantir a **Atualização de Estado** no `STATE.md`.
-- **Handoff**: "Auditoria concluída. Arquivo STATE.md atualizado. Task marcada como DONE."
+Operado sob **TLC 2.0 + tlc-spec-driven v3**. Fases, auto-sizing, Sub-Agent Delegation e Verifier estão na skill — consulte o AGENTS.md da raiz do workspace para contexto completo de projeto.
 
 ## 🛡️ Regras e Harness
-Consulte estritamente o arquivo `docs/unum-people-services-admin-web/spec/RULES.md` para restrições técnicas e comportamentais inquebráveis.
+Leia `unum-people-docs/spec/RULES.md` antes de qualquer implementação.
 
-## 📝 Comandos e Contexto Local
+## 📂 Specs e Tech Designs
+NUNCA criar `.specs/`, `.spec/` ou `spec/` local neste repo — é o default da skill `tlc-spec-driven`, mas não se aplica aqui. Specs e tech-designs deste projeto vivem em `unum-people-docs` (repo separado, sibling deste): `unum-people-docs/spec/features/` e `unum-people-docs/tech-designs/`. Ver pastas existentes lá para o nome de projeto correto antes de criar uma nova (features cross-cutting Backend+Frontend costumam usar `unum-people-services/`).
+
+## 📝 Contexto Local
 Admin web interface for scalable services.
-

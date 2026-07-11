@@ -4,7 +4,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { planService } from '@/services/planService';
+import { termService } from '@/services/termService';
 import { Plan } from '@/types/tenant';
+import { Term } from '@/types/term';
 import * as Dialog from '@radix-ui/react-dialog';
 import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
 
@@ -14,6 +16,14 @@ export default function PlansPage() {
     queryKey: ['plans'],
     queryFn: planService.listPlans,
   });
+  const { data: termsData } = useQuery({
+    queryKey: ['terms'],
+    queryFn: termService.list,
+  });
+  // Defensivo: components que ainda não conhecem a query de termos (ex.: testes
+  // legados desta tela) retornam o mock de ['plans'] para toda chamada de
+  // useQuery — tratamos qualquer shape que não seja um array como "sem termos".
+  const activeTerms: Term[] = Array.isArray(termsData) ? termsData.filter((t) => t.is_active) : [];
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -29,6 +39,7 @@ export default function PlansPage() {
     included_services: [],
     is_active: true,
     cycle: 'mensal',
+    term_id: '',
   };
 
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm<Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>>({
@@ -91,6 +102,7 @@ export default function PlansPage() {
       included_services: plan.included_services,
       is_active: plan.is_active,
       cycle: plan.cycle,
+      term_id: plan.term_id ?? '',
     });
     setIsDrawerOpen(true);
   };
@@ -145,7 +157,7 @@ export default function PlansPage() {
           <button onClick={openCreateDrawer} className="bg-primary-600 text-white px-4 py-2 rounded-lg">Novo Plano</button>
           <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 bg-black/50" />
-            <Dialog.Content className="fixed right-0 top-0 bottom-0 w-[400px] bg-white p-6 shadow-xl" role="dialog">
+            <Dialog.Content className="fixed right-0 top-0 bottom-0 w-[400px] bg-white p-6 shadow-xl overflow-y-auto" role="dialog">
               <Dialog.Title asChild>
                 <h2 className="text-xl font-bold mb-4">{editingPlan ? `Editar Plano — ${editingPlan.nome}` : 'Criar Novo Plano'}</h2>
               </Dialog.Title>
@@ -221,6 +233,19 @@ export default function PlansPage() {
                 <div>
                   <label className="block text-sm font-semibold mb-1">Serviços Inclusos (vírgula)</label>
                   <input {...register('included_services')} className="w-full border p-2 rounded" placeholder="ex: crm, admin" />
+                </div>
+                <div>
+                  <label htmlFor="term_id" className="block text-sm font-semibold mb-1">Termo de Contratação</label>
+                  <select id="term_id" {...register('term_id', { required: true })} className="w-full border p-2 rounded">
+                    <option value="">Selecione um termo</option>
+                    {activeTerms.map((term) => (
+                      <option key={term.id} value={term.id}>{term.name}</option>
+                    ))}
+                  </select>
+                  {errors.term_id && <span className="text-red-500 text-xs block mt-1">Selecione um termo de contratação</span>}
+                  {editingPlan && !editingPlan.term_id && (
+                    <p className="text-amber-600 text-xs mt-1">Este plano ainda não tem um termo vinculado — selecione um antes de salvar.</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-4">
                   <input type="checkbox" id="is_active" {...register('is_active')} />

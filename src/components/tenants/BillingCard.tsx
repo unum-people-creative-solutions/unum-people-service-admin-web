@@ -125,8 +125,12 @@ export function BillingCard({ tenant, contract }: BillingCardProps) {
     }
   };
 
+  // tenant.status vem do backend em MAIÚSCULAS (enum domain.TenantStatus,
+  // ex. "CANCELADO"); normaliza antes de comparar.
+  const currentStatus = String(tenant.status || '').toLowerCase();
+
   const renderActivation = () => {
-    if (tenant.status === 'pendente_asaas') {
+    if (currentStatus === 'pendente_asaas') {
       return (
         <div className="mb-4 pb-4 border-b">
           <p className="text-red-600">Falha ao gerar a cobrança de ativação no Asaas.</p>
@@ -146,15 +150,18 @@ export function BillingCard({ tenant, contract }: BillingCardProps) {
       );
     }
 
-    if (localContract?.activation_invoice_url) {
-      const isPaid = tenant.status !== 'aguardando_ativacao';
+    const activationUrl = localContract?.activation_invoice_url ||
+      (currentStatus === 'aguardando_ativacao' ? localContract?.subscription_invoice_url : '');
+
+    if (activationUrl) {
+      const isPaid = currentStatus !== 'aguardando_ativacao';
       return (
         <div className="mb-4 pb-4 border-b">
           <p className={isPaid ? 'text-green-600' : 'text-yellow-600'}>
             {isPaid ? 'Ativação paga' : 'Aguardando confirmação do pagamento da ativação'}
           </p>
           <a
-            href={localContract.activation_invoice_url}
+            href={activationUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 underline break-all"
@@ -169,7 +176,7 @@ export function BillingCard({ tenant, contract }: BillingCardProps) {
   };
 
   const renderReactivate = () => {
-    if (tenant.status !== 'pausado') return null;
+    if (currentStatus !== 'pausado') return null;
 
     return (
       <div className="mb-4 pb-4 border-b">

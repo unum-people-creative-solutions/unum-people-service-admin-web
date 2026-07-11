@@ -22,6 +22,14 @@ vi.mock('@/services/planService', () => ({
   },
 }));
 
+vi.mock('@/services/termService', () => ({
+  termService: {
+    list: vi.fn().mockResolvedValue([
+      { id: 'term_mock_1', name: 'Termo Mock', description: '', is_active: true, current_version: 1 },
+    ]),
+  },
+}));
+
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(),
 }));
@@ -135,6 +143,7 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
     fireEvent.change(container.querySelector('[name="nicho"]')!, { target: { value: 'Tech' } });
     fireEvent.change(container.querySelector('[name="nome_admin"]')!, { target: { value: 'Admin Teste' } });
     fireEvent.change(container.querySelector('[name="email_contato"]')!, { target: { value: 'admin@teste.com' } });
+    fireEvent.change(await screen.findByLabelText(/Termo de Contratação/i), { target: { value: 'term_mock_1' } });
 
     fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
 
@@ -328,5 +337,46 @@ describe('NewTenantPage - T20: CPF obrigatório p/ pago + seletores de método (
     expect(paymentMethodHeading).toBeNull();
     expect(screen.queryByRole('combobox', { name: /método de pagamento da ativação/i })).toBeNull();
     expect(screen.queryByRole('combobox', { name: /método de pagamento da assinatura/i })).toBeNull();
+  });
+});
+
+describe('NewTenantPage - TASK-FE-005: Termo de Contratação (Personalizado/Livre)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as any);
+  });
+
+  test('não bloqueia a criação de tenant PAGO por falta de termo (vem implícito do plano)', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    expect(screen.queryByLabelText(/Termo de Contratação/i)).not.toBeInTheDocument();
+  });
+
+  test('bloqueia a criação de tenant LIVRE sem selecionar um termo', async () => {
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    const planSelect = screen.getByRole('combobox', { name: /plano/i });
+    fireEvent.change(planSelect, { target: { value: 'livre' } });
+
+    fireEvent.change(container.querySelector('[name="nome_negocio"]')!, { target: { value: 'Empresa Teste' } });
+    fireEvent.change(container.querySelector('[name="documento"]')!, { target: { value: '94.586.814/0001-01' } });
+    fireEvent.change(container.querySelector('[name="nicho"]')!, { target: { value: 'Tech' } });
+    fireEvent.change(container.querySelector('[name="nome_admin"]')!, { target: { value: 'Admin' } });
+    fireEvent.change(container.querySelector('[name="email_contato"]')!, { target: { value: 'a@a.com' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Selecione um termo de contratação/i)).toBeInTheDocument();
+    });
+    expect(tenantService.create).not.toHaveBeenCalled();
   });
 });

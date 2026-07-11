@@ -11,6 +11,12 @@ vi.mock('@/services/planService', () => ({
   }
 }));
 
+vi.mock('@/services/termService', () => ({
+  termService: {
+    list: vi.fn(),
+  }
+}));
+
 // Mock react-query
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal();
@@ -172,9 +178,11 @@ describe('PlansPage', () => {
 
   it('ao submeter o formulário com Ciclo "Anual" o payload enviado a createPlan inclui cycle: "anual"', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
-      data: { active: [], inactive: [] },
-      isLoading: false
+    (useQuery as any).mockImplementation((opts: any) => {
+      if (opts.queryKey[0] === 'terms') {
+        return { data: [{ id: 't1', name: 'Termo Site', is_active: true }], isLoading: false };
+      }
+      return { data: { active: [], inactive: [] }, isLoading: false };
     });
 
     const mutateSpy = vi.fn();
@@ -196,6 +204,7 @@ describe('PlansPage', () => {
     fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'Plano Anual' } });
     fireEvent.change(screen.getByLabelText('Ciclo'), { target: { value: 'anual' } });
     fireEvent.change(screen.getByLabelText('Valor Anual'), { target: { value: '1200' } });
+    fireEvent.change(screen.getByLabelText(/Termo de Contratação/i), { target: { value: 't1' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
 
@@ -233,5 +242,102 @@ describe('PlansPage', () => {
 
     const cycleSelect = screen.getByLabelText('Ciclo') as HTMLSelectElement;
     expect(cycleSelect.value).toBe('anual');
+  });
+
+  // TASK-FE-004 — select de Termo de Contratação
+  const mockQueriesByKey = (terms: any[]) => async () => {
+    const { useQuery } = await import('@tanstack/react-query');
+    (useQuery as any).mockImplementation((opts: any) => {
+      if (opts.queryKey[0] === 'terms') {
+        return { data: terms, isLoading: false };
+      }
+      return { data: { active: [], inactive: [] }, isLoading: false };
+    });
+  };
+
+  it('select de Termo de Contratação lista só termos ativos', async () => {
+    await mockQueriesByKey([
+      { id: 't1', name: 'Termo Site', is_active: true },
+      { id: 't2', name: 'Termo Inativo', is_active: false },
+    ])();
+
+    render(<PlansPage />);
+    fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+    const select = screen.getByLabelText(/Termo de Contratação/i) as HTMLSelectElement;
+    expect(screen.getByRole('option', { name: 'Termo Site' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Termo Inativo' })).not.toBeInTheDocument();
+  });
+
+  it('bloqueia submissão sem selecionar termo e mostra erro de validação', async () => {
+    await mockQueriesByKey([{ id: 't1', name: 'Termo Site', is_active: true }])();
+
+    render(<PlansPage />);
+    fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+    fireEvent.change(screen.getByPlaceholderText(/ex: basico_mensal/i), { target: { value: 'plano_x' } });
+    fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'Plano X' } });
+    fireEvent.change(screen.getByLabelText('Mensalidade'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Taxa de Adesão'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+    expect(await screen.findByText(/Selecione um termo de contratação/i)).toBeInTheDocument();
+  });
+
+  it('envia o term_id selecionado no payload de createPlan', async () => {
+    await mockQueriesByKey([{ id: 't1', name: 'Termo Site', is_active: true }])();
+    const { useMutation } = await import('@tanstack/react-query');
+    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
+      mutate: (variables: any) => mutationFn(variables),
+      isPending: false,
+    }));
+
+    const { planService } = await import('@/services/planService');
+
+    render(<PlansPage />);
+    fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+    fireEvent.change(screen.getByPlaceholderText(/ex: basico_mensal/i), { target: { value: 'plano_x' } });
+    fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'Plano X' } });
+    fireEvent.change(screen.getByLabelText('Mensalidade'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Taxa de Adesão'), { target: { value: '50' } });
+    fireEvent.change(screen.getByLabelText(/Termo de Contratação/i), { target: { value: 't1' } });
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+    await waitFor(() => {
+      expect(planService.createPlan).toHaveBeenCalled();
+    });
+    const payload = (planService.createPlan as any).mock.calls[0][0];
+    expect(payload.term_id).toBe('t1');
+  });
+
+  it('editar plano legado sem term_id sinaliza o campo como pendente de preenchimento', async () => {
+    const { useQuery } = await import('@tanstack/react-query');
+    (useQuery as any).mockImplementation((opts: any) => {
+      if (opts.queryKey[0] === 'terms') {
+        return { data: [{ id: 't1', name: 'Termo Site', is_active: true }], isLoading: false };
+      }
+      return {
+        data: {
+          active: [{
+            slug: 'legado',
+            nome: 'Plano Legado',
+            activation_fee: 100,
+            monthly_value: 50,
+            included_services: ['site'],
+            is_active: true,
+            cycle: 'mensal',
+            // sem term_id — plano criado antes desta feature
+          }],
+          inactive: [],
+        },
+        isLoading: false,
+      };
+    });
+
+    render(<PlansPage />);
+    fireEvent.click(screen.getByRole('button', { name: /Editar Plano Legado/i }));
+
+    expect(screen.getByText(/ainda não tem um termo vinculado/i)).toBeInTheDocument();
   });
 });
