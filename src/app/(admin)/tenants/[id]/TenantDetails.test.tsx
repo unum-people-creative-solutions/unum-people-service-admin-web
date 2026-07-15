@@ -15,6 +15,7 @@ vi.mock('@/services/tenantService', () => ({
     resetPassword: vi.fn(),
     listUsers: vi.fn().mockResolvedValue([]),
     cancelContract: vi.fn(),
+    listInvoices: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -942,6 +943,32 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       await waitFor(() => {
         expect(screen.queryByRole('heading', { name: /confirmar bloqueio/i })).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('[TASK-FE-003] Integração de Notas Fiscais', () => {
+    test('renderiza a seção de Notas Fiscais no detalhe do tenant', async () => {
+      vi.mocked(tenantService.listInvoices).mockResolvedValue([
+        {
+          asaas_invoice_id: 'inv-integration-123',
+          status: 'AUTHORIZED' as const,
+          pdf_url: 'https://pdf.url/integration',
+          effective_date: '2026-07-15T00:00:00Z',
+          created_at: '2026-07-15T12:00:00Z',
+        },
+      ]);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const sectionTitle = await screen.findByRole('heading', { name: 'Notas Fiscais' });
+      expect(sectionTitle).toBeInTheDocument();
+
+      const invoiceId = await screen.findByText('inv-integration-123');
+      expect(invoiceId).toBeInTheDocument();
     });
   });
 });
