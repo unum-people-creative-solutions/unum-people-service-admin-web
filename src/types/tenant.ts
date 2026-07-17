@@ -32,6 +32,20 @@ export interface Contract {
   created_at: string;
 }
 
+export interface Invoice {
+  asaas_invoice_id: string;
+  asaas_payment_id?: string;
+  asaas_subscription_id?: string;
+  status: 'SCHEDULED' | 'SYNCHRONIZED' | 'AUTHORIZED' | 'ERROR';
+  pdf_url?: string;
+  xml_url?: string;
+  municipal_service_id?: string;
+  error_reason?: string;
+  effective_date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ServiceAgreementStatus {
   tenant_id: string;
   term_id: string;

@@ -445,4 +445,36 @@ describe('tenantService', () => {
       expect(result).toEqual({ message: 'Contract cancelled' })
     })
   })
+
+  describe('listInvoices', () => {
+    it('calls GET /admin/tenants/{id}/invoices endpoint', async () => {
+      const tenantId = 'tenant-123'
+      const mockInvoices = [
+        {
+          asaas_invoice_id: 'inv_123',
+          status: 'AUTHORIZED',
+          pdf_url: 'https://pdf.url',
+          created_at: '2026-07-15T16:00:00Z',
+        },
+      ]
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInvoices,
+        text: async () => JSON.stringify(mockInvoices),
+      })
+
+      const result = await tenantService.listInvoices(tenantId)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/admin/tenants/${tenantId}/invoices`),
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      )
+      expect(result).toEqual(mockInvoices)
+    })
+  })
 })
