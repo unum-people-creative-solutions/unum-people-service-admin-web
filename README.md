@@ -12,6 +12,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Tela `(admin)/terms` — CRUD de `Term`/`TermVersion` (o operador escreve o conteúdo em Markdown; o backend renderiza, sanitiza e publica em S3). Cada `Plan` pago é vinculado a um termo (obrigatório, inclusive para planos já existentes); para tenants `PERSONALIZADO`/`LIVRE` o termo é escolhido manualmente no formulário de criação/edição do tenant. O detalhe do tenant mostra o status do aceite (`ServiceAgreementCard`, ao lado do `BillingCard`) — o aceite em si é sempre feito pelo `TenantAdmin` no CRM/blog-admin, nunca pelo operador aqui. O detalhe do tenant também lista as notas fiscais de serviço emitidas (`TenantInvoicesSection`, mesmo bloco do `BillingCard`/`ServiceAgreementCard`) — busca via `GET /admin/tenants/{id}/invoices`, exibe status/link de PDF quando autorizada; só leitura, sem ação de emissão manual nesta fase.
 
+## Planos (produto e cota de páginas)
+
+Tela `(admin)/plans` — o formulário de plano envia `product` (`plataforma` | `landing-page`) e `pages_included`. Plano legado chega da API com `product: ""` (chave presente; o `omitempty` do backend está só no DynamoDB) e `pages_included: 0`; a leitura trata string vazia como `plataforma`. A cota mínima de landing page é validada pelo backend (400/409); a UI só exibe o erro retornado.
+
 ## Getting Started
 
 First, run the development server:

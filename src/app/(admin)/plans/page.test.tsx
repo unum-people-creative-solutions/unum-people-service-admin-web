@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PlansPage from './page';
 
 // Mocks for services and queries
@@ -339,5 +339,187 @@ describe('PlansPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Editar Plano Legado/i }));
 
     expect(screen.getByText(/ainda não tem um termo vinculado/i)).toBeInTheDocument();
+  });
+
+  // TASK-FE-002 — product e pages_included no formulário (T09 + erro de cota)
+  describe('product e pages_included', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('plano legado com product vazio e pages_included 0 abre como Plataforma e salvar sem tocar no campo envia os defaults', async () => {
+      const storedPlan = {
+        slug: 'legado-produto',
+        nome: 'Plano Genuinamente Legado',
+        descricao: 'Antes da feature de produto',
+        activation_fee: 100,
+        monthly_value: 50,
+        included_services: ['site'],
+        is_active: true,
+        cycle: 'mensal' as const,
+        term_id: 't1',
+        product: '',
+        pages_included: 0,
+      };
+
+      const { useQuery, useMutation } = await import('@tanstack/react-query');
+      (useQuery as ReturnType<typeof vi.fn>).mockImplementation((opts: { queryKey: string[] }) => {
+        if (opts.queryKey[0] === 'terms') {
+          return { data: [{ id: 't1', name: 'Termo Site', is_active: true }], isLoading: false };
+        }
+        return { data: { active: [storedPlan], inactive: [] }, isLoading: false };
+      });
+
+      (useMutation as ReturnType<typeof vi.fn>).mockImplementation(
+        ({ mutationFn }: { mutationFn: (v: unknown) => void }) => ({
+          mutate: (variables: unknown) => mutationFn(variables),
+          isPending: false,
+        })
+      );
+
+      const { planService } = await import('@/services/planService');
+      (planService.updatePlan as ReturnType<typeof vi.fn>).mockResolvedValue(storedPlan);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar Plano Genuinamente Legado/i }));
+
+      const productSelect = screen.getByRole('combobox', { name: /Produto/i }) as HTMLSelectElement;
+      expect(productSelect.value).toBe('plataforma');
+      expect(screen.getByRole('option', { name: 'Plataforma', selected: true })).toBeInTheDocument();
+      expect(screen.queryByRole('spinbutton', { name: /Páginas inclusas/i })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.updatePlan).toHaveBeenCalledWith(
+          'legado-produto',
+          expect.objectContaining({
+            product: 'plataforma',
+            pages_included: 0,
+          })
+        );
+      });
+    });
+
+    it('salvar e reabrir um plano preserva product e pages_included', async () => {
+      const storedPlan = {
+        slug: 'lp-basico',
+        nome: 'LP Básico',
+        descricao: 'Landing page',
+        activation_fee: 200,
+        monthly_value: 99,
+        included_services: ['lp'],
+        is_active: true,
+        cycle: 'mensal' as const,
+        term_id: 't1',
+        product: 'landing-page' as const,
+        pages_included: 1,
+      };
+
+      const { useQuery, useMutation } = await import('@tanstack/react-query');
+      (useQuery as ReturnType<typeof vi.fn>).mockImplementation((opts: { queryKey: string[] }) => {
+        if (opts.queryKey[0] === 'terms') {
+          return { data: [{ id: 't1', name: 'Termo Site', is_active: true }], isLoading: false };
+        }
+        return { data: { active: [storedPlan], inactive: [] }, isLoading: false };
+      });
+
+      (useMutation as ReturnType<typeof vi.fn>).mockImplementation(
+        ({ mutationFn, onSuccess }: { mutationFn: (v: unknown) => void; onSuccess?: () => void }) => ({
+          mutate: (variables: { slug?: string; plan?: Record<string, unknown> }) => {
+            mutationFn(variables);
+            if (variables?.plan) {
+              Object.assign(storedPlan, variables.plan);
+            }
+            onSuccess?.();
+          },
+          isPending: false,
+        })
+      );
+
+      const { planService } = await import('@/services/planService');
+      (planService.updatePlan as ReturnType<typeof vi.fn>).mockResolvedValue(storedPlan);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar LP Básico/i }));
+
+      const productSelect = screen.getByRole('combobox', { name: /Produto/i }) as HTMLSelectElement;
+      expect(productSelect.value).toBe('landing-page');
+      const pagesInput = screen.getByRole('spinbutton', { name: /Páginas inclusas/i }) as HTMLInputElement;
+      expect(pagesInput.value).toBe('1');
+
+      fireEvent.change(pagesInput, { target: { value: '3' } });
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.updatePlan).toHaveBeenCalledWith(
+          'lp-basico',
+          expect.objectContaining({
+            product: 'landing-page',
+            pages_included: 3,
+          })
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Editar LP Básico/i }));
+
+      expect((screen.getByRole('combobox', { name: /Produto/i }) as HTMLSelectElement).value).toBe('landing-page');
+      expect((screen.getByRole('spinbutton', { name: /Páginas inclusas/i }) as HTMLInputElement).value).toBe('3');
+    });
+
+    it('erro do backend por cota inválida (400/409) aparece na interface', async () => {
+      const backendMessage = 'pages_included deve ser no mínimo 1 para product landing-page';
+
+      const { useQuery, useMutation } = await import('@tanstack/react-query');
+      (useQuery as ReturnType<typeof vi.fn>).mockImplementation((opts: { queryKey: string[] }) => {
+        if (opts.queryKey[0] === 'terms') {
+          return { data: [{ id: 't1', name: 'Termo Site', is_active: true }], isLoading: false };
+        }
+        return { data: { active: [], inactive: [] }, isLoading: false };
+      });
+
+      (useMutation as ReturnType<typeof vi.fn>).mockImplementation(
+        ({ onError }: { onError?: (err: Error) => void }) => ({
+          mutate: () => onError?.(new Error(backendMessage)),
+          isPending: false,
+        })
+      );
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+      fireEvent.change(screen.getByPlaceholderText(/ex: basico_mensal/i), { target: { value: 'lp_zero' } });
+      fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'LP Zero' } });
+      fireEvent.change(screen.getByRole('combobox', { name: /Produto/i }), { target: { value: 'landing-page' } });
+      fireEvent.change(screen.getByRole('spinbutton', { name: /Páginas inclusas/i }), { target: { value: '0' } });
+      fireEvent.change(screen.getByLabelText('Taxa de Adesão'), { target: { value: '50' } });
+      fireEvent.change(screen.getByLabelText('Mensalidade'), { target: { value: '100' } });
+      fireEvent.change(screen.getByLabelText(/Termo de Contratação/i), { target: { value: 't1' } });
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(backendMessage);
+    });
+
+    it('campo Páginas inclusas só aparece quando o produto é Landing Page', async () => {
+      const { useQuery } = await import('@tanstack/react-query');
+      (useQuery as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: { active: [], inactive: [] },
+        isLoading: false,
+      });
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+      expect(screen.queryByRole('spinbutton', { name: /Páginas inclusas/i })).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByRole('combobox', { name: /Produto/i }), { target: { value: 'landing-page' } });
+
+      expect(screen.getByRole('spinbutton', { name: /Páginas inclusas/i })).toBeInTheDocument();
+    });
   });
 });

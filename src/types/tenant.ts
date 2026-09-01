@@ -1,6 +1,7 @@
 export type TenantStatus = 'aguardando_ativacao' | 'ativo' | 'inadimplente' | 'suspenso' | 'pausado' | 'cancelado' | 'pendente_asaas';
 export type PlanCycle = 'mensal' | 'anual';
 export type PlanType = 'pago' | 'personalizado' | 'livre';
+export type PlanProduct = 'plataforma' | 'landing-page';
 
 export interface Plan {
   slug: string;
@@ -15,6 +16,12 @@ export interface Plan {
   tenant_count?: number;
   created_at?: string;
   updated_at?: string;
+  // Leitura tolerante (RF-F1-01): o backend serializa product sem omitempty,
+  // então plano legado chega como product="" (nunca com a chave ausente).
+  // String vazia e ausência equivalem a product='plataforma'. 0 é valor
+  // legítimo de pages_included para plano plataforma.
+  product?: PlanProduct | '';
+  pages_included?: number;
 }
 
 export interface Contract {
