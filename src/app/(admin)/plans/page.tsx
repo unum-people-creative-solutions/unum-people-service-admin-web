@@ -40,6 +40,8 @@ export default function PlansPage() {
     is_active: true,
     cycle: 'mensal',
     term_id: '',
+    product: 'plataforma',
+    pages_included: 0,
   };
 
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm<Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>>({
@@ -47,7 +49,9 @@ export default function PlansPage() {
   });
 
   const cycle = useWatch({ control, name: 'cycle' });
+  const product = useWatch({ control, name: 'product' });
   const isAnual = cycle === 'anual';
+  const isLandingPage = product === 'landing-page';
 
   const createMutation = useMutation({
     mutationFn: (newPlan: Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>) => planService.createPlan(newPlan),
@@ -103,6 +107,8 @@ export default function PlansPage() {
       is_active: plan.is_active,
       cycle: plan.cycle,
       term_id: plan.term_id ?? '',
+      product: plan.product || 'plataforma',
+      pages_included: plan.pages_included ?? 0,
     });
     setIsDrawerOpen(true);
   };
@@ -113,6 +119,7 @@ export default function PlansPage() {
       ...data,
       activation_fee: Number(data.activation_fee),
       monthly_value: Number(data.monthly_value),
+      pages_included: Number(data.pages_included) || 0,
     };
     if (payload.cycle === 'anual') {
       payload.monthly_value = 0;
@@ -188,6 +195,30 @@ export default function PlansPage() {
                     <option value="anual">Anual</option>
                   </select>
                 </div>
+                <div>
+                  <label htmlFor="product" className="block text-sm font-semibold mb-1">Produto</label>
+                  <select id="product" {...register('product')} className="w-full border p-2 rounded">
+                    <option value="plataforma">Plataforma</option>
+                    <option value="landing-page">Landing Page</option>
+                  </select>
+                </div>
+                {isLandingPage && (
+                  <div>
+                    <label htmlFor="pages_included" className="block text-sm font-semibold mb-1">Páginas inclusas</label>
+                    <input
+                      id="pages_included"
+                      type="number"
+                      {...register('pages_included', {
+                        valueAsNumber: true,
+                        // Exigido quando visível (landing-page). 0 é valor
+                        // válido na UI — a cota mínima é regra do backend.
+                        validate: (v) => (typeof v === 'number' && !Number.isNaN(v)) || 'Obrigatório',
+                      })}
+                      className="w-full border p-2 rounded"
+                    />
+                    {errors.pages_included && <span className="text-red-500 text-xs">Obrigatório</span>}
+                  </div>
+                )}
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label htmlFor="activation_fee" className="block text-sm font-semibold mb-1">{isAnual ? 'Valor Anual' : 'Taxa de Adesão'}</label>
