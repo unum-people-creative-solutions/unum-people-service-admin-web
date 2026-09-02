@@ -11,6 +11,12 @@ import Link from 'next/link';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { PlanConfigFields } from '@/components/tenants/PlanConfigFields';
+import { SiteUrlsFieldArray } from '@/components/tenants/SiteUrlsFieldArray';
+import { fromSiteUrlItems, type SiteUrlItem } from '@/lib/siteUrls';
+
+type NewTenantFormValues = Omit<CreateTenantInput, 'site_urls'> & {
+  site_urls: SiteUrlItem[];
+};
 
 export default function NewTenantPage() {
   const router = useRouter();
@@ -27,12 +33,13 @@ export default function NewTenantPage() {
     queryFn: termService.list,
   });
 
-  const methods = useForm<CreateTenantInput>({
+  const methods = useForm<NewTenantFormValues>({
     defaultValues: {
       plan_id: 'lp_basico',
       plan_cycle: 'mensal',
       activation_fee: 0,
-      monthly_value: 0
+      monthly_value: 0,
+      site_urls: [],
     }
   });
   const { register, handleSubmit, formState: { errors }, control, setValue } = methods;
@@ -53,9 +60,10 @@ export default function NewTenantPage() {
     },
   });
 
-  const onSubmit = (data: CreateTenantInput) => {
-    const payload = {
+  const onSubmit = (data: NewTenantFormValues) => {
+    const payload: CreateTenantInput = {
       ...data,
+      site_urls: fromSiteUrlItems(data.site_urls),
       plan_type: planType,
       temporary_password: data.temporary_password || 'Unum@123456',
     };
@@ -102,14 +110,7 @@ export default function NewTenantPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">URL do Site</label>
-                  <input 
-                    {...register('site_url')}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
-                    placeholder="https://meusite.com.br"
-                  />
-                </div>
+                <SiteUrlsFieldArray />
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">Slug do Tenant</label>

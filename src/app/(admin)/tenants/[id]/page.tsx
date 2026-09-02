@@ -9,6 +9,8 @@ import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { Tenant, ChangePlanInput } from '@/types/tenant';
 import Link from 'next/link';
 import { PlanConfigFields } from '@/components/tenants/PlanConfigFields';
+import { SiteUrlsFieldArray } from '@/components/tenants/SiteUrlsFieldArray';
+import { fromSiteUrlItems, toSiteUrlItems, type SiteUrlItem } from '@/lib/siteUrls';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { 
   ArrowLeft, Save, Loader2, ShieldAlert, Key,
@@ -63,6 +65,10 @@ const getStatusBadge = (tenant: Tenant & { delinquency_since?: string | null }) 
   }
 };
 
+type TenantFormValues = Omit<Partial<Tenant>, 'site_urls'> & {
+  site_urls?: SiteUrlItem[];
+};
+
 export default function TenantDetailsPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
@@ -80,7 +86,7 @@ export default function TenantDetailsPage() {
   const [showChangePlanModal, setShowChangePlanModal] = useState(false);
   const [pendingPlanData, setPendingPlanData] = useState<Partial<Tenant> | null>(null);
 
-  const methods = useForm<Partial<Tenant>>();
+  const methods = useForm<TenantFormValues>();
   const { register, handleSubmit, reset, setValue, control, formState: { dirtyFields, isDirty } } = methods;
   const selectedPlanId = useWatch({ control, name: 'plan_id' }) || '';
 
@@ -110,7 +116,7 @@ export default function TenantDetailsPage() {
         nome_negocio: tenant.nome_negocio || '',
         documento: tenant.documento || '',
         nicho: tenant.nicho || '',
-        site_url: tenant.site_url || '',
+        site_urls: toSiteUrlItems(tenant.site_urls ?? (tenant.site_url ? [tenant.site_url] : [])),
         slug: tenant.slug || '',
         google_ads_customer_id: tenant.google_ads_customer_id || '',
         enabled_services: tenant.enabled_services || [],
@@ -238,12 +244,16 @@ export default function TenantDetailsPage() {
   // editáveis manualmente pelo operador.
   const isPlanoPreConfigurado = selectedPlanId !== 'livre' && selectedPlanId !== 'personalizado' && selectedPlanId !== '';
 
-  const onSubmit = (data: Partial<Tenant>) => {
+  const onSubmit = (data: TenantFormValues) => {
     const dirtyData = Object.keys(dirtyFields).reduce((acc, key) => {
-      acc[key as keyof Tenant] = data[key as keyof Tenant];
+      acc[key as keyof Tenant] = data[key as keyof TenantFormValues] as Tenant[keyof Tenant];
       return acc;
     }, {} as any);
-    
+
+    if (dirtyFields.site_urls) {
+      dirtyData.site_urls = fromSiteUrlItems(data.site_urls);
+    }
+
     // As requested by test, always send plan_id to ensure it's preserved explicitly
     if (data.plan_id) {
       dirtyData.plan_id = data.plan_id;
@@ -338,9 +348,21 @@ export default function TenantDetailsPage() {
   };
 
   // Verificações rigorosas de estado 'dirty' por seção
-  const isBasicsDirty = ['nome_negocio', 'documento', 'nicho', 'site_url', 'slug'].some(
+  // useFieldArray marca cada item como `{ url?: boolean }`, não como `true`.
+  // O molde de enabled_services (`.some(v => v === true)`) aplica-se ao flag interno.
+  //
+  // RHF 7.76 (observado): dirtyFields.site_urls é `null` quando a lista coincide
+  // com defaultValues, e contém ao menos um `{ url: true }` quando diverge —
+  // append → [null, {url:true}]; remover o último → [{url:true}]; editar e
+  // reverter → null. `Array.isArray(dirtyFields.site_urls)` sozinho é mutante
+  // equivalente neste runtime: o estado "array presente sem nenhum url===true"
+  // não foi alcançável (append+remove, editar+reverter).
+  const isSiteUrlsDirty =
+    Array.isArray(dirtyFields.site_urls) &&
+    dirtyFields.site_urls.some((v) => v != null && v.url === true);
+  const isBasicsDirty = ['nome_negocio', 'documento', 'nicho', 'slug'].some(
     field => dirtyFields[field as keyof Tenant] === true
-  );
+  ) || isSiteUrlsDirty;
   
   const isIntegrationsDirty = (
     dirtyFields.google_ads_customer_id === true || 
@@ -359,10 +381,12 @@ export default function TenantDetailsPage() {
   const isCancelarEnabled = !['cancelado', 'excluindo'].includes(currentStatus as string);
   const canDelete = currentStatus === 'cancelado';
 
-  const StatusLed = ({ active }: { active: boolean }) => {
+  const StatusLed = ({ active, section }: { active: boolean; section: string }) => {
     const label = active ? 'Alterações Pendentes' : 'Sincronizado';
     return (
       <div 
+        role="status"
+        aria-label={`${section}: ${label}`}
         className={`group relative flex items-center justify-center h-6 w-6 border rounded-full transition-all duration-300 ${active ? 'bg-red-50 border-red-200 animate-pulse shadow-sm shadow-red-200' : 'bg-green-50 border-green-200'}`}
       >
         <span className={`h-2 w-2 rounded-full ${active ? 'bg-red-500' : 'bg-green-500'}`} />
@@ -392,7 +416,7 @@ export default function TenantDetailsPage() {
         )}
 
         {errorMsg && (
-          <div className="fixed top-24 right-8 z-[110] p-4 bg-white border-l-4 border-red-500 text-slate-800 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
+          <div role="alert" className="fixed top-24 right-8 z-[110] p-4 bg-white border-l-4 border-red-500 text-slate-800 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
             <ShieldAlert size={20} className="text-red-500" />
             <span className="text-sm font-medium">{errorMsg}</span>
           </div>
@@ -437,7 +461,7 @@ export default function TenantDetailsPage() {
                   <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <Globe size={18} /> Dados Institucionais
                   </h2>
-                  <StatusLed active={isBasicsDirty} />
+                  <StatusLed active={isBasicsDirty} section="Dados Básicos" />
                 </div>
                 <div className="p-8 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -457,14 +481,7 @@ export default function TenantDetailsPage() {
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-slate-700">URL do Site</label>
-                      <input 
-                        {...register('site_url')}
-                        placeholder="https://suaempresa.com"
-                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                      />
-                    </div>
+                    <SiteUrlsFieldArray />
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-slate-700">Slug do Tenant</label>
                       <input 
@@ -492,7 +509,7 @@ export default function TenantDetailsPage() {
                   <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <LayoutGrid size={18} /> Serviços e Integrações
                   </h2>
-                  <StatusLed active={isIntegrationsDirty} />
+                  <StatusLed active={isIntegrationsDirty} section="Integrações" />
                 </div>
                 <div className="p-8 space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -603,7 +620,7 @@ export default function TenantDetailsPage() {
                   <h2 className="font-bold text-slate-800 flex items-center gap-2">
                     <CreditCard size={18} /> Assinatura
                   </h2>
-                  <StatusLed active={isSubscriptionDirty} />
+                  <StatusLed active={isSubscriptionDirty} section="Assinatura" />
                 </div>
                 
                 <div className="p-8">
