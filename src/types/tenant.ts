@@ -75,7 +75,9 @@ export interface Tenant {
   email_contato: string;
   documento: string;
   nicho: string;
+  /** @deprecated Use `site_urls`. Mantido para convivência com leitores ainda não migrados. */
   site_url?: string;
+  site_urls?: string[];
   slug?: string;
   enabled_services?: string[];
   google_ads_customer_id?: string;
@@ -106,7 +108,9 @@ export interface CreateTenantInput {
   email_contato: string;
   documento: string;
   nicho: string;
+  /** @deprecated Use `site_urls`. Mantido para convivência com leitores ainda não migrados. */
   site_url?: string;
+  site_urls?: string[];
   slug?: string;
   enabled_services?: string[];
   google_ads_customer_id?: string;
