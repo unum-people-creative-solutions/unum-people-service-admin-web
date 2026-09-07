@@ -22,6 +22,7 @@ import { TenantUsersSection } from '@/components/TenantUsersSection';
 import { BillingCard } from '@/components/tenants/BillingCard';
 import { ServiceAgreementCard } from '@/components/tenants/ServiceAgreementCard';
 import { TenantInvoicesSection } from '@/components/TenantInvoicesSection';
+import { TenantSitesSection } from '@/components/TenantSitesSection';
 
 const getStatusBadge = (tenant: Tenant & { delinquency_since?: string | null }) => {
   if (tenant.is_blocked) {
@@ -559,6 +560,51 @@ export default function TenantDetailsPage() {
                 </div>
               </div>
 
+              {/* Card Assinatura */}
+              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isSubscriptionDirty ? 'border-red-200 shadow-red-500/5' : 'border-slate-200'}`}>
+                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                  <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                    <CreditCard size={18} /> Assinatura
+                  </h2>
+                  <StatusLed active={isSubscriptionDirty} section="Assinatura" />
+                </div>
+
+                <div className="p-8">
+                  <PlanConfigFields plansData={plansData} terms={termsData} currentPlanId={tenant?.plan_id} isEditMode />
+
+                  <div className="mt-8 space-y-3 pt-6 border-t border-slate-100">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 italic">Próximo Débito:</span>
+                      <span className="font-bold text-primary-600 underline cursor-help" title={new Date(tenant.next_billing_at).toLocaleString()}>
+                        {new Date(tenant.next_billing_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500 italic">Renovação Contratual:</span>
+                      <span className="font-bold text-slate-700">
+                        {new Date(tenant.renewal_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <TenantInvoicesSection tenantId={id} />
+
+              <TenantSitesSection tenantId={id} />
+
+              {/* Seção de Usuários */}
+              <TenantUsersSection tenantId={id} />
+            </div>
+
+            <div className="space-y-8 sticky top-8 h-fit">
+              {/* Card de Billing (Asaas) — apenas para planos pagos/personalizado */}
+              {tenant.plan_type !== 'livre' && (
+                <BillingCard tenant={tenant} contract={tenant.contract} />
+              )}
+
+              <ServiceAgreementCard tenant={tenant} />
+
               {/* API Credentials */}
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
@@ -571,7 +617,7 @@ export default function TenantDetailsPage() {
                     <label className="text-sm font-semibold text-slate-700">X-API-Key</label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <input 
+                        <input
                           readOnly
                           type={showApiKey ? 'text' : 'password'}
                           value={showApiKey ? tenant.api_key : 'up_••••••••••••••••••••••••'}
@@ -596,49 +642,6 @@ export default function TenantDetailsPage() {
                       </button>
                     </div>
                     <p className="text-xs text-slate-500 mt-2">Utilize esta chave para autenticar requisições na API de Ingestão de Leads.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Seção de Usuários */}
-              <TenantUsersSection tenantId={id} />
-            </div>
-
-            <div className="space-y-8 sticky top-8 h-fit">
-              {/* Card de Billing (Asaas) — apenas para planos pagos/personalizado */}
-              {tenant.plan_type !== 'livre' && (
-                <BillingCard tenant={tenant} contract={tenant.contract} />
-              )}
-
-              <ServiceAgreementCard tenant={tenant} />
-
-              <TenantInvoicesSection tenantId={id} />
-
-              {/* Card Assinatura */}
-              <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${isSubscriptionDirty ? 'border-red-200 shadow-red-500/5' : 'border-slate-200'}`}>
-                <div className="px-8 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                  <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                    <CreditCard size={18} /> Assinatura
-                  </h2>
-                  <StatusLed active={isSubscriptionDirty} section="Assinatura" />
-                </div>
-                
-                <div className="p-8">
-                  <PlanConfigFields plansData={plansData} terms={termsData} currentPlanId={tenant?.plan_id} isEditMode />
-
-                  <div className="mt-8 space-y-3 pt-6 border-t border-slate-100">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-500 italic">Próximo Débito:</span>
-                      <span className="font-bold text-primary-600 underline cursor-help" title={new Date(tenant.next_billing_at).toLocaleString()}>
-                        {new Date(tenant.next_billing_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-500 italic">Renovação Contratual:</span>
-                      <span className="font-bold text-slate-700">
-                        {new Date(tenant.renewal_at).toLocaleDateString()}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>

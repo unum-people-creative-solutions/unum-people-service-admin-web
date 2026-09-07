@@ -53,6 +53,25 @@ export interface Invoice {
   updated_at?: string;
 }
 
+export interface Site {
+  site_id: string;
+  slug: string;
+  status: 'DRAFT' | 'PUBLISHED' | 'AGUARDANDO_ATIVACAO';
+  url: string;
+  layout_id: string;
+  theme_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SiteDetail extends Site {
+  schema_version: number;
+  content: Record<string, unknown>;
+  contact: Record<string, unknown>;
+  seo: Record<string, unknown>;
+  hidden_sections?: string[];
+}
+
 export interface ServiceAgreementStatus {
   tenant_id: string;
   term_id: string;
