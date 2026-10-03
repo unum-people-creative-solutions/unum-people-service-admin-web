@@ -40,7 +40,6 @@ async function createLivreTenantViaApi(ts: number): Promise<string> {
     activation_fee: 0,
     monthly_value: 0,
     enabled_services: ['site'],
-    temporary_password: 'Unum@123456',
     is_test_tenant: true,
   };
 

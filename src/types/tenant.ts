@@ -139,7 +139,6 @@ export interface CreateTenantInput {
   activation_fee?: number;
   monthly_value?: number;
   plan_cycle: PlanCycle;
-  temporary_password?: string;
   activation_billing_type?: 'pix' | 'credit_card';
   subscription_billing_type?: 'pix' | 'credit_card';
   is_test_tenant?: boolean;

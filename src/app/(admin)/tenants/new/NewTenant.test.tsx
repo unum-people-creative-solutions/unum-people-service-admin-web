@@ -76,15 +76,39 @@ describe('NewTenantPage - Separation of Tenant and Admin', () => {
     expect(adminBadge).toBeDefined();
   });
 
-  test('deve incluir o campo opcional de senha temporária para o primeiro usuário administrador', () => {
+  // O backend nunca usou este campo: criava todo usuário com a mesma senha
+  // ("Unum@123456"), que a tela sugeria como placeholder. Agora quem gera a
+  // senha temporária é o Cognito, e ela chega só no e-mail de convite.
+  test('não oferece campo de senha temporária', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <NewTenantPage />
       </QueryClientProvider>
     );
 
-    const passwordInput = screen.getByLabelText(/senha temporária/i);
-    expect(passwordInput).toBeDefined();
+    expect(screen.queryByLabelText(/senha temporária/i)).toBeNull();
+  });
+
+  test('não envia senha temporária ao criar o tenant', async () => {
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <NewTenantPage />
+      </QueryClientProvider>
+    );
+
+    fireEvent.change(screen.getByRole('combobox', { name: /plano/i }), { target: { value: 'livre' } });
+    fireEvent.change(container.querySelector('[name="nome_negocio"]')!, { target: { value: 'Empresa Teste' } });
+    fireEvent.change(container.querySelector('[name="documento"]')!, { target: { value: '94.586.814/0001-01' } });
+    fireEvent.change(container.querySelector('[name="nicho"]')!, { target: { value: 'Tech' } });
+    fireEvent.change(container.querySelector('[name="nome_admin"]')!, { target: { value: 'Admin Teste' } });
+    fireEvent.change(container.querySelector('[name="email_contato"]')!, { target: { value: 'admin@teste.com' } });
+    fireEvent.change(await screen.findByLabelText(/Termo de Contratação/i), { target: { value: 'term_mock_1' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
+
+    await waitFor(() => expect(tenantService.create).toHaveBeenCalled());
+    const payload = (tenantService.create as any).mock.calls[0][0];
+    expect(payload).not.toHaveProperty('temporary_password');
   });
 });
 

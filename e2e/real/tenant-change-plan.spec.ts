@@ -42,7 +42,6 @@ async function createLivreComDocumentoViaApi(seed: number): Promise<string> {
     activation_fee: 0,
     monthly_value: 0,
     enabled_services: ['site'],
-    temporary_password: 'Unum@123456',
     is_test_tenant: true,
     documento: '123.456.789-09',
   });
@@ -70,7 +69,6 @@ async function createPersonalizadoViaApi(
       activation_billing_type: 'credit_card',
       subscription_billing_type: cycle === 'mensal' ? 'credit_card' : 'credit_card',
       enabled_services: ['site'],
-      temporary_password: 'Unum@123456',
       is_test_tenant: true,
       documento: '123.456.789-09',
     },

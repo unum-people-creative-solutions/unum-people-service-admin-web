@@ -65,7 +65,6 @@ export default function NewTenantPage() {
       ...data,
       site_urls: fromSiteUrlItems(data.site_urls),
       plan_type: planType,
-      temporary_password: data.temporary_password || 'Unum@123456',
     };
     mutation.mutate(payload);
   };
@@ -180,17 +179,6 @@ export default function NewTenantPage() {
                     type="email"
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
                     placeholder="contato@empresa.com"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="temporary_password" className="text-sm font-semibold text-slate-700">Senha Temporária</label>
-                  <input 
-                    id="temporary_password"
-                    type="password"
-                    {...register('temporary_password')}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 bg-white"
-                    placeholder="Unum@123456"
                   />
                 </div>
               </div>
