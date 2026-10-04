@@ -657,5 +657,57 @@ describe('PlansPage', () => {
       });
     });
 
+    it('CA-10: editar plano sem os campos (resposta antiga da API) envia destaques [] e selo vazio, nunca ausentes', async () => {
+      const planService = await prepare([{ ...basePlan }]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar Plano Presença/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.updatePlan).toHaveBeenCalled();
+      });
+      const plan = (planService.updatePlan as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      expect(plan).toHaveProperty('destaques');
+      expect(plan).toHaveProperty('selo');
+      expect(plan.destaques).toEqual([]);
+      expect(plan.selo).toBe('');
+    });
+
+    it('CA-10: criar plano sem preencher destaques nem selo também envia os dois campos vazios', async () => {
+      const planService = await prepare([]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+      fireEvent.change(screen.getByPlaceholderText(/ex: basico_mensal/i), { target: { value: 'vazio' } });
+      fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'Vazio' } });
+      fireEvent.change(screen.getByLabelText('Taxa de Adesão'), { target: { value: '50' } });
+      fireEvent.change(screen.getByLabelText('Mensalidade'), { target: { value: '100' } });
+      fireEvent.change(screen.getByLabelText(/Termo de Contratação/i), { target: { value: 't1' } });
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.createPlan).toHaveBeenCalled();
+      });
+      const payload = (planService.createPlan as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(payload).toHaveProperty('destaques');
+      expect(payload).toHaveProperty('selo');
+      expect(payload.destaques).toEqual([]);
+      expect(payload.selo).toBe('');
+    });
+
+    it('CA-11: a mensagem 400 do backend sobre destaques aparece no formulário', async () => {
+      const planService = await prepare([{ ...basePlan, destaques: ['A'] }]);
+      const mensagem = 'informe até 8 destaques, cada um com até 80 caracteres';
+      (planService.updatePlan as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(mensagem));
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar Plano Presença/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      const alerta = await screen.findByRole('alert');
+      expect(alerta).toHaveTextContent(mensagem);
+    });
   });
 });
