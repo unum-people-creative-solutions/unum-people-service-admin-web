@@ -83,6 +83,35 @@ describe('planService', () => {
     expect(result.active[0].pages_included).toBe(0);
   });
 
+  // TASK-FE-001 (plano-destaques) — leitura tolerante de destaques/selo (RF-10)
+  it('listPlans entrega destaques [] e selo vazio para plano que veio sem os campos', async () => {
+    const { api } = await import('@/lib/api');
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: [{ slug: 'antigo', nome: 'Antigo' }],
+      inactive: [{ slug: 'antigo-2', nome: 'Antigo 2' }],
+    });
+
+    const result = await planService.listPlans();
+
+    expect(result.active[0].destaques).toEqual([]);
+    expect(result.active[0].selo).toBe('');
+    expect(result.inactive[0].destaques).toEqual([]);
+    expect(result.inactive[0].selo).toBe('');
+  });
+
+  it('listPlans preserva destaques e selo que a API devolveu', async () => {
+    const { api } = await import('@/lib/api');
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: [{ slug: 'pres', nome: 'Presença', destaques: ['Blog', 'Domínio próprio'], selo: 'Mais escolhido' }],
+      inactive: [],
+    });
+
+    const result = await planService.listPlans();
+
+    expect(result.active[0].destaques).toEqual(['Blog', 'Domínio próprio']);
+    expect(result.active[0].selo).toBe('Mais escolhido');
+  });
+
   it('createPlan envia product e pages_included no POST sem any', async () => {
     const { api } = await import('@/lib/api');
     (api.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({});

@@ -23,6 +23,8 @@ function applyReadDefaults(plan: Plan): Plan {
     ...plan,
     product: resolvePlanProduct(plan.product),
     pages_included: resolvePagesIncluded(plan.pages_included),
+    destaques: plan.destaques ?? [],
+    selo: plan.selo ?? '',
   };
 }
 
