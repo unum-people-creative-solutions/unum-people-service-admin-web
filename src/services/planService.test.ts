@@ -99,6 +99,22 @@ describe('planService', () => {
     expect(result.inactive[0].selo).toBe('');
   });
 
+  // A API real devolve `"destaques": null` (e não a chave ausente) para plano
+  // gravado antes do campo: `domain.Plan` serializa a lista sem omitempty.
+  it('listPlans trata destaques e selo null, a forma real de plano legado, como [] e vazio', async () => {
+    const { api } = await import('@/lib/api');
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: [{ slug: 'legado', nome: 'Legado', destaques: null, selo: null }],
+      inactive: [{ slug: 'legado-2', nome: 'Legado 2', destaques: null }],
+    });
+
+    const result = await planService.listPlans();
+
+    expect(result.active[0].destaques).toEqual([]);
+    expect(result.active[0].selo).toBe('');
+    expect(result.inactive[0].destaques).toEqual([]);
+  });
+
   it('listPlans preserva destaques e selo que a API devolveu', async () => {
     const { api } = await import('@/lib/api');
     (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

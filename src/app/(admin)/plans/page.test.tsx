@@ -674,6 +674,25 @@ describe('PlansPage', () => {
       expect(plan.selo).toBe('');
     });
 
+    it('CA-10: plano legado com destaques e selo null (forma real da API) abre o formulário vazio e salva [] e vazio', async () => {
+      const planService = await prepare([
+        { ...basePlan, destaques: null as unknown as string[], selo: null as unknown as string },
+      ]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar Plano Presença/i }));
+      expect(screen.getByLabelText(/Destaques \(um por linha\)/i)).toHaveValue('');
+      expect(screen.getByLabelText(/Selo \(opcional\)/i)).toHaveValue('');
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.updatePlan).toHaveBeenCalled();
+      });
+      const plan = (planService.updatePlan as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      expect(plan.destaques).toEqual([]);
+      expect(plan.selo).toBe('');
+    });
+
     it('CA-10: criar plano sem preencher destaques nem selo também envia os dois campos vazios', async () => {
       const planService = await prepare([]);
 
