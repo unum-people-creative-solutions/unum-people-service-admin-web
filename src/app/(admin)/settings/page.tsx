@@ -16,6 +16,10 @@ import { settingsService, GlobalSettingsResponse } from '@/services/settingsServ
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
+// O campo guarda só o e-mail: o prefixo mailto: é do cliente de web push.
+// Valores antigos salvos com o prefixo aparecem sem ele.
+const semMailto = (valor: string) => valor.trim().replace(/^mailto:/i, '');
+
 export default function SettingsPage() {
   const [data, setData] = useState<GlobalSettingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,6 +29,7 @@ export default function SettingsPage() {
   const [vapidEmail, setVapidEmail] = useState('');
   const [operatorEmail, setOperatorEmail] = useState('');
   const [operatorEmailError, setOperatorEmailError] = useState('');
+  const [vapidEmailError, setVapidEmailError] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -40,7 +45,7 @@ export default function SettingsPage() {
         setData(resp);
         setInstitutionalEmail(resp.settings.institutional_email || '');
         setRedirectionEmail(resp.settings.redirection_email || '');
-        setVapidEmail(resp.settings.vapid_email || '');
+        setVapidEmail(semMailto(resp.settings.vapid_email || ''));
         setOperatorEmail(resp.settings.operator_email || '');
       } else {
         throw new Error('Formato de resposta inválido');
@@ -64,12 +69,18 @@ export default function SettingsPage() {
     }
     setOperatorEmailError('');
 
+    if (/^mailto:/i.test(vapidEmail.trim()) || !emailSchema.safeParse(vapidEmail.trim()).success) {
+      setVapidEmailError('Informe só o e-mail, sem mailto:');
+      return;
+    }
+    setVapidEmailError('');
+
     setSaving(true);
     try {
       await settingsService.updateSettings({ 
         institutional_email: institutionalEmail,
         redirection_email: redirectionEmail,
-        vapid_email: vapidEmail,
+        vapid_email: vapidEmail.trim(),
         operator_email: operatorEmail
       });
       await fetchSettings();
@@ -128,16 +139,17 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="redirectionEmail" className="block text-sm font-medium text-slate-700 mb-1">
                 E-mail de Redirecionamento (Destino)
               </label>
               <div className="relative">
                 <input 
+                  id="redirectionEmail"
                   type="email" 
                   value={redirectionEmail}
                   onChange={(e) => setRedirectionEmail(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                  placeholder="unumpeople@gmail.com.br"
+                  placeholder="seu-email@gmail.com"
                   required
                 />
               </div>
@@ -149,19 +161,35 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="vapidEmail" className="block text-sm font-medium text-slate-700 mb-1">
                 E-mail de Contato Push (VAPID)
               </label>
               <input 
-                type="text" 
+                id="vapidEmail"
+                type="email" 
                 value={vapidEmail}
-                onChange={(e) => setVapidEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                placeholder="mailto:noreply@unumpeople.com.br"
+                onChange={(e) => {
+                  setVapidEmail(e.target.value);
+                  if (vapidEmailError) setVapidEmailError('');
+                }}
+                className={cn(
+                  "w-full px-4 py-2 rounded-lg border outline-none transition-all",
+                  vapidEmailError
+                    ? "border-red-500 focus:ring-red-500 focus:ring-2"
+                    : "border-slate-200 focus:ring-2 focus:ring-primary-500"
+                )}
+                placeholder="notification@unumpeople.com.br"
+                aria-invalid={vapidEmailError ? "true" : "false"}
+                aria-errormessage={vapidEmailError ? "vapidEmailErrorMsg" : undefined}
                 required
               />
+              {vapidEmailError && (
+                <p id="vapidEmailErrorMsg" className="mt-1 text-sm text-red-600">
+                  {vapidEmailError}
+                </p>
+              )}
               <p className="mt-2 text-xs text-slate-500">
-                Endereço exigido pelo protocolo Web Push (deve começar com mailto:).
+                Só o e-mail, sem mailto:. O protocolo Web Push usa este endereço como contato.
               </p>
             </div>
 
