@@ -522,4 +522,211 @@ describe('PlansPage', () => {
       expect(screen.getByRole('spinbutton', { name: /Páginas inclusas/i })).toBeInTheDocument();
     });
   });
+  // plano-destaques — destaques e selo no formulário (T07 / T08)
+  describe('destaques e selo', () => {
+    type StoredPlan = {
+      slug: string;
+      nome: string;
+      descricao: string;
+      activation_fee: number;
+      monthly_value: number;
+      included_services: string[];
+      is_active: boolean;
+      cycle: 'mensal';
+      term_id: string;
+      product: 'plataforma';
+      pages_included: number;
+      destaques?: string[];
+      selo?: string;
+    };
+
+    const basePlan: StoredPlan = {
+      slug: 'presenca',
+      nome: 'Plano Presença',
+      descricao: 'Para aparecer no Google',
+      activation_fee: 100,
+      monthly_value: 50,
+      included_services: ['site'],
+      is_active: true,
+      cycle: 'mensal',
+      term_id: 't1',
+      product: 'plataforma',
+      pages_included: 0,
+    };
+
+    const prepare = async (plans: StoredPlan[]) => {
+      const { useQuery, useMutation } = await import('@tanstack/react-query');
+      (useQuery as ReturnType<typeof vi.fn>).mockImplementation((opts: { queryKey: string[] }) => {
+        if (opts.queryKey[0] === 'terms') {
+          return { data: [{ id: 't1', name: 'Termo Site', is_active: true }], isLoading: false };
+        }
+        return { data: { active: plans, inactive: [] }, isLoading: false };
+      });
+      (useMutation as ReturnType<typeof vi.fn>).mockImplementation(
+        ({ mutationFn, onError }: { mutationFn: (v: unknown) => Promise<unknown>; onError?: (e: Error) => void }) => ({
+          mutate: (variables: unknown) => {
+            Promise.resolve(mutationFn(variables)).catch((e: Error) => onError?.(e));
+          },
+          isPending: false,
+        })
+      );
+      const { planService } = await import('@/services/planService');
+      (planService.createPlan as ReturnType<typeof vi.fn>).mockResolvedValue({});
+      (planService.updatePlan as ReturnType<typeof vi.fn>).mockResolvedValue({});
+      return planService;
+    };
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('CA-08: três linhas (uma em branco no meio) viram createPlan com 2 destaques, na ordem', async () => {
+      const planService = await prepare([]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+      fireEvent.change(screen.getByPlaceholderText(/ex: basico_mensal/i), { target: { value: 'presenca' } });
+      fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'Presença' } });
+      fireEvent.change(screen.getByLabelText('Taxa de Adesão'), { target: { value: '50' } });
+      fireEvent.change(screen.getByLabelText('Mensalidade'), { target: { value: '100' } });
+      fireEvent.change(screen.getByLabelText(/Termo de Contratação/i), { target: { value: 't1' } });
+      fireEvent.change(screen.getByLabelText('Destaques (um por linha)'), {
+        target: { value: '  Blog incluso  \n\nDomínio próprio, com e-mail' },
+      });
+      fireEvent.change(screen.getByLabelText('Selo (opcional)'), { target: { value: '  Mais escolhido ' } });
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.createPlan).toHaveBeenCalled();
+      });
+      const payload = (planService.createPlan as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(payload.destaques).toEqual(['Blog incluso', 'Domínio próprio, com e-mail']);
+      expect(payload.selo).toBe('Mais escolhido');
+    });
+
+    it('o campo Selo limita a 30 caracteres no próprio campo', async () => {
+      await prepare([]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+      expect(screen.getByLabelText('Selo (opcional)')).toHaveAttribute('maxlength', '30');
+    });
+
+    it('o texto digitado nos destaques segue como texto: nada vira HTML', async () => {
+      const planService = await prepare([]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+      const hostil = '<img src=x onerror=alert(1)>';
+      fireEvent.change(screen.getByPlaceholderText(/ex: basico_mensal/i), { target: { value: 'x' } });
+      fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'X' } });
+      fireEvent.change(screen.getByLabelText('Taxa de Adesão'), { target: { value: '50' } });
+      fireEvent.change(screen.getByLabelText('Mensalidade'), { target: { value: '100' } });
+      fireEvent.change(screen.getByLabelText(/Termo de Contratação/i), { target: { value: 't1' } });
+      fireEvent.change(screen.getByLabelText('Destaques (um por linha)'), { target: { value: hostil } });
+
+      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+      expect((screen.getByLabelText('Destaques (um por linha)') as HTMLTextAreaElement).value).toBe(hostil);
+
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+      await waitFor(() => {
+        expect(planService.createPlan).toHaveBeenCalled();
+      });
+      expect((planService.createPlan as ReturnType<typeof vi.fn>).mock.calls[0][0].destaques).toEqual([hostil]);
+    });
+
+    it('CA-09: abrir plano com destaques A,B mostra uma linha por item; salvar sem alterar reenvia os dois e o selo', async () => {
+      const planService = await prepare([{ ...basePlan, destaques: ['A', 'B'], selo: 'Novo' }]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar Plano Presença/i }));
+
+      expect((screen.getByLabelText('Destaques (um por linha)') as HTMLTextAreaElement).value).toBe('A\nB');
+      expect((screen.getByLabelText('Selo (opcional)') as HTMLInputElement).value).toBe('Novo');
+
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.updatePlan).toHaveBeenCalledWith(
+          'presenca',
+          expect.objectContaining({ destaques: ['A', 'B'], selo: 'Novo' })
+        );
+      });
+    });
+
+    it('CA-10: editar plano sem os campos (resposta antiga da API) envia destaques [] e selo vazio, nunca ausentes', async () => {
+      const planService = await prepare([{ ...basePlan }]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar Plano Presença/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.updatePlan).toHaveBeenCalled();
+      });
+      const plan = (planService.updatePlan as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      expect(plan).toHaveProperty('destaques');
+      expect(plan).toHaveProperty('selo');
+      expect(plan.destaques).toEqual([]);
+      expect(plan.selo).toBe('');
+    });
+
+    it('CA-10: plano legado com destaques e selo null (forma real da API) abre o formulário vazio e salva [] e vazio', async () => {
+      const planService = await prepare([
+        { ...basePlan, destaques: null as unknown as string[], selo: null as unknown as string },
+      ]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar Plano Presença/i }));
+      expect(screen.getByLabelText(/Destaques \(um por linha\)/i)).toHaveValue('');
+      expect(screen.getByLabelText(/Selo \(opcional\)/i)).toHaveValue('');
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.updatePlan).toHaveBeenCalled();
+      });
+      const plan = (planService.updatePlan as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      expect(plan.destaques).toEqual([]);
+      expect(plan.selo).toBe('');
+    });
+
+    it('CA-10: criar plano sem preencher destaques nem selo também envia os dois campos vazios', async () => {
+      const planService = await prepare([]);
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Novo Plano/i }));
+
+      fireEvent.change(screen.getByPlaceholderText(/ex: basico_mensal/i), { target: { value: 'vazio' } });
+      fireEvent.change(screen.getByPlaceholderText(/ex: Básico Mensal/i), { target: { value: 'Vazio' } });
+      fireEvent.change(screen.getByLabelText('Taxa de Adesão'), { target: { value: '50' } });
+      fireEvent.change(screen.getByLabelText('Mensalidade'), { target: { value: '100' } });
+      fireEvent.change(screen.getByLabelText(/Termo de Contratação/i), { target: { value: 't1' } });
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      await waitFor(() => {
+        expect(planService.createPlan).toHaveBeenCalled();
+      });
+      const payload = (planService.createPlan as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(payload).toHaveProperty('destaques');
+      expect(payload).toHaveProperty('selo');
+      expect(payload.destaques).toEqual([]);
+      expect(payload.selo).toBe('');
+    });
+
+    it('CA-11: a mensagem 400 do backend sobre destaques aparece no formulário', async () => {
+      const planService = await prepare([{ ...basePlan, destaques: ['A'] }]);
+      const mensagem = 'informe até 8 destaques, cada um com até 80 caracteres';
+      (planService.updatePlan as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(mensagem));
+
+      render(<PlansPage />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar Plano Presença/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Salvar Plano/i }));
+
+      const alerta = await screen.findByRole('alert');
+      expect(alerta).toHaveTextContent(mensagem);
+    });
+  });
 });

@@ -10,6 +10,18 @@ import { Term } from '@/types/term';
 import * as Dialog from '@radix-ui/react-dialog';
 import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
 
+// Campos de texto do formulário que o backend recebe como lista/string tratada.
+// `destaques` é um textarea (uma linha = um item) e vira lista só no envio.
+type PlanFormValues = Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at' | 'destaques'> & {
+  destaques: string;
+};
+
+// Uma linha = um destaque (vírgula não separa: o texto pode tê-la). Linha em
+// branco é descartada; o limite de itens/tamanho é do backend.
+function parseDestaques(texto: string | undefined): string[] {
+  return (texto ?? '').split('\n').map((linha) => linha.trim()).filter(Boolean);
+}
+
 export default function PlansPage() {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -30,7 +42,7 @@ export default function PlansPage() {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const defaultPlanValues: Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'> = {
+  const defaultPlanValues: PlanFormValues = {
     slug: '',
     nome: '',
     descricao: '',
@@ -42,9 +54,11 @@ export default function PlansPage() {
     term_id: '',
     product: 'plataforma',
     pages_included: 0,
+    destaques: '',
+    selo: '',
   };
 
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>>({
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<PlanFormValues>({
     defaultValues: defaultPlanValues,
   });
 
@@ -109,17 +123,23 @@ export default function PlansPage() {
       term_id: plan.term_id ?? '',
       product: plan.product || 'plataforma',
       pages_included: plan.pages_included ?? 0,
+      destaques: (plan.destaques ?? []).join('\n'),
+      selo: plan.selo ?? '',
     });
     setIsDrawerOpen(true);
   };
 
-  const onSubmit = (data: Omit<Plan, 'tenant_count' | 'created_at' | 'updated_at'>) => {
+  const onSubmit = (data: PlanFormValues) => {
     setFormError(null);
     const payload = {
       ...data,
       activation_fee: Number(data.activation_fee),
       monthly_value: Number(data.monthly_value),
       pages_included: Number(data.pages_included) || 0,
+      // Sempre presentes, mesmo vazios: o PUT do backend substitui o item
+      // inteiro, então omitir apagaria o que o formulário não mostrou.
+      destaques: parseDestaques(data.destaques),
+      selo: (data.selo ?? '').trim(),
     };
     if (payload.cycle === 'anual') {
       payload.monthly_value = 0;
@@ -187,6 +207,20 @@ export default function PlansPage() {
                 <div>
                   <label className="block text-sm font-semibold mb-1">Descrição</label>
                   <textarea {...register('descricao')} className="w-full border p-2 rounded" placeholder="Descrição comercial" />
+                </div>
+                <div>
+                  <label htmlFor="destaques" className="block text-sm font-semibold mb-1">Destaques (um por linha)</label>
+                  <textarea
+                    id="destaques"
+                    rows={4}
+                    {...register('destaques')}
+                    className="w-full border p-2 rounded"
+                    placeholder="Um destaque por linha"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="selo" className="block text-sm font-semibold mb-1">Selo (opcional)</label>
+                  <input id="selo" maxLength={30} {...register('selo')} className="w-full border p-2 rounded" placeholder="ex: Mais escolhido" />
                 </div>
                 <div>
                   <label htmlFor="cycle" className="block text-sm font-semibold mb-1">Ciclo</label>
