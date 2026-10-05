@@ -83,6 +83,51 @@ describe('planService', () => {
     expect(result.active[0].pages_included).toBe(0);
   });
 
+  // TASK-FE-001 (plano-destaques) — leitura tolerante de destaques/selo (RF-10)
+  it('listPlans entrega destaques [] e selo vazio para plano que veio sem os campos', async () => {
+    const { api } = await import('@/lib/api');
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: [{ slug: 'antigo', nome: 'Antigo' }],
+      inactive: [{ slug: 'antigo-2', nome: 'Antigo 2' }],
+    });
+
+    const result = await planService.listPlans();
+
+    expect(result.active[0].destaques).toEqual([]);
+    expect(result.active[0].selo).toBe('');
+    expect(result.inactive[0].destaques).toEqual([]);
+    expect(result.inactive[0].selo).toBe('');
+  });
+
+  // A API real devolve `"destaques": null` (e não a chave ausente) para plano
+  // gravado antes do campo: `domain.Plan` serializa a lista sem omitempty.
+  it('listPlans trata destaques e selo null, a forma real de plano legado, como [] e vazio', async () => {
+    const { api } = await import('@/lib/api');
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: [{ slug: 'legado', nome: 'Legado', destaques: null, selo: null }],
+      inactive: [{ slug: 'legado-2', nome: 'Legado 2', destaques: null }],
+    });
+
+    const result = await planService.listPlans();
+
+    expect(result.active[0].destaques).toEqual([]);
+    expect(result.active[0].selo).toBe('');
+    expect(result.inactive[0].destaques).toEqual([]);
+  });
+
+  it('listPlans preserva destaques e selo que a API devolveu', async () => {
+    const { api } = await import('@/lib/api');
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      active: [{ slug: 'pres', nome: 'Presença', destaques: ['Blog', 'Domínio próprio'], selo: 'Mais escolhido' }],
+      inactive: [],
+    });
+
+    const result = await planService.listPlans();
+
+    expect(result.active[0].destaques).toEqual(['Blog', 'Domínio próprio']);
+    expect(result.active[0].selo).toBe('Mais escolhido');
+  });
+
   it('createPlan envia product e pages_included no POST sem any', async () => {
     const { api } = await import('@/lib/api');
     (api.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({});

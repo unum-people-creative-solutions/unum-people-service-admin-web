@@ -22,6 +22,10 @@ export interface Plan {
   // legítimo de pages_included para plano plataforma.
   product?: PlanProduct | '';
   pages_included?: number;
+  // Destaques e selo do card do plano (feature plano-destaques). Ausentes em
+  // plano gravado antes do campo; a leitura (planService) entrega [] e ''.
+  destaques?: string[];
+  selo?: string;
 }
 
 export interface Contract {

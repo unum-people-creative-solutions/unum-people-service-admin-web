@@ -16,6 +16,8 @@ Tela `(admin)/terms` — CRUD de `Term`/`TermVersion` (o operador escreve o cont
 
 Tela `(admin)/plans` — o formulário de plano envia `product` (`plataforma` | `landing-page`) e `pages_included`. Plano legado chega da API com `product: ""` (chave presente; o `omitempty` do backend está só no DynamoDB) e `pages_included: 0`; a leitura trata string vazia como `plataforma`. A cota mínima de landing page é validada pelo backend (400/409); a UI só exibe o erro retornado.
 
+O formulário também tem **Destaques (um por linha)** (`textarea#destaques`) e **Selo (opcional)** (`input#selo`, `maxLength` 30), que alimentam o card do plano na vitrine pelo catálogo público. Cada linha não vazia vira um item de `destaques` (vírgula não separa); ao editar, o campo mostra os destaques atuais um por linha. **Toda** criação e atualização envia `destaques` (lista, inclusive vazia) e `selo` (string, inclusive vazia): o `PUT /admin/plans/{slug}` do backend substitui o item inteiro, então omitir os campos apagaria os textos. `planService.listPlans` entrega `destaques: []` e `selo: ''` para plano gravado antes dos campos. Limites (até 8 destaques de 80 caracteres, selo de 30) são validados pelo backend (400); a UI só exibe o erro retornado.
+
 ## Getting Started
 
 First, run the development server:
