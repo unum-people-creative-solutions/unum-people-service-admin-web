@@ -6,7 +6,8 @@ import { Term } from '@/types/term';
 import { Plan } from '@/types/tenant';
 
 interface PlanConfigFieldsProps {
-  plansData: {
+  // Ausente enquanto a consulta de planos carrega.
+  plansData?: {
     active: Plan[];
     inactive?: Plan[];
   };

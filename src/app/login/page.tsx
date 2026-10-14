@@ -46,7 +46,7 @@ export default function LoginPage() {
         // Usa ID Token (getIdToken) para autenticacao com o API Gateway JWT Authorizer
         const idToken = result.getIdToken().getJwtToken();
         const refreshToken = result.getRefreshToken().getToken();
-        const decoded: any = jwtDecode(idToken);
+        const decoded = jwtDecode<{ email: string; 'cognito:groups'?: string[] }>(idToken);
         const groups = decoded['cognito:groups'] || [];
 
         // Verifica se é Admin
