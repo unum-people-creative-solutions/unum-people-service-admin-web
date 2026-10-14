@@ -7,7 +7,7 @@ import nextConfig from './next.config'
 describe('next config', () => {
   it('keeps Turbopack root unpinned until the Next.js dev compile crash is resolved', () => {
     expect(nextConfig.turbopack?.root).toBeUndefined()
-    // Os testes rodam na raiz deste app (onde o Turbopack infere a raiz). Confere
+    // Os testes rodam na raiz deste app. Confere
     // pelo package.json, não pelo nome da pasta, que muda em clones e worktrees.
     const pacote = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'))
     expect(pacote.name).toBe('unum-people-services-admin-web')
