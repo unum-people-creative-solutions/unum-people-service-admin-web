@@ -28,12 +28,13 @@ describe('Dashboard Page Layout', () => {
       active_tenants: 8,
       blocked_tenants: 2,
       estimated_mrr: 1000,
+      system_health: 'stable',
     });
     vi.mocked(tenantService.getLogs).mockResolvedValue([
-      { sk: 'AUDIT#1', created_at: new Date().toISOString(), action: 'TENANT_CREATED', actor: 'Admin', target_id: 'tenant-1' }
+      { tenant_id: 'tenant-1', sk: 'AUDIT#1', created_at: new Date().toISOString(), action: 'TENANT_CREATED', actor: 'Admin', target_id: 'tenant-1', ip_address: '127.0.0.1', request_id: 'req-audit-1', expires_at: 0 }
     ]);
     vi.mocked(tenantService.getSystemErrors).mockResolvedValue([
-      { timestamp: new Date().toISOString(), level: 'ERROR', message: 'Connection Timeout', service: 'api' }
+      { timestamp: new Date().toISOString(), level: 'ERROR', message: 'Connection Timeout', service: 'api', request_id: 'req-error-1' }
     ]);
   });
 

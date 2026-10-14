@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { tenantService } from '@/services/tenantService';
+import type { AuditRecord, SystemErrorLog } from '@/types/dashboard';
 import { Users, Ban, Activity, TrendingUp, Clock, AlertCircle } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -11,13 +12,13 @@ export default function DashboardPage() {
     queryFn: tenantService.getStats,
   });
 
-  const { data: auditLogs, isLoading: auditLoading } = useQuery<any[]>({
+  const { data: auditLogs, isLoading: auditLoading } = useQuery({
     queryKey: ['admin-audit-logs'],
     queryFn: () => tenantService.getLogs({ type: 'audit' }),
     refetchInterval: 30000,
   });
 
-  const { data: systemErrors, isLoading: errorsLoading } = useQuery<any[]>({
+  const { data: systemErrors, isLoading: errorsLoading } = useQuery({
     queryKey: ['admin-system-errors'],
     queryFn: () => tenantService.getSystemErrors({ start: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() }),
     refetchInterval: 30000,
@@ -26,27 +27,28 @@ export default function DashboardPage() {
   const logsLoading = auditLoading || errorsLoading;
 
   const unifiedLogs = useMemo(() => {
-    // Garante que estamos lidando com arrays, mesmo que a API mude a estrutura do objeto
-    const rawAudit = Array.isArray(auditLogs) ? auditLogs : (auditLogs as any)?.items || (auditLogs as any)?.logs || [];
-    const rawErrors = Array.isArray(systemErrors) ? systemErrors : (systemErrors as any)?.items || (systemErrors as any)?.errors || [];
+    // As duas rotas devolvem uma lista, ou null quando ela está vazia
+    // (contratos em src/types/dashboard.ts).
+    const rawAudit: AuditRecord[] = auditLogs ?? [];
+    const rawErrors: SystemErrorLog[] = systemErrors ?? [];
 
-    const normalizedAudit = rawAudit.map((log: any, index: number) => {
-      const ts = log.created_at || log.timestamp || log.time;
+    const normalizedAudit = rawAudit.map((log, index) => {
+      const ts = log.created_at;
       return {
-        id: log.sk || log.id || `audit-${index}-${ts}`,
+        id: log.sk || `audit-${index}-${ts}`,
         timestamp: ts,
         type: 'audit' as const,
-        level: log.action || log.level || 'ACTIVITY',
+        level: log.action || 'ACTIVITY',
         actor: log.actor || 'System',
         target_id: log.target_id,
-        details: log.new_state || log.message,
-        request_id: log.request_id || log.raw?.request_id,
+        details: log.new_state,
+        request_id: log.request_id,
         raw: log
       };
     });
 
-    const normalizedErrors = rawErrors.map((err: any, index: number) => {
-      let ts = err.timestamp || err.time || new Date().toISOString();
+    const normalizedErrors = rawErrors.map((err, index) => {
+      let ts = err.timestamp || new Date().toISOString();
       
       // Ajuste de fuso horário: Se a data vier do CloudWatch sem indicação de fuso (ou em UTC)
       // e estiver 3 horas adiantada, vamos normalizar para o objeto Date tratar corretamente.
@@ -66,13 +68,13 @@ export default function DashboardPage() {
       }
 
       return {
-        id: err.id || `error-${index}-${ts}`,
+        id: `error-${index}-${ts}`,
         timestamp: ts,
         type: 'error' as const,
         level: err.level || 'ERROR',
         message: err.message || 'Error occurred',
         service: err.service || 'System',
-        request_id: err.request_id || err.raw?.request_id,
+        request_id: err.request_id,
         raw: err
       };
     });
@@ -184,7 +186,7 @@ export default function DashboardPage() {
                       </p>
                     )}
                     
-                    {log.details && (
+                    {log.type === 'audit' && log.details && (
                       <div className="mt-2 text-xs bg-white/50 p-2 rounded border border-slate-100 text-slate-600 font-mono overflow-x-auto">
                         {log.details}
                       </div>

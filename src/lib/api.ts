@@ -26,7 +26,9 @@ async function refreshAccessToken(): Promise<string | null> {
   });
 }
 
-export async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
+// T é o formato da resposta, dado por quem chama (normalmente pelo tipo de
+// retorno declarado no serviço). Corpo vazio vira null.
+export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { token } = useAuthStore.getState();
 
   const headers: Record<string, string> = {
@@ -66,22 +68,22 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   // 204 No Content (DELETE) ou 201/200 sem corpo: response.json() em string vazia
   // lança "Unexpected end of JSON input". Só faz parse se houver conteúdo.
   const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export const api = {
-  get: (path: string) => apiFetch(path, { method: 'GET' }),
-  post: (path: string, body?: any) => apiFetch(path, { 
+  get: <T>(path: string) => apiFetch<T>(path, { method: 'GET' }),
+  post: <T>(path: string, body?: unknown) => apiFetch<T>(path, { 
     method: 'POST', 
     body: body ? JSON.stringify(body) : undefined 
   }),
-  patch: (path: string, body?: any) => apiFetch(path, { 
+  patch: <T>(path: string, body?: unknown) => apiFetch<T>(path, { 
     method: 'PATCH', 
     body: body ? JSON.stringify(body) : undefined 
   }),
-  put: (path: string, body?: any) => apiFetch(path, { 
+  put: <T>(path: string, body?: unknown) => apiFetch<T>(path, { 
     method: 'PUT', 
     body: body ? JSON.stringify(body) : undefined 
   }),
-  delete: (path: string) => apiFetch(path, { method: 'DELETE' }),
+  delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
 };

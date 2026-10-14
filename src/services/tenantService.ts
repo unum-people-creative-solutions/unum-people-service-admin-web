@@ -2,6 +2,7 @@ import { CognitoUser, CognitoRefreshToken } from 'amazon-cognito-identity-js';
 import { useAuthStore } from "@/store/useAuthStore";
 import { userPool } from "@/lib/cognito";
 import { Tenant, CreateTenantInput, TenantUser, TenantUserRole, AddTenantUserInput, ChangePlanInput, Invoice, Site, SiteDetail } from "@/types/tenant";
+import { DashboardStats, AuditRecord, SystemErrorLog } from "@/types/dashboard";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.unumpeople.com/v1';
 
@@ -27,7 +28,9 @@ async function refreshAccessToken(): Promise<string | null> {
   });
 }
 
-async function fetchWithAuth(path: string, options: RequestInit = {}): Promise<any> {
+// T é o formato da resposta, dado pelo tipo de retorno de cada método abaixo.
+// Corpo vazio vira null.
+async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { token } = useAuthStore.getState();
 
   const headers: Record<string, string> = {
@@ -69,7 +72,7 @@ async function fetchWithAuth(path: string, options: RequestInit = {}): Promise<a
   // 204 No Content (DELETE) ou 201/200 sem corpo: response.json() em string vazia
   // lança "Unexpected end of JSON input". Só faz parse se houver conteúdo.
   const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export const tenantService = {
@@ -105,9 +108,10 @@ export const tenantService = {
     method: 'POST',
   }),
 
-  getStats: (): Promise<any> => fetchWithAuth('/admin/dashboard/stats'),
+  getStats: (): Promise<DashboardStats> => fetchWithAuth('/admin/dashboard/stats'),
   
-  getLogs: (filters?: { type?: string; service?: string; start?: string; end?: string }): Promise<any[]> => {
+  // O backend serializa lista vazia como null (slice nil em Go).
+  getLogs: (filters?: { type?: string; service?: string; start?: string; end?: string }): Promise<AuditRecord[] | null> => {
     const params = new URLSearchParams();
     if (filters?.type) params.append('type', filters.type);
     if (filters?.service) params.append('service', filters.service);
@@ -118,7 +122,7 @@ export const tenantService = {
     return fetchWithAuth(`/admin/dashboard/logs${queryString ? `?${queryString}` : ''}`);
   },
 
-  getSystemErrors: (filters?: { service?: string; start?: string }): Promise<any[]> => {
+  getSystemErrors: (filters?: { service?: string; start?: string }): Promise<SystemErrorLog[] | null> => {
     const params = new URLSearchParams();
     if (filters?.service) params.append('service', filters.service);
     if (filters?.start) params.append('start', filters.start);
