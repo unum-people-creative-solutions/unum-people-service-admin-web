@@ -111,8 +111,8 @@ export const tenantService = {
 
   getStats: (): Promise<DashboardStats> => fetchWithAuth('/admin/dashboard/stats'),
   
-  // Lista vazia pode chegar como null (slice nil em Go): /errors devolve nil
-  // quando o serviço filtrado não tem grupo de logs (CloudWatchProvider.QueryErrors).
+  // As duas rotas de log são listas em Go; o tipo também aceita null, que é
+  // como um slice nil sai no JSON.
   getLogs: (filters?: { type?: string; service?: string; start?: string; end?: string }): Promise<AuditRecord[] | null> => {
     const params = new URLSearchParams();
     if (filters?.type) params.append('type', filters.type);
