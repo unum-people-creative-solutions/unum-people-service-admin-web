@@ -13,6 +13,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Unum People Admin",
   description: "Painel de Administração e Métricas",
+  // Painel interno: nada aqui deve ir para o Google. Quem não está logado só
+  // vê a tela de login do próprio painel (/login).
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
