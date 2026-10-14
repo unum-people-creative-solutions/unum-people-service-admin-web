@@ -8,6 +8,10 @@ Para obter o contexto arquitetural completo e consultar o *Single Source of Trut
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Fora do Google
+
+O painel inteiro pede para não indexar (`robots` nos metadados de `src/app/layout.tsx`, `noindex, nofollow`) e o `robots.txt` (`src/app/robots.ts`) bloqueia tudo. Toda rota manda quem não está logado para o login do Cognito, e por esse caminho o Google chegava a indexar a página vazia de `auth.unumpeople.com.br`.
+
 ## Termos de Contratação de Serviço
 
 Tela `(admin)/terms` — CRUD de `Term`/`TermVersion` (o operador escreve o conteúdo em Markdown; o backend renderiza, sanitiza e publica em S3). Cada `Plan` pago é vinculado a um termo (obrigatório, inclusive para planos já existentes); para tenants `PERSONALIZADO`/`LIVRE` o termo é escolhido manualmente no formulário de criação/edição do tenant. O detalhe do tenant mostra o status do aceite (`ServiceAgreementCard`, ao lado do `BillingCard`) — o aceite em si é sempre feito pelo `TenantAdmin` no CRM/blog-admin, nunca pelo operador aqui. O detalhe do tenant também lista as notas fiscais de serviço emitidas (`TenantInvoicesSection`, mesmo bloco do `BillingCard`/`ServiceAgreementCard`) — busca via `GET /admin/tenants/{id}/invoices`, exibe status/link de PDF quando autorizada; só leitura, sem ação de emissão manual nesta fase.
