@@ -3,6 +3,7 @@ import { TenantInvoicesSection } from './TenantInvoicesSection';
 import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { tenantService } from '@/services/tenantService';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { Invoice } from '@/types/tenant';
 
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
@@ -56,7 +57,7 @@ describe('TenantInvoicesSection Component', () => {
       },
     ];
 
-    vi.mocked(tenantService.listInvoices).mockResolvedValue(mockInvoices as any);
+    vi.mocked(tenantService.listInvoices).mockResolvedValue(mockInvoices as Invoice[]);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -87,7 +88,7 @@ describe('TenantInvoicesSection Component', () => {
       },
     ];
 
-    vi.mocked(tenantService.listInvoices).mockResolvedValue(mockInvoices as any);
+    vi.mocked(tenantService.listInvoices).mockResolvedValue(mockInvoices as Invoice[]);
 
     render(
       <QueryClientProvider client={queryClient}>

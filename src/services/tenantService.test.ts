@@ -7,10 +7,13 @@ import { TenantUser, TenantUserRole, AddTenantUserInput } from '@/types/tenant'
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+// Assinatura do callback de CognitoUser.refreshSession usada nos mocks abaixo.
+type CallbackDeRefresh = (erro: Error | null, sessao: unknown) => void
+
 // Mock CognitoUser para refresh
 vi.mock('amazon-cognito-identity-js', () => ({
-  CognitoUser: vi.fn(function (this: any) {
-    this.refreshSession = vi.fn((_refreshToken: any, callback: any) => {
+  CognitoUser: vi.fn(function (this: { refreshSession?: unknown }) {
+    this.refreshSession = vi.fn((_refreshToken: unknown, callback: CallbackDeRefresh) => {
       callback(null, {
         getIdToken: () => ({
           getJwtToken: () => 'refreshed-id-token',
@@ -22,7 +25,7 @@ vi.mock('amazon-cognito-identity-js', () => ({
     })
   }),
   CognitoUserPool: vi.fn(),
-  CognitoRefreshToken: vi.fn(function (this: any, { RefreshToken }: any) {
+  CognitoRefreshToken: vi.fn(function (this: { getToken?: () => string }, { RefreshToken }: { RefreshToken: string }) {
     this.getToken = () => RefreshToken
   }),
 }))
@@ -338,8 +341,8 @@ describe('tenantService', () => {
       // Override refreshSession mock to fail
       const cognitoModule = await import('amazon-cognito-identity-js')
       const mockCognitoUser = cognitoModule.CognitoUser as unknown as ReturnType<typeof vi.fn>
-      mockCognitoUser.mockImplementationOnce(function (this: any) {
-        this.refreshSession = vi.fn((_refreshToken: any, callback: any) => {
+      mockCognitoUser.mockImplementationOnce(function (this: { refreshSession?: unknown }) {
+        this.refreshSession = vi.fn((_refreshToken: unknown, callback: CallbackDeRefresh) => {
           callback(new Error('Refresh failed'), null)
         })
       })

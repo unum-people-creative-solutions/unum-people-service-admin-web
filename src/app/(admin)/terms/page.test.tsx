@@ -2,6 +2,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import TermsPage from './page';
 import { ApiError } from '@/lib/apiError';
+import { comoMock, OpcoesDeMutation } from '@/test/mocks';
 
 vi.mock('@/services/termService', () => ({
   termService: {
@@ -23,7 +24,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    ...(actual as any),
+    ...(actual as object),
     useQuery: vi.fn(),
     useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
     useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
@@ -33,7 +34,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 describe('TermsPage', () => {
   it('renderiza seções de Termos Ativos e Desativados', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: [
         { id: 't1', name: 'Termo Site', description: 'Escopo do pacote site', is_active: true, current_version: 1 },
         { id: 't2', name: 'Termo Antigo', description: 'Descontinuado', is_active: false, current_version: 3 },
@@ -51,7 +52,7 @@ describe('TermsPage', () => {
 
   it('abre o drawer de criação ao clicar em Novo Termo', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [], isLoading: false });
 
     render(<TermsPage />);
 
@@ -63,10 +64,10 @@ describe('TermsPage', () => {
 
   it('submeter o formulário de criação chama termService.create e navega para a tela de edição do termo criado', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [], isLoading: false });
 
-    (useMutation as any).mockImplementation(({ mutationFn, onSuccess }: any) => ({
-      mutate: async (variables: any) => {
+    comoMock(useMutation).mockImplementation(({ mutationFn, onSuccess }: OpcoesDeMutation) => ({
+      mutate: async (variables: unknown) => {
         const result = await mutationFn(variables);
         onSuccess?.(result);
       },
@@ -74,7 +75,7 @@ describe('TermsPage', () => {
     }));
 
     const { termService } = await import('@/services/termService');
-    (termService.create as any).mockResolvedValue({ id: 'new-term-id', name: 'Termo Pacote Site', description: 'Escopo do pacote de site', is_active: true, current_version: 0 });
+    vi.mocked(termService.create).mockResolvedValue({ id: 'new-term-id', name: 'Termo Pacote Site', description: 'Escopo do pacote de site', is_active: true, current_version: 0, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' });
 
     render(<TermsPage />);
 
@@ -97,13 +98,13 @@ describe('TermsPage', () => {
 
   it('erro de API ao criar termo é exibido, nunca engolido silenciosamente', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [], isLoading: false });
 
     // Cada chamada a useMutation captura o SEU PRÓPRIO onError (não uma
     // variável compartilhada) — com 2 mutações no componente (criar/
     // excluir), um "último a registrar vence" faria o clique em "Salvar"
     // disparar o onError errado (ex: o de excluir).
-    (useMutation as any).mockImplementation(({ onError }: any) => ({
+    comoMock(useMutation).mockImplementation(({ onError }: OpcoesDeMutation) => ({
       mutate: () => onError && onError(new Error('Falha ao criar')),
       isPending: false,
     }));
@@ -123,7 +124,7 @@ describe('TermsPage', () => {
   // para ler/editar um texto jurídico longo (achado de UX do usuário).
   it('card do termo linka para a tela de edição dedicada', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: [{ id: 't1', name: 'Termo Site', description: '', is_active: true, current_version: 1 }],
       isLoading: false,
     });
@@ -136,14 +137,14 @@ describe('TermsPage', () => {
 
   it('clicar em "Excluir" chama termService.remove com o id do termo', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: [{ id: 't1', name: 'Termo Site', description: '', is_active: true, current_version: 1 }],
       isLoading: false,
     });
 
     const mutateSpy = vi.fn();
-    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
-      mutate: (variables: any) => {
+    comoMock(useMutation).mockImplementation(({ mutationFn }: OpcoesDeMutation) => ({
+      mutate: (variables: unknown) => {
         mutationFn(variables);
         mutateSpy(variables);
       },
@@ -166,12 +167,12 @@ describe('TermsPage', () => {
   // exibir esse conflito, nunca engolir o erro silenciosamente.
   it('erro 409 ao excluir termo exibe mensagem de conflito', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: [{ id: 't1', name: 'Termo Site', description: '', is_active: true, current_version: 1 }],
       isLoading: false,
     });
 
-    (useMutation as any).mockImplementation(({ onError }: any) => ({
+    comoMock(useMutation).mockImplementation(({ onError }: OpcoesDeMutation) => ({
       // O cliente real (apiFetch) lança ApiError com o status HTTP.
       mutate: () => onError && onError(new ApiError('term in use', 409)),
       isPending: false,

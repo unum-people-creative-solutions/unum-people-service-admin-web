@@ -2,6 +2,8 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PlansPage from './page';
 import { ApiError } from '@/lib/apiError';
+import { comoMock, OpcoesDeMutation, OpcoesDeQuery } from '@/test/mocks';
+import type { Term } from '@/types/term';
 
 // Mocks for services and queries
 vi.mock('@/services/planService', () => ({
@@ -22,7 +24,7 @@ vi.mock('@/services/termService', () => ({
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    ...(actual as any),
+    ...(actual as object),
     useQuery: vi.fn(),
     useMutation: vi.fn(() => ({ mutate: vi.fn() })),
     useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
@@ -32,7 +34,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 describe('PlansPage', () => {
   it('renderiza seções de planos Ativos e Desativados', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: {
         active: [{ slug: 'p1', nome: 'Plano 1' }],
         inactive: [{ slug: 'p2', nome: 'Plano 2', tenant_count: 0 }]
@@ -48,7 +50,7 @@ describe('PlansPage', () => {
 
   it('botão Excluir deve estar desabilitado se tenant_count > 0', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: {
         active: [],
         inactive: [{ slug: 'promo', nome: 'Promo', tenant_count: 2 }]
@@ -64,7 +66,7 @@ describe('PlansPage', () => {
 
   it('botão Excluir habilitado quando tenant_count === 0', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: {
         active: [],
         inactive: [{ slug: 'promo', nome: 'Promo', tenant_count: 0 }]
@@ -80,12 +82,12 @@ describe('PlansPage', () => {
 
   it('erro 409 ao excluir plano exibe a mensagem de plano com tenants vinculados', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: { active: [], inactive: [{ slug: 'promo', nome: 'Promo', tenant_count: 0 }] },
       isLoading: false,
     });
     // O cliente real (apiFetch) lança ApiError com o status HTTP.
-    (useMutation as any).mockImplementation(({ onError }: any) => ({
+    comoMock(useMutation).mockImplementation(({ onError }: OpcoesDeMutation) => ({
       mutate: () => onError && onError(new ApiError('plan has tenants', 409)),
       isPending: false,
     }));
@@ -98,7 +100,7 @@ describe('PlansPage', () => {
 
   it('abre o drawer ao clicar em Novo plano', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: { active: [], inactive: [] },
       isLoading: false
     });
@@ -114,7 +116,7 @@ describe('PlansPage', () => {
 
   it('clicar em Editar num plano ativo abre o drawer preenchido, sem permitir alterar o slug', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: {
         active: [{
           slug: 'intermediario',
@@ -148,7 +150,7 @@ describe('PlansPage', () => {
 
   it('o slug fica editável ao abrir o drawer de Novo Plano (não fica preso no modo edição anterior)', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: {
         active: [{
           slug: 'intermediario',
@@ -179,7 +181,7 @@ describe('PlansPage', () => {
   // T07 — Tela mestre: campo Ciclo e regra anual (FE)
   it('ao selecionar Ciclo "Anual" o campo Mensalidade desaparece e a Taxa de Adesão é relabelada para "Valor Anual"', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: { active: [], inactive: [] },
       isLoading: false
     });
@@ -197,7 +199,7 @@ describe('PlansPage', () => {
 
   it('ao submeter o formulário com Ciclo "Anual" o payload enviado a createPlan inclui cycle: "anual"', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockImplementation((opts: any) => {
+    comoMock(useQuery).mockImplementation((opts: OpcoesDeQuery) => {
       if (opts.queryKey[0] === 'terms') {
         return { data: [{ id: 't1', name: 'Termo Site', is_active: true }], isLoading: false };
       }
@@ -205,8 +207,8 @@ describe('PlansPage', () => {
     });
 
     const mutateSpy = vi.fn();
-    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
-      mutate: (variables: any) => {
+    comoMock(useMutation).mockImplementation(({ mutationFn }: OpcoesDeMutation) => ({
+      mutate: (variables: unknown) => {
         mutationFn(variables);
         mutateSpy(variables);
       },
@@ -231,14 +233,14 @@ describe('PlansPage', () => {
       expect(planService.createPlan).toHaveBeenCalled();
     });
 
-    const payload = (planService.createPlan as any).mock.calls[0][0];
+    const payload = vi.mocked(planService.createPlan).mock.calls[0][0];
     expect(payload.cycle).toBe('anual');
     expect(payload.monthly_value).toBe(0);
   });
 
   it('ao editar um plano existente com cycle "anual" o select de Ciclo vem pré-selecionado em "Anual"', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: {
         active: [{
           slug: 'anual_premium',
@@ -264,9 +266,9 @@ describe('PlansPage', () => {
   });
 
   // TASK-FE-004 — select de Termo de Contratação
-  const mockQueriesByKey = (terms: any[]) => async () => {
+  const mockQueriesByKey = (terms: Pick<Term, 'id' | 'name' | 'is_active'>[]) => async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockImplementation((opts: any) => {
+    comoMock(useQuery).mockImplementation((opts: OpcoesDeQuery) => {
       if (opts.queryKey[0] === 'terms') {
         return { data: terms, isLoading: false };
       }
@@ -306,8 +308,8 @@ describe('PlansPage', () => {
   it('envia o term_id selecionado no payload de createPlan', async () => {
     await mockQueriesByKey([{ id: 't1', name: 'Termo Site', is_active: true }])();
     const { useMutation } = await import('@tanstack/react-query');
-    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
-      mutate: (variables: any) => mutationFn(variables),
+    comoMock(useMutation).mockImplementation(({ mutationFn }: OpcoesDeMutation) => ({
+      mutate: (variables: unknown) => mutationFn(variables),
       isPending: false,
     }));
 
@@ -326,13 +328,13 @@ describe('PlansPage', () => {
     await waitFor(() => {
       expect(planService.createPlan).toHaveBeenCalled();
     });
-    const payload = (planService.createPlan as any).mock.calls[0][0];
+    const payload = vi.mocked(planService.createPlan).mock.calls[0][0];
     expect(payload.term_id).toBe('t1');
   });
 
   it('editar plano legado sem term_id sinaliza o campo como pendente de preenchimento', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockImplementation((opts: any) => {
+    comoMock(useQuery).mockImplementation((opts: OpcoesDeQuery) => {
       if (opts.queryKey[0] === 'terms') {
         return { data: [{ id: 't1', name: 'Termo Site', is_active: true }], isLoading: false };
       }

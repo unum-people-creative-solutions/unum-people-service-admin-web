@@ -89,7 +89,7 @@ describe('BillingCard Component', () => {
   });
 
   it('T18 - deve fazer polling (refetch) se o estado for "gerando"', async () => {
-    (tenantService.getById as any).mockResolvedValue({
+    vi.mocked(tenantService.getById).mockResolvedValue({
       ...baseTenant,
       contract: createContract('disponivel'),
     });
@@ -111,7 +111,7 @@ describe('BillingCard Component', () => {
     const retryBtn = screen.getByRole('button', { name: /tentar novamente/i });
     expect(retryBtn).toBeInTheDocument();
 
-    (tenantService.retryBilling as any).mockResolvedValue({ message: 'ok' });
+    vi.mocked(tenantService.retryBilling).mockResolvedValue({ message: 'ok' });
     
     await act(async () => {
       fireEvent.click(retryBtn);
@@ -125,7 +125,7 @@ describe('BillingCard Component', () => {
 
     const retryBtn = screen.getByRole('button', { name: /tentar novamente/i });
 
-    (tenantService.retryBilling as any).mockRejectedValue(new Error('Network Error'));
+    vi.mocked(tenantService.retryBilling).mockRejectedValue(new Error('Network Error'));
 
     await act(async () => {
       fireEvent.click(retryBtn);
@@ -152,7 +152,7 @@ describe('BillingCard Component', () => {
     const retryBtn = screen.getByRole('button', { name: /tentar ativação/i });
     expect(retryBtn).toBeInTheDocument();
 
-    (tenantService.retryActivation as any).mockResolvedValue({ message: 'ok' });
+    vi.mocked(tenantService.retryActivation).mockResolvedValue({ message: 'ok' });
 
     await act(async () => {
       fireEvent.click(retryBtn);
@@ -175,7 +175,7 @@ describe('BillingCard Component', () => {
     const reactivateBtn = screen.getByRole('button', { name: /reativar/i });
     expect(reactivateBtn).toBeInTheDocument();
 
-    (tenantService.reactivateTenant as any).mockResolvedValue({ message: 'ok' });
+    vi.mocked(tenantService.reactivateTenant).mockResolvedValue({ message: 'ok' });
 
     await act(async () => {
       fireEvent.click(reactivateBtn);
@@ -193,13 +193,13 @@ describe('BillingCard Component', () => {
 
   describe('[Bug reportado] tenant.status vem em MAIÚSCULAS do backend (enum TenantStatus)', () => {
     it('com status real "PAUSADO", exibe e aciona o botão "Reativar assinatura"', async () => {
-      const pausedTenant: Tenant = { ...baseTenant, status: 'PAUSADO' as any };
+      const pausedTenant: Tenant = { ...baseTenant, status: 'PAUSADO' as unknown as Tenant['status'] };
       renderWithQuery(<BillingCard tenant={pausedTenant} contract={undefined} />);
 
       const reactivateBtn = screen.getByRole('button', { name: /reativar/i });
       expect(reactivateBtn).toBeInTheDocument();
 
-      (tenantService.reactivateTenant as any).mockResolvedValue({ message: 'ok' });
+      vi.mocked(tenantService.reactivateTenant).mockResolvedValue({ message: 'ok' });
       await act(async () => {
         fireEvent.click(reactivateBtn);
       });
@@ -207,7 +207,7 @@ describe('BillingCard Component', () => {
     });
 
     it('com status real "PENDENTE_ASAAS", exibe o aviso e o botão "Tentar Ativação"', async () => {
-      const pendingTenant: Tenant = { ...baseTenant, status: 'PENDENTE_ASAAS' as any };
+      const pendingTenant: Tenant = { ...baseTenant, status: 'PENDENTE_ASAAS' as unknown as Tenant['status'] };
       renderWithQuery(<BillingCard tenant={pendingTenant} contract={undefined} />);
 
       expect(screen.getByRole('button', { name: /tentar ativação/i })).toBeInTheDocument();
@@ -215,7 +215,7 @@ describe('BillingCard Component', () => {
 
     it('com status real "AGUARDANDO_ATIVACAO", exibe "Aguardando confirmação" em vez de "Ativação paga"', () => {
       const contract = createContract('aguardando_ativacao');
-      const awaitingTenant: Tenant = { ...baseTenant, status: 'AGUARDANDO_ATIVACAO' as any };
+      const awaitingTenant: Tenant = { ...baseTenant, status: 'AGUARDANDO_ATIVACAO' as unknown as Tenant['status'] };
       renderWithQuery(<BillingCard tenant={awaitingTenant} contract={{ ...contract, activation_invoice_url: 'https://asaas.com/ativacao' }} />);
 
       expect(screen.getByText(/aguardando confirmação do pagamento da ativação/i)).toBeInTheDocument();
