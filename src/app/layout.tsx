@@ -13,8 +13,8 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Unum People Admin",
   description: "Painel de Administração e Métricas",
-  // Painel interno: nada aqui deve ir para o Google, e quem não está logado
-  // é mandado para o login do Cognito (auth.unumpeople.com.br).
+  // Painel interno: nada aqui deve ir para o Google. Quem não está logado só
+  // vê a tela de login do próprio painel (/login).
   robots: { index: false, follow: false },
 };
 

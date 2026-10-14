@@ -10,7 +10,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Fora do Google
 
-O painel inteiro pede para não indexar (`robots` nos metadados de `src/app/layout.tsx`, `noindex, nofollow`) e o `robots.txt` (`src/app/robots.ts`) bloqueia tudo. Toda rota manda quem não está logado para o login do Cognito, e por esse caminho o Google chegava a indexar a página vazia de `auth.unumpeople.com.br`.
+O painel inteiro pede para não indexar (`robots` nos metadados de `src/app/layout.tsx`, `noindex, nofollow`) e o `robots.txt` (`src/app/robots.ts`) bloqueia tudo. É um painel interno: quem não está logado só vê a tela `/login` do próprio painel (login direto pelo `amazon-cognito-identity-js`, sem o Hosted UI), que não tem nada a oferecer na busca.
 
 ## Termos de Contratação de Serviço
 
