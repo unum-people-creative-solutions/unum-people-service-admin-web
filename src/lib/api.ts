@@ -1,6 +1,7 @@
 import { CognitoUser, CognitoRefreshToken } from 'amazon-cognito-identity-js';
 import { useAuthStore } from "@/store/useAuthStore";
 import { userPool } from "@/lib/cognito";
+import { ApiError } from "@/lib/apiError";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.unumpeople.com/v1';
 
@@ -62,7 +63,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Request failed');
+    throw new ApiError(error.error || 'Request failed', response.status);
   }
 
   // 204 No Content (DELETE) ou 201/200 sem corpo: response.json() em string vazia

@@ -47,7 +47,7 @@ export default function TermEditPage() {
       setMetaSuccess(true);
       queryClient.invalidateQueries({ queryKey: ['terms'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setMetaSuccess(false);
       setMetaError(error?.message || 'Falha ao salvar as informações do termo.');
     },
@@ -72,7 +72,7 @@ export default function TermEditPage() {
       queryClient.invalidateQueries({ queryKey: ['terms'] });
       contentForm.reset({ content_md: '', changelog: '' });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setPublishError(error?.message || 'Falha ao publicar a versão. Tente novamente.');
     },
   });

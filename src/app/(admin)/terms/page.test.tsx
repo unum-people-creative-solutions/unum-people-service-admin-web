@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import TermsPage from './page';
+import { ApiError } from '@/lib/apiError';
 
 vi.mock('@/services/termService', () => ({
   termService: {
@@ -171,7 +172,8 @@ describe('TermsPage', () => {
     });
 
     (useMutation as any).mockImplementation(({ onError }: any) => ({
-      mutate: () => onError && onError({ response: { status: 409 } }),
+      // O cliente real (apiFetch) lança ApiError com o status HTTP.
+      mutate: () => onError && onError(new ApiError('term in use', 409)),
       isPending: false,
     }));
 

@@ -1,6 +1,7 @@
 import { CognitoUser, CognitoRefreshToken } from 'amazon-cognito-identity-js';
 import { useAuthStore } from "@/store/useAuthStore";
 import { userPool } from "@/lib/cognito";
+import { ApiError } from "@/lib/apiError";
 import { Tenant, CreateTenantInput, TenantUser, TenantUserRole, AddTenantUserInput, ChangePlanInput, Invoice, Site, SiteDetail } from "@/types/tenant";
 import { DashboardStats, AuditRecord, SystemErrorLog } from "@/types/dashboard";
 
@@ -66,7 +67,7 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Request failed');
+    throw new ApiError(error.error || 'Request failed', response.status);
   }
 
   // 204 No Content (DELETE) ou 201/200 sem corpo: response.json() em string vazia

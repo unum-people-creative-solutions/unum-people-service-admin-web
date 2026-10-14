@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PlansPage from './page';
+import { ApiError } from '@/lib/apiError';
 
 // Mocks for services and queries
 vi.mock('@/services/planService', () => ({
@@ -75,6 +76,24 @@ describe('PlansPage', () => {
 
     const deleteButton = screen.getByRole('button', { name: /Excluir Promo/i });
     expect(deleteButton).not.toBeDisabled();
+  });
+
+  it('erro 409 ao excluir plano exibe a mensagem de plano com tenants vinculados', async () => {
+    const { useQuery, useMutation } = await import('@tanstack/react-query');
+    (useQuery as any).mockReturnValue({
+      data: { active: [], inactive: [{ slug: 'promo', nome: 'Promo', tenant_count: 0 }] },
+      isLoading: false,
+    });
+    // O cliente real (apiFetch) lança ApiError com o status HTTP.
+    (useMutation as any).mockImplementation(({ onError }: any) => ({
+      mutate: () => onError && onError(new ApiError('plan has tenants', 409)),
+      isPending: false,
+    }));
+
+    render(<PlansPage />);
+    fireEvent.click(screen.getByRole('button', { name: /Excluir Promo/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não é possível excluir um plano com tenants vinculados.');
   });
 
   it('abre o drawer ao clicar em Novo plano', async () => {
