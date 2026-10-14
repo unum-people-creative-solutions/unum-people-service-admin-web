@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { tenantService } from './tenantService'
 import { useAuthStore } from '@/store/useAuthStore'
 import { TenantUser, TenantUserRole, AddTenantUserInput } from '@/types/tenant'
+import { ApiError } from '@/lib/apiError'
 
 // Mock globals
 const mockFetch = vi.fn()
@@ -44,6 +45,21 @@ describe('tenantService', () => {
       isAuthenticated: true,
       isAdmin: true,
       hasHydrated: true,
+    })
+  })
+
+  describe('erros HTTP', () => {
+    it('resposta 409 vira ApiError com o status HTTP e a mensagem do backend', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({ error: 'conflito' }),
+      })
+
+      const chamada = tenantService.delete('t1', false)
+
+      await expect(chamada).rejects.toBeInstanceOf(ApiError)
+      await expect(chamada).rejects.toMatchObject({ status: 409, message: 'conflito' })
     })
   })
 

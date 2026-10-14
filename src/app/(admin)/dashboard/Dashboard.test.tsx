@@ -47,6 +47,8 @@ describe('Dashboard Page Layout', () => {
 
     // Verifica se ambos os tipos de log estão presentes
     expect(await screen.findByText(/criou o tenant tenant-1/i)).toBeDefined();
+    // Ator da auditoria (campo actor do contrato)
+    expect(screen.getByText('Admin')).toBeDefined();
     expect(await screen.findByText(/Connection Timeout/i)).toBeDefined();
     
     // Verifica a presença do LED de Erro (span com animate-pulse)

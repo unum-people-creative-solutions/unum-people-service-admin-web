@@ -111,7 +111,8 @@ export const tenantService = {
 
   getStats: (): Promise<DashboardStats> => fetchWithAuth('/admin/dashboard/stats'),
   
-  // O backend serializa lista vazia como null (slice nil em Go).
+  // Lista vazia pode chegar como null (slice nil em Go): /errors devolve nil
+  // quando o serviço filtrado não tem grupo de logs (CloudWatchProvider.QueryErrors).
   getLogs: (filters?: { type?: string; service?: string; start?: string; end?: string }): Promise<AuditRecord[] | null> => {
     const params = new URLSearchParams();
     if (filters?.type) params.append('type', filters.type);

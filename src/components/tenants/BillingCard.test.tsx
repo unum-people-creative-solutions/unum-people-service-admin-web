@@ -72,6 +72,23 @@ describe('BillingCard Component', () => {
     expect(screen.getByText(/aguardando ativação|pendente/i)).toBeInTheDocument();
   });
 
+  it('acompanha o contrato novo quando a prop muda (refetch do tenant)', () => {
+    const client = createTestQueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <BillingCard tenant={baseTenant} contract={createContract('gerando')} />
+      </QueryClientProvider>
+    );
+    expect(screen.getByText(/gerando/i)).toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={client}>
+        <BillingCard tenant={baseTenant} contract={createContract('erro')} />
+      </QueryClientProvider>
+    );
+    expect(screen.getByText(/erro ao gerar/i)).toBeInTheDocument();
+  });
+
   it('T16 - deve exibir estado "gerando"', () => {
     renderWithQuery(<BillingCard tenant={baseTenant} contract={createContract('gerando')} />);
     expect(screen.getByText(/gerando/i)).toBeInTheDocument();
