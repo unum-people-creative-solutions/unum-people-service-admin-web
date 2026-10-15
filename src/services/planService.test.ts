@@ -19,22 +19,22 @@ describe('planService', () => {
 
   it('deve listar planos chamando /admin/plans', async () => {
     const { api } = await import('@/lib/api');
-    (api.get as any).mockResolvedValueOnce([]);
+    vi.mocked(api.get).mockResolvedValueOnce([]);
     await planService.listPlans();
     expect(api.get).toHaveBeenCalledWith('/admin/plans');
   });
 
   it('deve criar um plano via POST /admin/plans', async () => {
     const { api } = await import('@/lib/api');
-    (api.post as any).mockResolvedValueOnce({});
-    await planService.createPlan({ nome: 'Teste' } as any);
+    vi.mocked(api.post).mockResolvedValueOnce({});
+    await planService.createPlan({ nome: 'Teste' } as Plan);
     expect(api.post).toHaveBeenCalledWith('/admin/plans', { nome: 'Teste' });
   });
 
   it('deve lidar com erro 409 ao excluir plano vinculado', async () => {
     const error409 = { response: { status: 409 } };
     const { api } = await import('@/lib/api');
-    (api.delete as any).mockRejectedValueOnce(error409);
+    vi.mocked(api.delete).mockRejectedValueOnce(error409);
 
     await expect(planService.deletePlan('plano-basico')).rejects.toMatchObject({
       response: { status: 409 }

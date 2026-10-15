@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { termService } from '@/services/termService';
 import { Term, CreateTermInput } from '@/types/term';
 import * as Dialog from '@radix-ui/react-dialog';
+import { ApiError } from '@/lib/apiError';
 
 export default function TermsPage() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function TermsPage() {
       // de criar o termo é publicar a primeira versão do conteúdo.
       router.push(`/terms/${created.id}`);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setFormError(error?.message || 'Falha ao criar o termo. Tente novamente.');
     },
   });
@@ -45,8 +46,8 @@ export default function TermsPage() {
       setDeleteError(null);
       queryClient.invalidateQueries({ queryKey: ['terms'] });
     },
-    onError: (error: any) => {
-      if (error?.response?.status === 409) {
+    onError: (error: Error) => {
+      if (error instanceof ApiError && error.status === 409) {
         setDeleteError('Não é possível excluir um termo com aceites registrados ou em uso por um plano ativo.');
       } else {
         setDeleteError('Falha ao excluir o termo. Tente novamente.');

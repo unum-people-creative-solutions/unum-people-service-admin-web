@@ -32,10 +32,6 @@ export default function SettingsPage() {
   const [vapidEmailError, setVapidEmailError] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
   const fetchSettings = async () => {
     try {
       const resp = await settingsService.getSettings();
@@ -57,6 +53,11 @@ export default function SettingsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial: os setState de fetchSettings só rodam depois do await da API
+    void fetchSettings();
+  }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

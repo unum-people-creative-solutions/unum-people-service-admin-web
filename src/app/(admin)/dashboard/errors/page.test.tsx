@@ -45,4 +45,21 @@ describe('LogsPage - filtro de serviço', () => {
       );
     });
   });
+
+  it('na fonte de auditoria, mostra a data do registro (created_at do contrato)', async () => {
+    const criadoEm = '2026-03-01T12:00:00Z';
+    vi.mocked(tenantService.getLogs).mockResolvedValue([
+      { tenant_id: 't1', sk: 'AUDIT#1', actor: 'Admin', action: 'TENANT_CREATED', target_id: 't1', ip_address: '127.0.0.1', request_id: 'req-1', expires_at: 0, created_at: criadoEm },
+    ]);
+    const { fireEvent } = await import('@testing-library/react');
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <LogsPage />
+      </QueryClientProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Auditoria de Negócio/i }));
+
+    expect(await screen.findByText(new Date(criadoEm).toLocaleString())).toBeInTheDocument();
+  });
 });

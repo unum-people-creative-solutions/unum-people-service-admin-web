@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { VersionHistoryList } from './VersionHistoryList';
+import { comoMock, OpcoesDeMutation } from '@/test/mocks';
+import type { Term } from '@/types/term';
 
 vi.mock('@/services/termService', () => ({
   termService: {
@@ -12,19 +14,19 @@ vi.mock('@/services/termService', () => ({
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    ...(actual as any),
+    ...(actual as object),
     useQuery: vi.fn(),
     useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
     useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
   };
 });
 
-const term = { id: 'term-1', name: 'Termo Site', description: '', is_active: true, current_version: 2 } as any;
+const term: Term = { id: 'term-1', name: 'Termo Site', description: '', is_active: true, current_version: 2, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' };
 
 describe('VersionHistoryList', () => {
   it('lista as versões com link para o HTML publicado', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: [
         { term_id: 'term-1', version_number: 1, content_html_url: 'https://cdn.example.com/terms/term-1/v1.html', published_by: 'a@x.com', published_at: '2026-01-01T00:00:00Z', changelog: 'v1' },
         { term_id: 'term-1', version_number: 2, content_html_url: 'https://cdn.example.com/terms/term-1/v2.html', published_by: 'a@x.com', published_at: '2026-02-01T00:00:00Z', changelog: 'v2' },
@@ -42,14 +44,14 @@ describe('VersionHistoryList', () => {
 
   it('exclui uma versão sem aceites com sucesso', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: [{ term_id: 'term-1', version_number: 1, content_html_url: 'https://cdn/v1.html', published_by: 'a@x.com', published_at: '2026-01-01T00:00:00Z', changelog: '' }],
       isLoading: false,
     });
 
     const mutateSpy = vi.fn();
-    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
-      mutate: (variables: any) => {
+    comoMock(useMutation).mockImplementation(({ mutationFn }: OpcoesDeMutation) => ({
+      mutate: (variables: unknown) => {
         mutationFn(variables);
         mutateSpy(variables);
       },
@@ -69,13 +71,13 @@ describe('VersionHistoryList', () => {
 
   it('exclusão bloqueada (409) mantém o item na lista e mostra mensagem de erro', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({
+    comoMock(useQuery).mockReturnValue({
       data: [{ term_id: 'term-1', version_number: 1, content_html_url: 'https://cdn/v1.html', published_by: 'a@x.com', published_at: '2026-01-01T00:00:00Z', changelog: '' }],
       isLoading: false,
     });
 
-    let onErrorCallback: ((err: any) => void) | undefined;
-    (useMutation as any).mockImplementation(({ onError }: any) => {
+    let onErrorCallback: ((err: unknown) => unknown) | undefined;
+    comoMock(useMutation).mockImplementation(({ onError }: OpcoesDeMutation) => {
       onErrorCallback = onError;
       return {
         mutate: () => onErrorCallback && onErrorCallback(new Error('term version has active acceptances')),

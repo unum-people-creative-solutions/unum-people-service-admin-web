@@ -26,9 +26,14 @@ export function BillingCard({ tenant, contract }: BillingCardProps) {
   });
 
 
-  useEffect(() => {
+  // Quando o contrato da prop muda (refetch do tenant), a cópia local o
+  // acompanha. Ajuste durante a renderização, como recomenda o React, em vez
+  // de um efeito que renderiza duas vezes.
+  const [contratoDaProp, setContratoDaProp] = useState(contract);
+  if (contract !== contratoDaProp) {
+    setContratoDaProp(contract);
     setLocalContract(contract);
-  }, [contract]);
+  }
 
   useEffect(() => {
     let interval: NodeJS.Timeout;

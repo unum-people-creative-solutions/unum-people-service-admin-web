@@ -3,6 +3,7 @@ import { TenantSitesSection } from './TenantSitesSection';
 import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { tenantService } from '@/services/tenantService';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { Site, SiteDetail } from '@/types/tenant';
 
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
@@ -46,7 +47,7 @@ describe('TenantSitesSection Component', () => {
         theme_id: 't1',
         created_at: '2026-09-06T10:00:00Z',
       },
-    ] as any);
+    ] as Site[]);
 
     renderSection();
 
@@ -84,7 +85,7 @@ describe('TenantSitesSection Component', () => {
         layout_id: 'l1',
         theme_id: 't1',
       },
-    ] as any);
+    ] as Site[]);
     vi.mocked(tenantService.getSite).mockResolvedValue({
       site_id: 'lp_t1',
       slug: 'estudio-foto',
@@ -96,7 +97,7 @@ describe('TenantSitesSection Component', () => {
       content: { 'header.business_name': { kind: 'text', value: 'Estúdio Foto' } },
       contact: { whatsapp: '41999998888' },
       seo: { title: 'Estúdio Foto' },
-    } as any);
+    } as SiteDetail);
 
     renderSection();
 

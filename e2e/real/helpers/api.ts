@@ -43,5 +43,5 @@ export async function deleteTenant(id: string) {
 }
 
 export async function listPlans() {
-  return apiCall<{ active: { slug: string; nome: string; activation_fee: number; monthly_value: number }[]; inactive: any[] }>('GET', '/admin/plans');
+  return apiCall<{ active: { slug: string; nome: string; activation_fee: number; monthly_value: number }[]; inactive: unknown[] }>('GET', '/admin/plans');
 }

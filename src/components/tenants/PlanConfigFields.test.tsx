@@ -2,11 +2,13 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useForm, FormProvider } from 'react-hook-form';
 import { PlanConfigFields } from './PlanConfigFields';
+import type { Plan } from '@/types/tenant';
+import type { Term } from '@/types/term';
 
 const defaultTerms = [{ id: 't1', name: 'Termo Padrão', description: '', is_active: true, current_version: 1 }];
 
 // Wrapper component to provide react-hook-form context
-const Wrapper = ({ plansData = { active: [] } as any, terms = defaultTerms as any, defaultValues = {} as any, isEditMode = undefined as boolean | undefined, onSubmit = vi.fn() }) => {
+const Wrapper = ({ plansData = { active: [] } as { active: Partial<Plan>[]; inactive?: Partial<Plan>[] }, terms = defaultTerms as Partial<Term>[], defaultValues = {} as Record<string, unknown>, isEditMode = undefined as boolean | undefined, onSubmit = vi.fn() }) => {
   const methods = useForm({
     defaultValues: {
       plan_id: 'livre',
@@ -21,7 +23,8 @@ const Wrapper = ({ plansData = { active: [] } as any, terms = defaultTerms as an
   return (
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmit)}>
-        <PlanConfigFields plansData={plansData} terms={terms} isEditMode={isEditMode} />
+        {/* Os testes montam só os campos de Plan que o componente lê. */}
+        <PlanConfigFields plansData={plansData as { active: Plan[]; inactive?: Plan[] }} terms={terms as Term[]} isEditMode={isEditMode} />
         <button type="submit">Submit</button>
       </form>
     </FormProvider>
@@ -29,7 +32,7 @@ const Wrapper = ({ plansData = { active: [] } as any, terms = defaultTerms as an
 };
 
 describe('PlanConfigFields', () => {
-  const mockPlans = {
+  const mockPlans: { active: Partial<Plan>[] } = {
     active: [
       { slug: 'lp_basico', nome: 'LP Básico', activation_fee: 100, monthly_value: 50, included_services: ['lp'] },
     ],
@@ -130,7 +133,7 @@ describe('PlanConfigFields', () => {
   });
 
   // T08 — Atribuição ao tenant: ciclo read-only para pago, editável para personalizado
-  const mockPlansWithAnnual = {
+  const mockPlansWithAnnual: { active: Partial<Plan>[] } = {
     active: [
       { slug: 'lp_basico', nome: 'LP Básico', activation_fee: 100, monthly_value: 50, included_services: ['lp'], cycle: 'anual' },
     ],

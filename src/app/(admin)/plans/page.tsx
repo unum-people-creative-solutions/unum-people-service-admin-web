@@ -8,6 +8,7 @@ import { termService } from '@/services/termService';
 import { Plan } from '@/types/tenant';
 import { Term } from '@/types/term';
 import * as Dialog from '@radix-ui/react-dialog';
+import { ApiError } from '@/lib/apiError';
 import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
 
 // Campos de texto do formulário que o backend recebe como lista/string tratada.
@@ -74,7 +75,7 @@ export default function PlansPage() {
       setIsDrawerOpen(false);
       reset(defaultPlanValues);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setFormError(error?.message || 'Falha ao criar o plano. Tente novamente.');
     },
   });
@@ -87,7 +88,7 @@ export default function PlansPage() {
       setEditingPlan(null);
       reset(defaultPlanValues);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setFormError(error?.message || 'Falha ao salvar o plano. Tente novamente.');
     },
   });
@@ -162,8 +163,8 @@ export default function PlansPage() {
       setDeleteError(null);
       queryClient.invalidateQueries({ queryKey: ['plans'] });
     },
-    onError: (error: any) => {
-      if (error?.response?.status === 409) {
+    onError: (error: Error) => {
+      if (error instanceof ApiError && error.status === 409) {
         setDeleteError('Não é possível excluir um plano com tenants vinculados.');
       } else {
         setDeleteError('Falha ao excluir o plano. Tente novamente.');

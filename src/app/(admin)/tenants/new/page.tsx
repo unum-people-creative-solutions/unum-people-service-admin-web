@@ -23,10 +23,7 @@ export default function NewTenantPage() {
 
   const { data: plansData, isLoading: isLoadingPlans } = useQuery({
     queryKey: ['plans'],
-    queryFn: async () => {
-      const plans = await planService.listPlans();
-      return plans as any;
-    },
+    queryFn: planService.listPlans,
   });
   const { data: termsData } = useQuery({
     queryKey: ['terms'],
