@@ -90,7 +90,7 @@ export default function TenantsPage() {
                       })()}
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/tenants/${tenant.id}`} className="text-primary-600 hover:text-primary-900 text-sm font-medium">
+                      <Link href={`/tenants/${encodeURIComponent(tenant.id)}`} className="text-primary-600 hover:text-primary-900 text-sm font-medium">
                         Detalhes
                       </Link>
                     </td>

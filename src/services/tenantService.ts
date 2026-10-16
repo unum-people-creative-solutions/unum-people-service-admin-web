@@ -76,36 +76,40 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
   return (text ? JSON.parse(text) : null) as T;
 }
 
+// O tenant de demonstração tem "#" no ID (TENANT#DEMO_REVIEW): sem codificar,
+// o "#" corta a URL e a API recebe só "TENANT".
+const tenantPath = (id: string) => `/admin/tenants/${encodeURIComponent(id)}`;
+
 export const tenantService = {
   list: (): Promise<Tenant[]> => fetchWithAuth('/admin/tenants'),
   
-  getById: (id: string): Promise<Tenant> => fetchWithAuth(`/admin/tenants/${id}`),
+  getById: (id: string): Promise<Tenant> => fetchWithAuth(tenantPath(id)),
   
   create: (data: CreateTenantInput): Promise<Tenant> => fetchWithAuth('/admin/tenants', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
   
-  changePlan: (tenantId: string, input: ChangePlanInput): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${tenantId}/plan`, {
+  changePlan: (tenantId: string, input: ChangePlanInput): Promise<{ message: string }> => fetchWithAuth(`${tenantPath(tenantId)}/plan`, {
     method: 'POST',
     body: JSON.stringify(input),
   }),
 
-  updateBillingMethod: (tenantId: string, subscriptionBillingType: string): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${tenantId}/billing-method`, {
+  updateBillingMethod: (tenantId: string, subscriptionBillingType: string): Promise<{ message: string }> => fetchWithAuth(`${tenantPath(tenantId)}/billing-method`, {
     method: 'POST',
     body: JSON.stringify({ subscription_billing_type: subscriptionBillingType }),
   }),
 
-  update: (id: string, data: Partial<Tenant>): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}`, {
+  update: (id: string, data: Partial<Tenant>): Promise<{ message: string }> => fetchWithAuth(tenantPath(id), {
     method: 'PATCH',
     body: JSON.stringify(data),
   }),
 
-  delete: (id: string, immediate: boolean): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${id}${immediate ? '?immediate=true' : ''}`, {
+  delete: (id: string, immediate: boolean): Promise<{ message: string }> => fetchWithAuth(`${tenantPath(id)}${immediate ? '?immediate=true' : ''}`, {
     method: 'DELETE',
   }),
 
-  resetUserPassword: (tenantId: string, email: string): Promise<{ message: string }> => fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/reset-password`, {
+  resetUserPassword: (tenantId: string, email: string): Promise<{ message: string }> => fetchWithAuth(`${tenantPath(tenantId)}/users/${email}/reset-password`, {
     method: 'POST',
   }),
 
@@ -134,68 +138,68 @@ export const tenantService = {
   },
 
   listUsers: (tenantId: string): Promise<TenantUser[]> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/users`, { method: 'GET' }),
+    fetchWithAuth(`${tenantPath(tenantId)}/users`, { method: 'GET' }),
 
   addUser: (tenantId: string, data: AddTenantUserInput): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/users`, {
+    fetchWithAuth(`${tenantPath(tenantId)}/users`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   removeUser: (tenantId: string, email: string): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}`, {
+    fetchWithAuth(`${tenantPath(tenantId)}/users/${email}`, {
       method: 'DELETE',
     }),
 
   updateUserRole: (tenantId: string, email: string, role: TenantUserRole): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/role`, {
+    fetchWithAuth(`${tenantPath(tenantId)}/users/${email}/role`, {
       method: 'PATCH',
       body: JSON.stringify({ role }),
     }),
 
   blockUser: (tenantId: string, email: string, isBlocked: boolean): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/block`, {
+    fetchWithAuth(`${tenantPath(tenantId)}/users/${email}/block`, {
       method: 'PATCH',
       body: JSON.stringify({ is_blocked: isBlocked }),
     }),
 
   updateUserName: (tenantId: string, email: string, name: string): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/users/${email}/name`, {
+    fetchWithAuth(`${tenantPath(tenantId)}/users/${email}/name`, {
       method: 'PATCH',
       body: JSON.stringify({ name }),
     }),
 
   retryBilling: (tenantId: string): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/subscription/retry`, {
+    fetchWithAuth(`${tenantPath(tenantId)}/subscription/retry`, {
       method: 'POST',
     }),
 
   retryActivation: (tenantId: string): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/activation/retry`, {
+    fetchWithAuth(`${tenantPath(tenantId)}/activation/retry`, {
       method: 'POST',
     }),
 
   reactivateTenant: (tenantId: string): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/reactivate`, {
+    fetchWithAuth(`${tenantPath(tenantId)}/reactivate`, {
       method: 'POST',
     }),
 
   pauseSubscription: (id: string): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${id}/pause`, {
+    fetchWithAuth(`${tenantPath(id)}/pause`, {
       method: 'POST',
     }),
 
   cancelContract: (id: string): Promise<{ message: string }> =>
-    fetchWithAuth(`/admin/tenants/${id}/cancel`, {
+    fetchWithAuth(`${tenantPath(id)}/cancel`, {
       method: 'POST',
     }),
 
   listInvoices: (tenantId: string): Promise<Invoice[]> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/invoices`, { method: 'GET' }),
+    fetchWithAuth(`${tenantPath(tenantId)}/invoices`, { method: 'GET' }),
 
   listSites: (tenantId: string): Promise<Site[]> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/sites`, { method: 'GET' }),
+    fetchWithAuth(`${tenantPath(tenantId)}/sites`, { method: 'GET' }),
 
   getSite: (tenantId: string, siteId: string): Promise<SiteDetail> =>
-    fetchWithAuth(`/admin/tenants/${tenantId}/sites/${siteId}`, { method: 'GET' }),
+    fetchWithAuth(`${tenantPath(tenantId)}/sites/${siteId}`, { method: 'GET' }),
 };
