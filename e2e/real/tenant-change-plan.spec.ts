@@ -142,7 +142,10 @@ async function changePlanViaUI(
 async function listActivePlans(): Promise<
   Array<{ slug: string; nome: string; cycle: string; activation_fee: number; monthly_value: number }>
 > {
-  const data = await apiCall<{ active: any[]; inactive: any[] }>('GET', '/admin/plans');
+  const data = await apiCall<{
+    active: Array<{ slug: string; nome: string; cycle: string; activation_fee: number; monthly_value: number }>;
+    inactive: unknown[];
+  }>('GET', '/admin/plans');
   return data.active ?? [];
 }
 

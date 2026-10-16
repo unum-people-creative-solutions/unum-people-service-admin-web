@@ -24,7 +24,7 @@ describe('Sidebar Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useRouter).mockReturnValue({ push: mockPush } as unknown as ReturnType<typeof useRouter>);
-    vi.mocked(useAuthStore).mockReturnValue({ logout: mockLogout } as any);
+    vi.mocked(useAuthStore).mockReturnValue({ logout: mockLogout } as unknown as ReturnType<typeof useAuthStore>);
   });
 
   test('renders all menu links', () => {

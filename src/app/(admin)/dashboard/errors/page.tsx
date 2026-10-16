@@ -5,16 +5,20 @@ import { useQuery } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { AlertCircle, Clock, RefreshCw, Filter, Search, ShieldCheck, Bug, Calendar, ChevronRight, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { AuditRecord, SystemErrorLog } from '@/types/dashboard';
 
 type LogSource = 'system' | 'audit';
 type Period = 'today' | '7d' | '30d' | 'all';
+// A lista mostra erros do CloudWatch (fonte 'system') ou registros de auditoria
+// (fonte 'audit'); cada linha tem os campos de um dos dois contratos.
+type RegistroDoMonitor = Partial<SystemErrorLog> & Partial<AuditRecord>;
 
 export default function LogsPage() {
   const [source, setSource] = useState<LogSource>('system');
   const [service, setService] = useState<string>('');
   const [period, setPeriod] = useState<Period>('today');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLog, setSelectedLog] = useState<any | null>(null);
+  const [selectedLog, setSelectedLog] = useState<RegistroDoMonitor | null>(null);
 
   const getPeriodDates = (p: Period) => {
     if (p === 'all') return { start: undefined, end: undefined };
@@ -28,7 +32,7 @@ export default function LogsPage() {
 
   const { data: logs, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['admin-logs', source, service, period],
-    queryFn: () => {
+    queryFn: (): Promise<RegistroDoMonitor[] | null> => {
       const { start, end } = getPeriodDates(period);
       if (source === 'system') {
         return tenantService.getSystemErrors({
@@ -172,8 +176,8 @@ export default function LogsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredLogs.map((log: any, idx: number) => {
-                    const timestamp = log.timestamp || log.created_at;
+                  filteredLogs.map((log, idx) => {
+                    const timestamp = log.timestamp || log.created_at || '';
                     const message = log.message || log.new_state || 'Sem detalhes';
                     const level = log.level || log.action;
                     const isError = level === 'ERROR' || level?.includes('ERROR');
@@ -251,7 +255,7 @@ export default function LogsPage() {
             <div className="p-6 overflow-y-auto bg-slate-50/30">
               <div className="bg-slate-900 rounded-xl p-6 font-mono text-sm leading-relaxed overflow-x-auto shadow-inner border border-slate-800">
                 <div className="text-slate-500 mb-4 pb-4 border-b border-slate-800">
-                  <span className="text-emerald-500">// {new Date(selectedLog.timestamp || selectedLog.created_at).toLocaleString()}</span>
+                  <span className="text-emerald-500">{'// '}{new Date(selectedLog.timestamp || selectedLog.created_at || '').toLocaleString()}</span>
                   <br />
                   <span className="text-blue-400"># Origin:</span> {selectedLog.service || selectedLog.target_id || 'System'}
                   <br />
@@ -262,7 +266,7 @@ export default function LogsPage() {
                 </div>
                 {selectedLog.old_state && (
                   <div className="mt-6 pt-6 border-t border-slate-800">
-                    <span className="text-amber-400">// Estado Anterior:</span>
+                    <span className="text-amber-400">{'// Estado Anterior:'}</span>
                     <pre className="mt-2 text-slate-400 text-xs">
                       {selectedLog.old_state}
                     </pre>

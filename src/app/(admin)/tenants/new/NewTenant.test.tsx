@@ -45,7 +45,7 @@ describe('NewTenantPage - Separation of Tenant and Admin', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useRouter).mockReturnValue({ push: mockPush } as any);
+    vi.mocked(useRouter).mockReturnValue({ push: mockPush } as unknown as ReturnType<typeof useRouter>);
   });
 
   test('deve conter uma seção distinta para Dados do Negócio (Tenant) com badge correspondente', () => {
@@ -107,7 +107,7 @@ describe('NewTenantPage - Separation of Tenant and Admin', () => {
     fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
 
     await waitFor(() => expect(tenantService.create).toHaveBeenCalled());
-    const payload = (tenantService.create as any).mock.calls[0][0];
+    const payload = vi.mocked(tenantService.create).mock.calls[0][0];
     expect(payload).not.toHaveProperty('temporary_password');
   });
 });
@@ -172,7 +172,7 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
     fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
 
     await waitFor(() => expect(tenantService.create).toHaveBeenCalled());
-    const payload = (tenantService.create as any).mock.calls[0][0];
+    const payload = vi.mocked(tenantService.create).mock.calls[0][0];
     expect(payload.activation_fee).toBe(150.5);
   });
 
@@ -242,7 +242,7 @@ describe('NewTenantPage - Formulário Adaptativo por Plano (T12)', () => {
 describe('NewTenantPage - RF-TT-03: Flag Tenant de Teste', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as any);
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
   });
 
   test('deve renderizar o checkbox "Tenant de teste" acessível por role', () => {
@@ -285,7 +285,7 @@ describe('NewTenantPage - RF-TT-03: Flag Tenant de Teste', () => {
     fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
 
     await waitFor(() => expect(tenantService.create).toHaveBeenCalled());
-    const payload = (tenantService.create as any).mock.calls[0][0];
+    const payload = vi.mocked(tenantService.create).mock.calls[0][0];
     expect(payload.is_test_tenant).toBe(true);
   });
 
@@ -305,7 +305,7 @@ describe('NewTenantPage - RF-TT-03: Flag Tenant de Teste', () => {
     fireEvent.click(screen.getByRole('button', { name: /criar tenant/i }));
 
     await waitFor(() => expect(tenantService.create).toHaveBeenCalled());
-    const payload = (tenantService.create as any).mock.calls[0][0];
+    const payload = vi.mocked(tenantService.create).mock.calls[0][0];
     expect(payload.is_test_tenant ?? false).toBe(false);
   });
 });
@@ -367,7 +367,7 @@ describe('NewTenantPage - T20: CPF obrigatório p/ pago + seletores de método (
 describe('NewTenantPage - TASK-FE-005: Termo de Contratação (Personalizado/Livre)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as any);
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
   });
 
   test('não bloqueia a criação de tenant PAGO por falta de termo (vem implícito do plano)', async () => {

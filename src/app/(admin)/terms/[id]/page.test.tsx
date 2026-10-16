@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import TermEditPage from './page';
+import { comoMock, OpcoesDeMutation } from '@/test/mocks';
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 't1' }),
@@ -23,7 +24,7 @@ vi.mock('../_components/VersionHistoryList', () => ({
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    ...(actual as any),
+    ...(actual as object),
     useQuery: vi.fn(),
     useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
     useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
@@ -35,7 +36,7 @@ const term = { id: 't1', name: 'Termo Site', description: 'Escopo do pacote site
 describe('TermEditPage', () => {
   it('renderiza as informações do termo e o histórico de versões', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [term], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [term], isLoading: false });
 
     render(<TermEditPage />);
 
@@ -47,7 +48,7 @@ describe('TermEditPage', () => {
 
   it('exibe "Termo não encontrado" quando o id não corresponde a nenhum termo', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [], isLoading: false });
 
     render(<TermEditPage />);
 
@@ -56,10 +57,10 @@ describe('TermEditPage', () => {
 
   it('salvar informações chama termService.update com os dados do formulário', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [term], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [term], isLoading: false });
 
-    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
-      mutate: (variables: any) => mutationFn(variables),
+    comoMock(useMutation).mockImplementation(({ mutationFn }: OpcoesDeMutation) => ({
+      mutate: (variables: unknown) => mutationFn(variables),
       isPending: false,
     }));
 
@@ -77,7 +78,7 @@ describe('TermEditPage', () => {
 
   it('alterna entre Editor e Preview, renderizando o Markdown no preview', async () => {
     const { useQuery } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [term], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [term], isLoading: false });
 
     render(<TermEditPage />);
 
@@ -93,10 +94,10 @@ describe('TermEditPage', () => {
 
   it('publicar versão chama termService.publishVersion com o conteúdo e o changelog', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [term], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [term], isLoading: false });
 
-    (useMutation as any).mockImplementation(({ mutationFn }: any) => ({
-      mutate: (variables: any) => mutationFn(variables),
+    comoMock(useMutation).mockImplementation(({ mutationFn }: OpcoesDeMutation) => ({
+      mutate: (variables: unknown) => mutationFn(variables),
       isPending: false,
     }));
 
@@ -118,9 +119,9 @@ describe('TermEditPage', () => {
 
   it('erro ao publicar versão é exibido, nunca engolido silenciosamente', async () => {
     const { useQuery, useMutation } = await import('@tanstack/react-query');
-    (useQuery as any).mockReturnValue({ data: [term], isLoading: false });
+    comoMock(useQuery).mockReturnValue({ data: [term], isLoading: false });
 
-    (useMutation as any).mockImplementation(({ onError }: any) => ({
+    comoMock(useMutation).mockImplementation(({ onError }: OpcoesDeMutation) => ({
       mutate: () => onError && onError(new Error('Falha ao publicar')),
       isPending: false,
     }));

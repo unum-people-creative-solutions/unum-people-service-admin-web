@@ -3,11 +3,13 @@ import { useFormContext, useWatch, Controller } from 'react-hook-form';
 import { CurrencyInputBR } from '@/components/forms/CurrencyInputBR';
 import { formatCpfCnpj, isValidCpfCnpj } from '@/lib/cpfCnpj';
 import { Term } from '@/types/term';
+import { Plan } from '@/types/tenant';
 
 interface PlanConfigFieldsProps {
-  plansData: {
-    active: any[];
-    inactive?: any[];
+  // Ausente enquanto a consulta de planos carrega.
+  plansData?: {
+    active: Plan[];
+    inactive?: Plan[];
   };
   currentPlanId?: string;
   /**
@@ -39,7 +41,7 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode, terms =
   let resolvedCycle: 'mensal' | 'anual' = 'mensal';
   if (planType === 'pago') {
     const activePlans = plansData?.active ?? [];
-    const plan = activePlans.find((p: any) => p.slug === selectedPlanId);
+    const plan = activePlans.find((p) => p.slug === selectedPlanId);
     resolvedCycle = plan?.cycle ?? 'mensal';
   } else if (planType === 'personalizado') {
     resolvedCycle = selectedCycle ?? 'mensal';
@@ -55,7 +57,7 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode, terms =
       const activePlans = plansData?.active ?? [];
       const inactivePlans = plansData?.inactive ?? [];
       const allPlans = [...activePlans, ...inactivePlans];
-      const plan = allPlans.find((p: any) => p.slug === selectedPlanId);
+      const plan = allPlans.find((p) => p.slug === selectedPlanId);
       if (plan) {
         setValue('activation_fee', plan.activation_fee ?? 0, { shouldDirty: isPlanChanged });
         setValue('monthly_value', plan.monthly_value ?? 0, { shouldDirty: isPlanChanged });
@@ -82,7 +84,7 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode, terms =
   useEffect(() => {
     if (planType !== 'pago') return;
     const activePlans = plansData?.active ?? [];
-    const plan = activePlans.find((p: any) => p.slug === selectedPlanId);
+    const plan = activePlans.find((p) => p.slug === selectedPlanId);
     if (plan) {
       setValue('plan_cycle', plan.cycle ?? 'mensal', { shouldDirty: true });
     }
@@ -124,7 +126,7 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode, terms =
             
             {plansData?.active && plansData.active.length > 0 && (
               <optgroup label="Planos Ativos">
-                {plansData.active.map((plan: any) => (
+                {plansData.active.map((plan) => (
                   <option key={plan.slug} value={plan.slug}>{plan.nome}</option>
                 ))}
               </optgroup>
@@ -132,7 +134,7 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode, terms =
             
             {plansData?.inactive && plansData.inactive.length > 0 && (
               <optgroup label="Planos Desativados">
-                {plansData.inactive.map((plan: any) => (
+                {plansData.inactive.map((plan) => (
                   <option key={plan.slug} value={plan.slug}>{plan.nome} (Desativado)</option>
                 ))}
               </optgroup>
@@ -141,8 +143,8 @@ export function PlanConfigFields({ plansData, currentPlanId, isEditMode, terms =
             {currentPlanId && 
               currentPlanId !== 'livre' && 
               currentPlanId !== 'personalizado' &&
-              !plansData?.active?.some((p: any) => p.slug === currentPlanId) && 
-              !plansData?.inactive?.some((p: any) => p.slug === currentPlanId) && (
+              !plansData?.active?.some((p) => p.slug === currentPlanId) && 
+              !plansData?.inactive?.some((p) => p.slug === currentPlanId) && (
                 <option value={currentPlanId}>{currentPlanId}</option>
             )}
           </select>

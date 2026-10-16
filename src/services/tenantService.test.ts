@@ -2,15 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { tenantService } from './tenantService'
 import { useAuthStore } from '@/store/useAuthStore'
 import { TenantUser, TenantUserRole, AddTenantUserInput } from '@/types/tenant'
+import { ApiError } from '@/lib/apiError'
 
 // Mock globals
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+// Assinatura do callback de CognitoUser.refreshSession usada nos mocks abaixo.
+type CallbackDeRefresh = (erro: Error | null, sessao: unknown) => void
+
 // Mock CognitoUser para refresh
 vi.mock('amazon-cognito-identity-js', () => ({
-  CognitoUser: vi.fn(function (this: any) {
-    this.refreshSession = vi.fn((_refreshToken: any, callback: any) => {
+  CognitoUser: vi.fn(function (this: { refreshSession?: unknown }) {
+    this.refreshSession = vi.fn((_refreshToken: unknown, callback: CallbackDeRefresh) => {
       callback(null, {
         getIdToken: () => ({
           getJwtToken: () => 'refreshed-id-token',
@@ -22,7 +26,7 @@ vi.mock('amazon-cognito-identity-js', () => ({
     })
   }),
   CognitoUserPool: vi.fn(),
-  CognitoRefreshToken: vi.fn(function (this: any, { RefreshToken }: any) {
+  CognitoRefreshToken: vi.fn(function (this: { getToken?: () => string }, { RefreshToken }: { RefreshToken: string }) {
     this.getToken = () => RefreshToken
   }),
 }))
@@ -41,6 +45,21 @@ describe('tenantService', () => {
       isAuthenticated: true,
       isAdmin: true,
       hasHydrated: true,
+    })
+  })
+
+  describe('erros HTTP', () => {
+    it('resposta 409 vira ApiError com o status HTTP e a mensagem do backend', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({ error: 'conflito' }),
+      })
+
+      const chamada = tenantService.delete('t1', false)
+
+      await expect(chamada).rejects.toBeInstanceOf(ApiError)
+      await expect(chamada).rejects.toMatchObject({ status: 409, message: 'conflito' })
     })
   })
 
@@ -338,8 +357,8 @@ describe('tenantService', () => {
       // Override refreshSession mock to fail
       const cognitoModule = await import('amazon-cognito-identity-js')
       const mockCognitoUser = cognitoModule.CognitoUser as unknown as ReturnType<typeof vi.fn>
-      mockCognitoUser.mockImplementationOnce(function (this: any) {
-        this.refreshSession = vi.fn((_refreshToken: any, callback: any) => {
+      mockCognitoUser.mockImplementationOnce(function (this: { refreshSession?: unknown }) {
+        this.refreshSession = vi.fn((_refreshToken: unknown, callback: CallbackDeRefresh) => {
           callback(new Error('Refresh failed'), null)
         })
       })
@@ -476,5 +495,56 @@ describe('tenantService', () => {
       )
       expect(result).toEqual(mockInvoices)
     })
+  })
+})
+
+// O tenant de demonstração tem "#" no ID (TENANT#DEMO_REVIEW). Sem codificar,
+// o "#" corta a URL e a API recebe só "TENANT".
+describe('tenantService — ID do tenant no caminho', () => {
+  const id = 'TENANT#DEMO_REVIEW'
+  const caminho = '/admin/tenants/TENANT%23DEMO_REVIEW'
+
+  beforeEach(() => {
+    mockFetch.mockReset()
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}), text: async () => '{}' })
+    useAuthStore.setState({
+      user: { email: 'admin@test.com', groups: ['GlobalAdmin'] },
+      token: 'valid-access-token',
+      refreshToken: 'valid-refresh-token',
+      isAuthenticated: true,
+      isAdmin: true,
+      hasHydrated: true,
+    })
+  })
+
+  const chamadas: Array<[string, () => Promise<unknown>]> = [
+    ['getById', () => tenantService.getById(id)],
+    ['changePlan', () => tenantService.changePlan(id, {} as Parameters<typeof tenantService.changePlan>[1])],
+    ['updateBillingMethod', () => tenantService.updateBillingMethod(id, 'PIX')],
+    ['update', () => tenantService.update(id, {})],
+    ['delete', () => tenantService.delete(id, true)],
+    ['resetUserPassword', () => tenantService.resetUserPassword(id, 'a@b.com')],
+    ['listUsers', () => tenantService.listUsers(id)],
+    ['addUser', () => tenantService.addUser(id, {} as AddTenantUserInput)],
+    ['removeUser', () => tenantService.removeUser(id, 'a@b.com')],
+    ['updateUserRole', () => tenantService.updateUserRole(id, 'a@b.com', 'user' as TenantUserRole)],
+    ['blockUser', () => tenantService.blockUser(id, 'a@b.com', true)],
+    ['updateUserName', () => tenantService.updateUserName(id, 'a@b.com', 'Nome')],
+    ['retryBilling', () => tenantService.retryBilling(id)],
+    ['retryActivation', () => tenantService.retryActivation(id)],
+    ['reactivateTenant', () => tenantService.reactivateTenant(id)],
+    ['pauseSubscription', () => tenantService.pauseSubscription(id)],
+    ['cancelContract', () => tenantService.cancelContract(id)],
+    ['listInvoices', () => tenantService.listInvoices(id)],
+    ['listSites', () => tenantService.listSites(id)],
+    ['getSite', () => tenantService.getSite(id, 'site-1')],
+  ]
+
+  it.each(chamadas)('%s codifica o ID', async (_nome, chamar) => {
+    await chamar()
+
+    const url = String(mockFetch.mock.calls[0][0])
+    expect(url).toContain(caminho)
+    expect(url).not.toContain('#')
   })
 })

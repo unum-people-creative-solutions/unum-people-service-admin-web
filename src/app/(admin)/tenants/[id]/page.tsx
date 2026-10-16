@@ -68,10 +68,42 @@ const getStatusBadge = (tenant: Tenant & { delinquency_since?: string | null }) 
 
 type TenantFormValues = Omit<Partial<Tenant>, 'site_urls'> & {
   site_urls?: SiteUrlItem[];
+  // Campos do Contract editados pelo PlanConfigFields (não existem em Tenant).
+  term_id?: string;
+  activation_fee?: number;
+};
+
+// Campos alterados no formulário, enviados ao Update genérico ou guardados
+// para a confirmação de troca de plano.
+type DadosAlterados = Partial<Tenant> & { term_id?: string; activation_fee?: number };
+
+// Indicador de seção alterada/sincronizada. Fica fora do componente da página
+// para não ser recriado a cada renderização.
+const StatusLed = ({ active, section }: { active: boolean; section: string }) => {
+  const label = active ? 'Alterações Pendentes' : 'Sincronizado';
+  return (
+    <div 
+      role="status"
+      aria-label={`${section}: ${label}`}
+      className={`group relative flex items-center justify-center h-6 w-6 border rounded-full transition-all duration-300 ${active ? 'bg-red-50 border-red-200 animate-pulse shadow-sm shadow-red-200' : 'bg-green-50 border-green-200'}`}
+    >
+      <span className={`h-2 w-2 rounded-full ${active ? 'bg-red-500' : 'bg-green-500'}`} />
+
+      {/* Tooltip posicionada para a esquerda para evitar corte pelo overflow-hidden do card */}
+      <div className="absolute right-full mr-2 hidden group-hover:block whitespace-nowrap bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-xl z-20">
+        {label}
+        <div className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-slate-800" />
+      </div>
+    </div>
+  );
 };
 
 export default function TenantDetailsPage() {
-  const { id } = useParams() as { id: string };
+  // O link codifica o ID (TENANT#DEMO_REVIEW chega como TENANT%23DEMO_REVIEW).
+  // Os IDs são UUID ou TENANT#<NOME>, sem "%" literal, então decodificar um
+  // valor que já veio decodificado não o altera.
+  const { id: idDaRota } = useParams() as { id: string };
+  const id = decodeURIComponent(idDaRota);
   const router = useRouter();
   const queryClient = useQueryClient();
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -85,7 +117,7 @@ export default function TenantDetailsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const [showChangePlanModal, setShowChangePlanModal] = useState(false);
-  const [pendingPlanData, setPendingPlanData] = useState<Partial<Tenant> | null>(null);
+  const [pendingPlanData, setPendingPlanData] = useState<DadosAlterados | null>(null);
 
   const methods = useForm<TenantFormValues>();
   const { register, handleSubmit, reset, setValue, control, formState: { dirtyFields, isDirty } } = methods;
@@ -103,10 +135,7 @@ export default function TenantDetailsPage() {
 
   const { data: plansData } = useQuery({
     queryKey: ['plans'],
-    queryFn: async () => {
-      const data = await planService.listPlans();
-      return data as any;
-    },
+    queryFn: planService.listPlans,
   });
 
   // Sincroniza dados e evita discrepância entre null e "" para o estado 'dirty'
@@ -153,7 +182,7 @@ export default function TenantDetailsPage() {
       setSuccessMsg('Dados atualizados com sucesso!');
       setTimeout(() => setSuccessMsg(null), 3000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err?.message || 'Erro ao atualizar os dados do tenant.');
       setTimeout(() => setErrorMsg(null), 5000);
     }
@@ -168,7 +197,7 @@ export default function TenantDetailsPage() {
       setShowChangePlanModal(false);
       setPendingPlanData(null);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err?.message || 'Erro ao alterar o plano. Tente novamente.');
       setTimeout(() => setErrorMsg(null), 5000);
       setShowChangePlanModal(false);
@@ -185,7 +214,7 @@ export default function TenantDetailsPage() {
       setSuccessMsg('Método de pagamento da assinatura atualizado com sucesso!');
       setTimeout(() => setSuccessMsg(null), 3000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err?.message || 'Erro ao atualizar o método de pagamento da assinatura.');
       setTimeout(() => setErrorMsg(null), 5000);
     }
@@ -213,7 +242,7 @@ export default function TenantDetailsPage() {
       setSuccessMsg('Assinatura pausada com sucesso!');
       setTimeout(() => setSuccessMsg(null), 3000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err?.message || 'Erro ao pausar assinatura.');
       setTimeout(() => setErrorMsg(null), 5000);
     }
@@ -229,7 +258,7 @@ export default function TenantDetailsPage() {
       setSuccessMsg('Contrato cancelado com sucesso!');
       setTimeout(() => setSuccessMsg(null), 3000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err?.message || 'Erro ao cancelar contrato.');
       setTimeout(() => setErrorMsg(null), 5000);
     }
@@ -246,10 +275,9 @@ export default function TenantDetailsPage() {
   const isPlanoPreConfigurado = selectedPlanId !== 'livre' && selectedPlanId !== 'personalizado' && selectedPlanId !== '';
 
   const onSubmit = (data: TenantFormValues) => {
-    const dirtyData = Object.keys(dirtyFields).reduce((acc, key) => {
-      acc[key as keyof Tenant] = data[key as keyof TenantFormValues] as Tenant[keyof Tenant];
-      return acc;
-    }, {} as any);
+    const dirtyData = Object.fromEntries(
+      Object.keys(dirtyFields).map((key) => [key, data[key as keyof TenantFormValues]]),
+    ) as DadosAlterados;
 
     if (dirtyFields.site_urls) {
       dirtyData.site_urls = fromSiteUrlItems(data.site_urls);
@@ -262,15 +290,15 @@ export default function TenantDetailsPage() {
     // term_id só existe no form quando o plano selecionado é Personalizado/Livre
     // (PlanConfigFields); precisa ser forçado do mesmo jeito que plan_id, senão
     // o dirty-tracking pode não capturá-lo a tempo do modal de confirmação.
-    if ((data as any).term_id) {
-      dirtyData.term_id = (data as any).term_id;
+    if (data.term_id) {
+      dirtyData.term_id = data.term_id;
     }
 
     // term_id vive no Contract, não no Tenant — o Update genérico abaixo não
     // sabe gravá-lo (só ChangePlan sincroniza o Contract e invalida o aceite
     // anterior). Por isso, trocar só o termo (sem trocar de plano) também
     // precisa passar pelo mesmo fluxo de confirmação de ChangePlan.
-    if ((dirtyFields.plan_id && data.plan_id !== tenant.plan_id) || (dirtyFields as any).term_id) {
+    if ((dirtyFields.plan_id && data.plan_id !== tenant.plan_id) || dirtyFields.term_id) {
       setPendingPlanData(dirtyData);
       setShowChangePlanModal(true);
       return;
@@ -293,7 +321,7 @@ export default function TenantDetailsPage() {
       try {
         const selectedPlanId = pendingPlanData.plan_id;
         const allPlans = [...(plansData?.active ?? []), ...(plansData?.inactive ?? [])];
-        const selectedPlan = allPlans.find((p: any) => p.slug === selectedPlanId);
+        const selectedPlan = allPlans.find((p) => p.slug === selectedPlanId);
         
         const isLivre = selectedPlanId === 'livre';
         const isPersonalizado = selectedPlanId === 'personalizado';
@@ -302,12 +330,12 @@ export default function TenantDetailsPage() {
         const payload: ChangePlanInput = {
           plan_id: selectedPlanId,
           plan_type: planType,
-          term_id: (pendingPlanData as any).term_id,
+          term_id: pendingPlanData.term_id,
           monthly_value: (pendingPlanData.plan_value !== undefined && pendingPlanData.plan_value !== null && String(pendingPlanData.plan_value).trim() !== '') 
             ? Number(pendingPlanData.plan_value) 
             : (selectedPlan?.monthly_value ?? 0),
-          activation_fee: ((pendingPlanData as any).activation_fee !== undefined && (pendingPlanData as any).activation_fee !== null && String((pendingPlanData as any).activation_fee).trim() !== '')
-            ? Number((pendingPlanData as any).activation_fee)
+          activation_fee: (pendingPlanData.activation_fee !== undefined && pendingPlanData.activation_fee !== null && String(pendingPlanData.activation_fee).trim() !== '')
+            ? Number(pendingPlanData.activation_fee)
             : (selectedPlan?.activation_fee ?? 0),
           activation_billing_type: tenant?.contract?.activation_billing_type || 'pix',
           subscription_billing_type: tenant?.contract?.subscription_billing_type || 'pix',
@@ -326,7 +354,7 @@ export default function TenantDetailsPage() {
         // term_id já foi enviado via changePlanMutation acima (é campo do
         // Contract, não do Tenant) — o Update genérico não sabe gravá-lo e
         // ignoraria silenciosamente, então nem vale a pena mandar de novo.
-        delete (otherData as any).term_id;
+        delete otherData.term_id;
         if (Object.keys(otherData).length > 0) {
           await updateMutation.mutateAsync(otherData);
         }
@@ -377,29 +405,11 @@ export default function TenantDetailsPage() {
 
   // Idem: tenant.status vem em MAIÚSCULAS do backend; plan_status (legado)
   // já é minúsculo. Normaliza os dois para a mesma convenção antes de comparar.
-  const currentStatus = String(tenant.status || (tenant as any).plan_status || '').toLowerCase();
+  const currentStatus = String(tenant.status || tenant.plan_status || '').toLowerCase();
   const isPausarEnabled = ['ativo', 'inadimplente', 'suspenso'].includes(currentStatus as string);
   const isCancelarEnabled = !['cancelado', 'excluindo'].includes(currentStatus as string);
   const canDelete = currentStatus === 'cancelado';
 
-  const StatusLed = ({ active, section }: { active: boolean; section: string }) => {
-    const label = active ? 'Alterações Pendentes' : 'Sincronizado';
-    return (
-      <div 
-        role="status"
-        aria-label={`${section}: ${label}`}
-        className={`group relative flex items-center justify-center h-6 w-6 border rounded-full transition-all duration-300 ${active ? 'bg-red-50 border-red-200 animate-pulse shadow-sm shadow-red-200' : 'bg-green-50 border-green-200'}`}
-      >
-        <span className={`h-2 w-2 rounded-full ${active ? 'bg-red-500' : 'bg-green-500'}`} />
-        
-        {/* Tooltip posicionada para a esquerda para evitar corte pelo overflow-hidden do card */}
-        <div className="absolute right-full mr-2 hidden group-hover:block whitespace-nowrap bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-xl z-20">
-          {label}
-          <div className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-slate-800" />
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen">

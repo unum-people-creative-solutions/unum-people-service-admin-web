@@ -4,6 +4,8 @@ import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { useParams, useRouter } from 'next/navigation';
+import type { Tenant } from '@/types/tenant';
+import type { PlansGrouped } from '@/services/planService';
 
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
@@ -69,13 +71,38 @@ const mockTenant = {
   is_blocked: false,
 };
 
+// O tenant de demonstração tem "#" no ID (TENANT#DEMO_REVIEW). O link chega
+// codificado; a página decodifica uma vez, o que também vale se o valor já vier
+// decodificado.
+describe('TenantDetailsPage - ID com "#"', () => {
+  beforeEach(() => {
+    queryClient.clear();
+    vi.clearAllMocks();
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(tenantService.getById).mockResolvedValue(mockTenant as Tenant);
+  });
+
+  test.each(['TENANT%23DEMO_REVIEW', 'TENANT#DEMO_REVIEW'])('busca TENANT#DEMO_REVIEW quando a rota traz %s', async (parametro) => {
+    vi.mocked(useParams).mockReturnValue({ id: parametro });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => expect(tenantService.getById).toHaveBeenCalled());
+    expect(tenantService.getById).toHaveBeenCalledWith('TENANT#DEMO_REVIEW');
+  });
+});
+
 describe('TenantDetailsPage - Refactor Requirements', () => {
   beforeEach(() => {
     queryClient.clear();
     vi.clearAllMocks();
     vi.mocked(useParams).mockReturnValue({ id: 'tenant-123' });
-    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as any);
-    vi.mocked(tenantService.getById).mockResolvedValue(mockTenant as any);
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(tenantService.getById).mockResolvedValue(mockTenant as Tenant);
   });
 
   test('deve renderizar os novos campos editáveis', async () => {
@@ -119,7 +146,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
   });
 
   test('deve exigir confirmação textual para exclusão lógica', async () => {
-    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado' } as any);
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado' } as Tenant);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -146,7 +173,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
   });
 
   test('deve exibir aviso crítico ao habilitar Hard Delete dentro do modal de confirmação (tenant de teste)', async () => {
-    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as Tenant);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -179,7 +206,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
   describe('[Achado] "Modo Exclusão Física" bloqueado para tenant real; área separada de tenant de teste removida (redundante)', () => {
     test('switch fica desabilitado/bloqueado para tenant real, com texto explicativo no espaço reservado', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: false } as any);
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: false } as Tenant);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -202,7 +229,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     });
 
     test('switch fica habilitado para tenant de teste; texto do espaço reservado muda ao ativar/desativar', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as Tenant);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -229,7 +256,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     });
 
     test('a área separada "Excluir definitivamente agora" não existe mais, nem para tenant de teste', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as Tenant);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -249,7 +276,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     });
 
     test('tenant de teste com switch ativo chama tenantService.delete com immediate=true ao confirmar', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as any);
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado', is_test_tenant: true } as Tenant);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -278,7 +305,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
   });
 
   test('[Achado] ao cancelar o modal de exclusão, o "Modo Exclusão Física" volta à posição original ao reabrir', async () => {
-    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado' } as any);
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'cancelado' } as Tenant);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -345,7 +372,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
   test('deve preservar o plano desativado ao editar outro campo (T11)', async () => {
     // Mock the tenant with a disabled plan
     const tenantWithDisabledPlan = { ...mockTenant, plan_id: 'plano-desativado-legacy' };
-    vi.mocked(tenantService.getById).mockResolvedValue(tenantWithDisabledPlan as any);
+    vi.mocked(tenantService.getById).mockResolvedValue(tenantWithDisabledPlan as Tenant);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -377,7 +404,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
   test('ao selecionar um plano pré-configurado, preenche os serviços automaticamente a partir do plano', async () => {
     const tenantPersonalizado = { ...mockTenant, plan_id: 'personalizado', enabled_services: ['crm'] };
-    vi.mocked(tenantService.getById).mockResolvedValue(tenantPersonalizado as any);
+    vi.mocked(tenantService.getById).mockResolvedValue(tenantPersonalizado as Tenant);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -398,7 +425,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
   test('desabilita os checkboxes de serviços quando o plano selecionado é pré-configurado', async () => {
     const tenantComPlanoReal = { ...mockTenant, plan_id: 'lp_basico' };
-    vi.mocked(tenantService.getById).mockResolvedValue(tenantComPlanoReal as any);
+    vi.mocked(tenantService.getById).mockResolvedValue(tenantComPlanoReal as Tenant);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -443,12 +470,12 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
   test('deve manter o plano selecionado quando a lista de planos carrega depois do tenant (race condition)', async () => {
     const tenantWithRealPlan = { ...mockTenant, plan_id: 'lp_basico' };
-    vi.mocked(tenantService.getById).mockResolvedValue(tenantWithRealPlan as any);
+    vi.mocked(tenantService.getById).mockResolvedValue(tenantWithRealPlan as Tenant);
 
     // Simula listPlans resolvendo DEPOIS do tenant (cenário real: a contagem de
     // tenants por plano em listPlans é mais lenta que o GetItem do tenant).
     const { planService } = await import('@/services/planService');
-    let resolveListPlans: (value: any) => void;
+    let resolveListPlans: (value: PlansGrouped) => void;
     vi.mocked(planService.listPlans).mockImplementation(
       () => new Promise((resolve) => { resolveListPlans = resolve; })
     );
@@ -465,7 +492,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
     // Agora resolve listPlans - isso troca a option de fallback pela option "real"
     // dentro do optgroup, o que é exatamente o gatilho do bug (reset visual pra "Livre").
-    resolveListPlans!({ active: [{ slug: 'lp_basico', nome: 'LP Básico' }], inactive: [] });
+    resolveListPlans!({ active: [{ slug: 'lp_basico', nome: 'LP Básico' }], inactive: [] } as unknown as PlansGrouped); // planos parciais: a tela só lê slug e nome
 
     await waitFor(() => {
       expect(screen.getByRole('option', { name: 'LP Básico' })).toBeInTheDocument();
@@ -488,7 +515,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
     statusesAndLabels.forEach(({ status, label }) => {
       test(`deve exibir o badge "${label}" quando status for "${status}"`, async () => {
-        vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status } as any);
+        vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status } as Tenant);
 
         render(
           <QueryClientProvider client={queryClient}>
@@ -515,7 +542,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
           ...mockTenant, 
           status,
           delinquency_since: fiveDaysAgo.toISOString() 
-        } as any);
+        } as Tenant);
 
         render(
           <QueryClientProvider client={queryClient}>
@@ -532,7 +559,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
         ...mockTenant, 
         status: 'inadimplente',
         delinquency_since: undefined 
-      } as any);
+      } as Tenant);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -608,8 +635,8 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
         expect(tenantService.updateBillingMethod).toHaveBeenCalledWith('tenant-123', 'credit_card');
       });
 
-      const updateCalls = (tenantService.update as any).mock.calls;
-      updateCalls.forEach((call: any[]) => {
+      const updateCalls = vi.mocked(tenantService.update).mock.calls;
+      updateCalls.forEach((call) => {
         expect(call[1]).not.toHaveProperty('subscription_billing_type');
       });
     });
@@ -709,7 +736,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     };
 
     test('pré-seleciona o termo já vinculado ao tenant', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as any);
+      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as Tenant);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -724,7 +751,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     });
 
     test('LED de Assinatura acende e o modal de confirmação abre ao trocar só o termo', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as any);
+      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as Tenant);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -748,8 +775,8 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     });
 
     test('confirmar chama changePlan com o novo term_id e o mesmo plan_id (livre), nunca o Update genérico com term_id', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as any);
-      vi.mocked(tenantService.changePlan).mockResolvedValue({ message: 'ok' } as any);
+      vi.mocked(tenantService.getById).mockResolvedValue(livreTenant as Tenant);
+      vi.mocked(tenantService.changePlan).mockResolvedValue({ message: 'ok' });
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -772,8 +799,8 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
         }));
       });
 
-      const updateCalls = (tenantService.update as any).mock.calls;
-      updateCalls.forEach((call: any[]) => {
+      const updateCalls = vi.mocked(tenantService.update).mock.calls;
+      updateCalls.forEach((call) => {
         expect(call[1]).not.toHaveProperty('term_id');
       });
     });
@@ -803,8 +830,8 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
     test('[Bug] após cancelar contrato, botão "Cancelar Contrato" some e "Excluir Tenant" fica habilitado', async () => {
       vi.mocked(tenantService.getById)
-        .mockResolvedValueOnce({ ...mockTenant, status: 'ativo' } as any)
-        .mockResolvedValue({ ...mockTenant, status: 'cancelado' } as any);
+        .mockResolvedValueOnce({ ...mockTenant, status: 'ativo' } as Tenant)
+        .mockResolvedValue({ ...mockTenant, status: 'cancelado' } as Tenant);
       vi.mocked(tenantService.cancelContract).mockResolvedValue({ message: 'ok' });
 
       render(
@@ -858,7 +885,7 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
     });
 
     test('T12 — UI: "Excluir Tenant" desabilitado fora de CANCELADO', async () => {
-      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'ativo' } as any);
+      vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'ativo' } as Tenant);
       render(
         <QueryClientProvider client={queryClient}>
           <TenantDetailsPage />
@@ -882,7 +909,8 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
 
     describe('[Bug reportado] tenant.status vem em MAIÚSCULAS do backend (enum TenantStatus), mas a UI comparava contra strings minúsculas', () => {
       test('com status real "CANCELADO", habilita "Excluir Tenant" e oculta Pausar/Cancelar Contrato', async () => {
-        vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'CANCELADO' } as any);
+        // status em maiúsculas, como o backend envia (o tipo só lista minúsculas)
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'CANCELADO' } as unknown as Tenant);
 
         render(
           <QueryClientProvider client={queryClient}>
@@ -902,7 +930,8 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       });
 
       test('com status real "ATIVO", mantém "Excluir Tenant" desabilitado e exibe Pausar Assinatura / Cancelar Contrato', async () => {
-        vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'ATIVO' } as any);
+        // status em maiúsculas, como o backend envia (o tipo só lista minúsculas)
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, status: 'ATIVO' } as unknown as Tenant);
 
         render(
           <QueryClientProvider client={queryClient}>

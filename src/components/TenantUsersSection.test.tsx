@@ -4,6 +4,7 @@ import { expect, test, vi, describe, beforeEach } from 'vitest';
 import { useAuthStore } from '@/store/useAuthStore';
 import { tenantService } from '@/services/tenantService';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { TenantUser } from '@/types/tenant';
 
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
@@ -51,8 +52,8 @@ describe('TenantUsersSection Component', () => {
     queryClient.clear();
     vi.mocked(useAuthStore).mockReturnValue({
       user: { email: 'logged@test.com', groups: ['TenantAdmin'] },
-    } as any);
-    vi.mocked(tenantService.listUsers).mockResolvedValue(mockUsers as any);
+    } as unknown as ReturnType<typeof useAuthStore>);
+    vi.mocked(tenantService.listUsers).mockResolvedValue(mockUsers as TenantUser[]);
   });
 
   test('renderiza os dados da tabela corretamente', async () => {
@@ -75,7 +76,7 @@ describe('TenantUsersSection Component', () => {
   });
 
   test('exibe mensagem apropriada para lista vazia', async () => {
-    vi.mocked(tenantService.listUsers).mockResolvedValue([] as any);
+    vi.mocked(tenantService.listUsers).mockResolvedValue([]);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -164,7 +165,7 @@ describe('TenantUsersSection Component', () => {
   });
 
   test('permite editar o nome do usuário e chama a mutation correta', async () => {
-    vi.mocked(tenantService.updateUserName).mockResolvedValue({ message: 'Name updated' } as any);
+    vi.mocked(tenantService.updateUserName).mockResolvedValue({ message: 'Name updated' });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -196,7 +197,7 @@ describe('TenantUsersSection Component', () => {
   });
 
   test('deve exibir confirm e chamar resetUserPassword ao clicar em Resetar Senha na modal de edição', async () => {
-    vi.mocked(tenantService.resetUserPassword).mockResolvedValue({ message: 'Code sent' } as any);
+    vi.mocked(tenantService.resetUserPassword).mockResolvedValue({ message: 'Code sent' });
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(
@@ -236,7 +237,7 @@ describe('TenantUsersSection Component', () => {
       created_at: '2026-06-12T12:00:00Z',
     };
     
-    vi.mocked(tenantService.listUsers).mockResolvedValue([blockedUser] as any);
+    vi.mocked(tenantService.listUsers).mockResolvedValue([blockedUser] as TenantUser[]);
 
     render(
       <QueryClientProvider client={queryClient}>
