@@ -497,3 +497,53 @@ describe('tenantService', () => {
     })
   })
 })
+// O tenant de demonstração tem "#" no ID (TENANT#DEMO_REVIEW). Sem codificar,
+// o "#" corta a URL e a API recebe só "TENANT".
+describe('tenantService — ID do tenant no caminho', () => {
+  const id = 'TENANT#DEMO_REVIEW'
+  const caminho = '/admin/tenants/TENANT%23DEMO_REVIEW'
+
+  beforeEach(() => {
+    mockFetch.mockReset()
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}), text: async () => '{}' })
+    useAuthStore.setState({
+      user: { email: 'admin@test.com', groups: ['GlobalAdmin'] },
+      token: 'valid-access-token',
+      refreshToken: 'valid-refresh-token',
+      isAuthenticated: true,
+      isAdmin: true,
+      hasHydrated: true,
+    })
+  })
+
+  const chamadas: Array<[string, () => Promise<unknown>]> = [
+    ['getById', () => tenantService.getById(id)],
+    ['changePlan', () => tenantService.changePlan(id, {} as Parameters<typeof tenantService.changePlan>[1])],
+    ['updateBillingMethod', () => tenantService.updateBillingMethod(id, 'PIX')],
+    ['update', () => tenantService.update(id, {})],
+    ['delete', () => tenantService.delete(id, true)],
+    ['resetUserPassword', () => tenantService.resetUserPassword(id, 'a@b.com')],
+    ['listUsers', () => tenantService.listUsers(id)],
+    ['addUser', () => tenantService.addUser(id, {} as AddTenantUserInput)],
+    ['removeUser', () => tenantService.removeUser(id, 'a@b.com')],
+    ['updateUserRole', () => tenantService.updateUserRole(id, 'a@b.com', 'user' as TenantUserRole)],
+    ['blockUser', () => tenantService.blockUser(id, 'a@b.com', true)],
+    ['updateUserName', () => tenantService.updateUserName(id, 'a@b.com', 'Nome')],
+    ['retryBilling', () => tenantService.retryBilling(id)],
+    ['retryActivation', () => tenantService.retryActivation(id)],
+    ['reactivateTenant', () => tenantService.reactivateTenant(id)],
+    ['pauseSubscription', () => tenantService.pauseSubscription(id)],
+    ['cancelContract', () => tenantService.cancelContract(id)],
+    ['listInvoices', () => tenantService.listInvoices(id)],
+    ['listSites', () => tenantService.listSites(id)],
+    ['getSite', () => tenantService.getSite(id, 'site-1')],
+  ]
+
+  it.each(chamadas)('%s codifica o ID', async (_nome, chamar) => {
+    await chamar()
+
+    const url = String(mockFetch.mock.calls[0][0])
+    expect(url).toContain(caminho)
+    expect(url).not.toContain('#')
+  })
+})
