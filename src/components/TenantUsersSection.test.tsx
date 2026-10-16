@@ -314,4 +314,16 @@ describe('TenantUsersSection — papéis de vínculo', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(tenantService.updateUserRole).not.toHaveBeenCalled();
   });
+
+  test('na edição do próprio usuário, o perfil fica travado e a tela explica por quê', async () => {
+    vi.mocked(useAuthStore).mockReturnValue({
+      user: { email: 'g@test.com', groups: ['GlobalAdmin'] },
+    } as unknown as ReturnType<typeof useAuthStore>);
+    renderizar();
+    const linha = (await screen.findByText('Pessoa GlobalAdmin')).closest('tr') as HTMLElement;
+    fireEvent.click(within(linha).getByRole('button', { name: 'Editar' }));
+
+    expect((screen.getByLabelText('Perfil') as HTMLSelectElement).disabled).toBe(true);
+    expect(screen.getByText('Você não pode alterar seu próprio perfil.')).toBeDefined();
+  });
 });
