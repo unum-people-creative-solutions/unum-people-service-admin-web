@@ -83,7 +83,7 @@ const tenantPath = (id: string) => `/admin/tenants/${encodeURIComponent(id)}`;
 export const tenantService = {
   list: (): Promise<Tenant[]> => fetchWithAuth('/admin/tenants'),
   
-  getById: (id: string): Promise<Tenant> => fetchWithAuth(`${tenantPath(id)}`),
+  getById: (id: string): Promise<Tenant> => fetchWithAuth(tenantPath(id)),
   
   create: (data: CreateTenantInput): Promise<Tenant> => fetchWithAuth('/admin/tenants', {
     method: 'POST',
@@ -100,7 +100,7 @@ export const tenantService = {
     body: JSON.stringify({ subscription_billing_type: subscriptionBillingType }),
   }),
 
-  update: (id: string, data: Partial<Tenant>): Promise<{ message: string }> => fetchWithAuth(`${tenantPath(id)}`, {
+  update: (id: string, data: Partial<Tenant>): Promise<{ message: string }> => fetchWithAuth(tenantPath(id), {
     method: 'PATCH',
     body: JSON.stringify(data),
   }),

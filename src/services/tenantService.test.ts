@@ -497,6 +497,7 @@ describe('tenantService', () => {
     })
   })
 })
+
 // O tenant de demonstração tem "#" no ID (TENANT#DEMO_REVIEW). Sem codificar,
 // o "#" corta a URL e a API recebe só "TENANT".
 describe('tenantService — ID do tenant no caminho', () => {
