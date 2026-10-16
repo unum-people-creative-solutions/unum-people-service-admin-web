@@ -99,7 +99,11 @@ const StatusLed = ({ active, section }: { active: boolean; section: string }) =>
 };
 
 export default function TenantDetailsPage() {
-  const { id } = useParams() as { id: string };
+  // O link codifica o ID (TENANT#DEMO_REVIEW chega como TENANT%23DEMO_REVIEW).
+  // Os IDs são UUID ou TENANT#<NOME>, sem "%" literal, então decodificar um
+  // valor que já veio decodificado não o altera.
+  const { id: idDaRota } = useParams() as { id: string };
+  const id = decodeURIComponent(idDaRota);
   const router = useRouter();
   const queryClient = useQueryClient();
   const [successMsg, setSuccessMsg] = useState<string | null>(null);

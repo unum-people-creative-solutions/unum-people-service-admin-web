@@ -71,6 +71,31 @@ const mockTenant = {
   is_blocked: false,
 };
 
+// O tenant de demonstração tem "#" no ID (TENANT#DEMO_REVIEW). O link chega
+// codificado; a página decodifica uma vez, o que também vale se o valor já vier
+// decodificado.
+describe('TenantDetailsPage - ID com "#"', () => {
+  beforeEach(() => {
+    queryClient.clear();
+    vi.clearAllMocks();
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(tenantService.getById).mockResolvedValue(mockTenant as Tenant);
+  });
+
+  test.each(['TENANT%23DEMO_REVIEW', 'TENANT#DEMO_REVIEW'])('busca TENANT#DEMO_REVIEW quando a rota traz %s', async (parametro) => {
+    vi.mocked(useParams).mockReturnValue({ id: parametro });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => expect(tenantService.getById).toHaveBeenCalled());
+    expect(tenantService.getById).toHaveBeenCalledWith('TENANT#DEMO_REVIEW');
+  });
+});
+
 describe('TenantDetailsPage - Refactor Requirements', () => {
   beforeEach(() => {
     queryClient.clear();
