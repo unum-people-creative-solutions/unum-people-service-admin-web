@@ -256,3 +256,62 @@ describe('TenantUsersSection Component', () => {
     expect(statusLabel.className).toContain('bg-red-50 text-red-700');
   });
 });
+
+// A API devolve também os papéis de vínculo TenantAdmin e GlobalAdmin. A lista
+// mostrava "Usuário" para eles e a edição caía em "Administrador".
+describe('TenantUsersSection — papéis de vínculo', () => {
+  const usuarios = [
+    { email: 'a@test.com', name: 'Pessoa Admin', role: 'admin', is_blocked: false, created_at: '2026-06-12T12:00:00Z' },
+    { email: 'u@test.com', name: 'Pessoa User', role: 'user', is_blocked: false, created_at: '2026-06-12T12:00:00Z' },
+    { email: 't@test.com', name: 'Pessoa TenantAdmin', role: 'TenantAdmin', is_blocked: false, created_at: '2026-06-12T12:00:00Z' },
+    { email: 'g@test.com', name: 'Pessoa GlobalAdmin', role: 'GlobalAdmin', is_blocked: false, created_at: '2026-06-12T12:00:00Z' },
+  ] as TenantUser[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queryClient.clear();
+    vi.mocked(useAuthStore).mockReturnValue({
+      user: { email: 'outra@test.com', groups: ['GlobalAdmin'] },
+    } as unknown as ReturnType<typeof useAuthStore>);
+    vi.mocked(tenantService.listUsers).mockResolvedValue(usuarios);
+  });
+
+  const renderizar = () =>
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantUsersSection tenantId="tenant-unum" />
+      </QueryClientProvider>
+    );
+
+  test.each([
+    ['Pessoa Admin', 'Admin'],
+    ['Pessoa User', 'Usuário'],
+    ['Pessoa TenantAdmin', 'TenantAdmin'],
+    ['Pessoa GlobalAdmin', 'GlobalAdmin'],
+  ])('a lista mostra o papel de %s como %s', async (nome, rotulo) => {
+    renderizar();
+    const linha = (await screen.findByText(nome)).closest('tr') as HTMLElement;
+    expect(within(linha).getByText(rotulo)).toBeDefined();
+  });
+
+  test('a edição de um GlobalAdmin mostra GlobalAdmin selecionado', async () => {
+    renderizar();
+    const linha = (await screen.findByText('Pessoa GlobalAdmin')).closest('tr') as HTMLElement;
+    fireEvent.click(within(linha).getByRole('button', { name: 'Editar' }));
+
+    const perfil = screen.getByLabelText('Perfil') as HTMLSelectElement;
+    expect(perfil.value).toBe('GlobalAdmin');
+    expect(within(perfil).getByRole('option', { selected: true }).textContent).toBe('GlobalAdmin');
+  });
+
+  test('salvar sem mudar o papel de um GlobalAdmin não altera o papel', async () => {
+    vi.mocked(tenantService.updateUserName).mockResolvedValue({ message: 'ok' });
+    renderizar();
+    const linha = (await screen.findByText('Pessoa GlobalAdmin')).closest('tr') as HTMLElement;
+    fireEvent.click(within(linha).getByRole('button', { name: 'Editar' }));
+    fireEvent.click(screen.getByRole('button', { name: /salvar/i }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(tenantService.updateUserRole).not.toHaveBeenCalled();
+  });
+});

@@ -151,10 +151,14 @@ export interface CreateTenantInput {
 
 export type TenantUserRole = 'admin' | 'user';
 
+// Papéis de vínculo que a API devolve além dos atribuíveis pelo admin:
+// TenantAdmin (legado) e GlobalAdmin (o operador no tenant da própria Unum).
+export type TenantMemberRole = TenantUserRole | 'TenantAdmin' | 'GlobalAdmin';
+
 export interface TenantUser {
   email: string;
   name: string;
-  role: TenantUserRole;
+  role: TenantMemberRole;
   is_blocked: boolean;
   created_at: string;
 }
