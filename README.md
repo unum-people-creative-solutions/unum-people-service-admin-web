@@ -22,6 +22,13 @@ Tela `(admin)/plans` — o formulário de plano envia `product` (`plataforma` | 
 
 O formulário também tem **Destaques (um por linha)** (`textarea#destaques`) e **Selo (opcional)** (`input#selo`, `maxLength` 30), que alimentam o card do plano na vitrine pelo catálogo público. Cada linha não vazia vira um item de `destaques` (vírgula não separa); ao editar, o campo mostra os destaques atuais um por linha. **Toda** criação e atualização envia `destaques` (lista, inclusive vazia) e `selo` (string, inclusive vazia): o `PUT /admin/plans/{slug}` do backend substitui o item inteiro, então omitir os campos apagaria os textos. `planService.listPlans` entrega `destaques: []` e `selo: ''` para plano gravado antes dos campos. Limites (até 8 destaques de 80 caracteres, selo de 30) são validados pelo backend (400); a UI só exibe o erro retornado.
 
+## Papéis e acessos (gestão de acesso, fase 2)
+
+- **Menu Papéis (`/acessos/papeis`):** uma aba por ferramenta do catálogo (`GET /admin/acessos/catalogo`), com os papéis padrão só para leitura e os personalizados com criar, editar e excluir. Na gaveta, marcar uma permissão marca as que ela requer. Um papel em uso não pode ser excluído: o diálogo lista as empresas. A aba Histórico mostra as mudanças de papéis.
+- **Detalhe do tenant, Usuários:** uma coluna por ferramenta contratada, mais o Portal. O papel implícito aparece com `*` e, no seletor, como "Automático (…)". O contador "N de M usuários" usa `max_usuarios` do plano. O convite manda `acessos`, e o operador pode convidar acima do limite. A seção "Histórico de acesso" abaixo de Usuários carrega só quando aberta.
+- **Planos:** campo "Máximo de usuários" (0 = sem limite).
+- Os erros da API aparecem na tela; `ApiError.detalhes` traz o corpo inteiro (`faltando`, `em_uso`).
+
 ## Getting Started
 
 First, run the development server:
