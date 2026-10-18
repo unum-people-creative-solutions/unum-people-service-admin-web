@@ -1,214 +1,554 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+'use client';
+
+import { useState, type FormEvent } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Edit2, Key, Loader2, Plus, Trash2, Users } from 'lucide-react';
+import { AcessosPorFerramenta, ferramentasExibidas } from '@/components/acessos/AcessosPorFerramenta';
+import { ApiError } from '@/lib/apiError';
+import { acessoService } from '@/services/acessoService';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/useAuthStore';
-import { TenantUserRole, TenantMemberRole, AddTenantUserInput, TenantUser } from '@/types/tenant';
-import { Plus, Loader2, Edit2, Key } from 'lucide-react';
+import type { AcessosDoUsuario, Catalogo, FerramentaCatalogo, FerramentaId, MudancasDeAcesso, PapelPersonalizado } from '@/types/acesso';
+import type { AddTenantUserInput, TenantUser as TenantUserBase } from '@/types/tenant';
 
-const ROTULO_DO_PAPEL: Record<TenantMemberRole, string> = {
-  admin: 'Admin',
-  user: 'Usuário',
-  TenantAdmin: 'TenantAdmin',
-  GlobalAdmin: 'GlobalAdmin',
+type TenantUser = TenantUserBase & {
+  status: 'ativo' | 'bloqueado';
+  acessos: AcessosDoUsuario;
 };
 
 interface TenantUsersSectionProps {
   tenantId: string;
+  servicosContratados?: string[];
+  maxUsuarios?: number;
 }
 
-export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
+function nomeDoPapel(ferramenta: FerramentaCatalogo, papeis: readonly PapelPersonalizado[], papelId: string): string {
+  if (!papelId) return '—';
+  const sistema = ferramenta.papeis_sistema.find((papel) => papel.id === papelId);
+  if (sistema) return sistema.nome;
+  const personalizado = papeis.find((papel) => papel.ferramenta === ferramenta.id && papel.id === papelId);
+  return personalizado?.nome ?? papelId;
+}
+
+function valorInicial(usuario: TenantUser, ferramentas: readonly FerramentaCatalogo[]): MudancasDeAcesso {
+  const valor: MudancasDeAcesso = { portal: 'membro' };
+  for (const ferramenta of ferramentas) {
+    const acesso = usuario.acessos?.[ferramenta.id];
+    if (ferramenta.id === 'portal') {
+      valor.portal = acesso?.papel || 'membro';
+      continue;
+    }
+    valor[ferramenta.id] = acesso?.implicito ? '' : (acesso?.papel ?? '');
+  }
+  return valor;
+}
+
+function mudancasDesde(
+  inicial: MudancasDeAcesso,
+  atual: MudancasDeAcesso,
+  ferramentas: readonly FerramentaCatalogo[],
+): MudancasDeAcesso {
+  const mudancas: MudancasDeAcesso = {};
+  for (const ferramenta of ferramentas) {
+    const antes = inicial[ferramenta.id] ?? (ferramenta.id === 'portal' ? 'membro' : '');
+    const depois = atual[ferramenta.id] ?? (ferramenta.id === 'portal' ? 'membro' : '');
+    if (antes !== depois) mudancas[ferramenta.id] = depois;
+  }
+  return mudancas;
+}
+
+function acessosPreenchidos(valor: MudancasDeAcesso): MudancasDeAcesso {
+  const limpos: MudancasDeAcesso = {};
+  for (const ferramenta of ['portal', 'crm', 'blog', 'lp'] as const) {
+    const papel = valor[ferramenta];
+    if (papel) limpos[ferramenta] = papel;
+  }
+  return limpos;
+}
+
+function mensagemSalvar(erro: unknown): string {
+  if (erro instanceof ApiError) {
+    switch (erro.message) {
+      case 'ultimo_administrador':
+        return 'A empresa precisa de pelo menos um Administrador do Portal ativo.';
+      case 'papel_invalido':
+        return 'Esse papel não vale para essa ferramenta.';
+      case 'usuario_fora_da_empresa':
+        return 'Esta pessoa não está mais nesta empresa.';
+      default:
+        return 'Não foi possível salvar. Tente de novo.';
+    }
+  }
+  return 'Não foi possível salvar. Tente de novo.';
+}
+
+function mensagemConvite(erro: unknown): string {
+  if (erro instanceof ApiError && erro.message === 'papel_invalido') {
+    return 'Esse papel não vale para essa ferramenta.';
+  }
+  return 'Não foi possível convidar. Tente de novo.';
+}
+
+function FormularioEditar({
+  tenantId,
+  usuario,
+  catalogo,
+  papeis,
+  ferramentas,
+  proprio,
+  aoFechar,
+}: {
+  tenantId: string;
+  usuario: TenantUser;
+  catalogo: Catalogo;
+  papeis: PapelPersonalizado[];
+  ferramentas: FerramentaCatalogo[];
+  proprio: boolean;
+  aoFechar: () => void;
+}) {
   const queryClient = useQueryClient();
+  const [inicial] = useState(() => valorInicial(usuario, ferramentas));
+  const [nome, setNome] = useState(() => usuario.name);
+  const [valor, setValor] = useState(inicial);
+  const [bloqueado, setBloqueado] = useState(() => usuario.status === 'bloqueado');
+  const [confirmarSenha, setConfirmarSenha] = useState(false);
+  const [senhaEnviada, setSenhaEnviada] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [erroSenha, setErroSenha] = useState(false);
+
+  const salvar = useMutation({
+    mutationFn: async () => {
+      const mudancas = mudancasDesde(inicial, valor, ferramentas);
+      const nomeMudou = nome.trim() !== usuario.name;
+      const bloqueioMudou = bloqueado !== (usuario.status === 'bloqueado');
+      if (Object.keys(mudancas).length === 0 && !nomeMudou && !bloqueioMudou) return false;
+      if (Object.keys(mudancas).length > 0) {
+        await tenantService.updateUserAcessos(tenantId, usuario.email, mudancas);
+      }
+      if (nomeMudou) await tenantService.updateUserName(tenantId, usuario.email, nome.trim());
+      if (bloqueioMudou) await tenantService.blockUser(tenantId, usuario.email, bloqueado);
+      return true;
+    },
+    onSuccess: async (gravou) => {
+      if (gravou) await queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
+      aoFechar();
+    },
+    onError: (falha) => setErro(mensagemSalvar(falha)),
+  });
+
+  const enviarSenha = useMutation({
+    mutationFn: () => tenantService.resetUserPassword(tenantId, usuario.email),
+    onSuccess: () => setSenhaEnviada(true),
+    onError: () => setErroSenha(true),
+  });
+
+  function enviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (proprio || salvar.isPending) return;
+    setErro(null);
+    salvar.mutate();
+  }
+
+  return (
+    <>
+      <Dialog.Title className="text-xl font-bold text-slate-900">{usuario.name}</Dialog.Title>
+      <Dialog.Description className="text-sm text-slate-500 mb-4">{usuario.email}</Dialog.Description>
+
+      <form onSubmit={enviar} className="space-y-4">
+        {proprio ? <p className="text-sm text-amber-600">Você não pode alterar seu próprio perfil.</p> : null}
+
+        <div className="space-y-1">
+          <label htmlFor="editar-nome" className="text-sm font-semibold text-slate-700">Nome</label>
+          <input
+            id="editar-nome"
+            type="text"
+            value={nome}
+            disabled={proprio}
+            onChange={(evento) => setNome(evento.target.value)}
+            className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-slate-50 disabled:text-slate-400"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-slate-700">Acesso por ferramenta</p>
+          <AcessosPorFerramenta
+            catalogo={catalogo}
+            papeis={papeis}
+            servicosContratados={ferramentas.map((ferramenta) => ferramenta.servico).filter((servico) => servico !== '')}
+            valor={valor}
+            aoMudar={setValor}
+            desabilitado={proprio}
+          />
+        </div>
+
+        <label htmlFor="bloquear-acesso" className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <input
+            id="bloquear-acesso"
+            type="checkbox"
+            checked={bloqueado}
+            disabled={proprio}
+            onChange={(evento) => setBloqueado(evento.target.checked)}
+          />
+          Bloquear acesso a esta empresa
+        </label>
+
+        {erro ? (
+          <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</div>
+        ) : null}
+        {erroSenha ? (
+          <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            Não foi possível enviar a senha temporária. Tente de novo.
+          </div>
+        ) : null}
+        {senhaEnviada ? <p role="status" className="text-sm text-slate-700">Senha temporária enviada.</p> : null}
+
+        {confirmarSenha && !senhaEnviada ? (
+          <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm text-slate-700">Enviar uma senha temporária para {usuario.email}?</p>
+            <button
+              type="button"
+              onClick={() => enviarSenha.mutate()}
+              disabled={proprio || enviarSenha.isPending}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-white disabled:opacity-50"
+            >
+              Enviar senha temporária
+            </button>
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setConfirmarSenha(true)}
+            disabled={proprio || enviarSenha.isPending}
+            className="flex items-center gap-2 px-3 py-2 border border-slate-200 text-slate-700 bg-slate-50 rounded-lg text-sm font-medium hover:bg-slate-100 disabled:opacity-50"
+          >
+            {enviarSenha.isPending ? <Loader2 size={16} className="animate-spin" /> : <Key size={16} aria-hidden="true" />}
+            Redefinir senha
+          </button>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={aoFechar}
+              className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={proprio || salvar.isPending}
+              className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50"
+            >
+              {salvar.isPending ? <Loader2 className="animate-spin" size={16} /> : null}
+              Salvar
+            </button>
+          </div>
+        </div>
+      </form>
+    </>
+  );
+}
+
+function FormularioConvite({
+  tenantId,
+  catalogo,
+  papeis,
+  servicosContratados,
+  quantidadeAtual,
+  maxUsuarios,
+  aoFechar,
+}: {
+  tenantId: string;
+  catalogo: Catalogo;
+  papeis: PapelPersonalizado[];
+  servicosContratados: string[];
+  quantidadeAtual: number;
+  maxUsuarios?: number;
+  aoFechar: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
+  const [valor, setValor] = useState<MudancasDeAcesso>({ portal: 'membro' });
+  const [erros, setErros] = useState<{ nome?: string; email?: string }>({});
+  const [erroApi, setErroApi] = useState<string | null>(null);
+
+  const acimaDoLimite = (maxUsuarios ?? 0) > 0 && quantidadeAtual >= (maxUsuarios ?? 0);
+
+  const convidar = useMutation({
+    mutationFn: () => {
+      const entrada: AddTenantUserInput = {
+        name: nome.trim(),
+        email: email.trim(),
+        role: (valor.portal ?? 'membro') === 'administrador' ? 'admin' : 'user',
+        acessos: acessosPreenchidos(valor),
+      };
+      return tenantService.addUser(tenantId, entrada);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
+      aoFechar();
+    },
+    onError: (falha) => setErroApi(mensagemConvite(falha)),
+  });
+
+  function enviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const novos: { nome?: string; email?: string } = {};
+    if (!nome.trim()) novos.nome = 'Nome é obrigatório';
+    if (!email.trim()) novos.email = 'E-mail é obrigatório';
+    setErros(novos);
+    if (novos.nome || novos.email || convidar.isPending) return;
+    setErroApi(null);
+    convidar.mutate();
+  }
+
+  return (
+    <>
+      <Dialog.Title className="text-xl font-bold text-slate-900 mb-4">Convidar pessoa</Dialog.Title>
+      <form onSubmit={enviar} className="space-y-4">
+        <div className="space-y-1">
+          <label htmlFor="convidar-nome" className="text-sm font-semibold text-slate-700">Nome</label>
+          <input
+            id="convidar-nome"
+            type="text"
+            value={nome}
+            onChange={(evento) => setNome(evento.target.value)}
+            className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500/20"
+          />
+          {erros.nome ? <p className="text-sm text-red-600">{erros.nome}</p> : null}
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="convidar-email" className="text-sm font-semibold text-slate-700">E-mail</label>
+          <input
+            id="convidar-email"
+            type="email"
+            value={email}
+            onChange={(evento) => setEmail(evento.target.value)}
+            className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500/20"
+          />
+          {erros.email ? <p className="text-sm text-red-600">{erros.email}</p> : null}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-slate-700">Acesso por ferramenta</p>
+          <AcessosPorFerramenta
+            catalogo={catalogo}
+            papeis={papeis}
+            servicosContratados={servicosContratados}
+            valor={valor}
+            aoMudar={setValor}
+          />
+        </div>
+
+        {acimaDoLimite ? (
+          <p className="text-sm text-amber-700">
+            O plano permite {maxUsuarios} usuários; esta será a {quantidadeAtual + 1}ª pessoa. Convidar assim mesmo?
+          </p>
+        ) : null}
+
+        {erroApi ? (
+          <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroApi}</div>
+        ) : null}
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={aoFechar}
+            className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={convidar.isPending}
+            className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50"
+          >
+            {convidar.isPending ? <Loader2 className="animate-spin" size={16} /> : null}
+            {acimaDoLimite ? 'Convidar acima do limite' : 'Convidar pessoa'}
+          </button>
+        </div>
+      </form>
+    </>
+  );
+}
+
+function ConfirmacaoRemocao({
+  tenantId,
+  usuario,
+  aoFechar,
+}: {
+  tenantId: string;
+  usuario: TenantUser;
+  aoFechar: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [falhou, setFalhou] = useState(false);
+
+  const remover = useMutation({
+    mutationFn: () => tenantService.removeUser(tenantId, usuario.email),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
+      aoFechar();
+    },
+    onError: () => setFalhou(true),
+  });
+
+  return (
+    <>
+      <AlertDialog.Title className="text-xl font-bold text-slate-900">
+        Remover {usuario.name} desta empresa?
+      </AlertDialog.Title>
+      {falhou ? (
+        <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          Não foi possível remover. Tente de novo.
+        </div>
+      ) : null}
+      <div className="flex gap-3 mt-2">
+        <AlertDialog.Cancel asChild>
+          <button type="button" className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50">
+            Cancelar
+          </button>
+        </AlertDialog.Cancel>
+        <button
+          type="button"
+          onClick={() => remover.mutate()}
+          disabled={remover.isPending}
+          className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50"
+        >
+          Remover
+        </button>
+      </div>
+    </>
+  );
+}
+
+export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsuarios }: TenantUsersSectionProps) {
   const { user } = useAuthStore();
-  const loggedInEmail = user?.email;
+  const emailLogado = user?.email;
+  const [editando, setEditando] = useState<TenantUser | null>(null);
+  const [convidando, setConvidando] = useState(false);
+  const [removendo, setRemovendo] = useState<TenantUser | null>(null);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState<TenantUserRole>('user');
-  const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
-
-  const [editingUser, setEditingUser] = useState<TenantUser | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editRole, setEditRole] = useState<TenantMemberRole>('user');
-  const [editBlocked, setEditBlocked] = useState(false);
-
-  const { data: users = [], isLoading, error } = useQuery<TenantUser[]>({
+  const usuariosQuery = useQuery({
     queryKey: ['tenant-users', tenantId],
-    queryFn: () => tenantService.listUsers(tenantId),
+    queryFn: () => tenantService.listUsers(tenantId) as Promise<TenantUser[]>,
+  });
+  const catalogoQuery = useQuery({
+    queryKey: ['acessos-catalogo'],
+    queryFn: () => acessoService.catalogo(),
+  });
+  const papeisQuery = useQuery({
+    queryKey: ['papeis'],
+    queryFn: () => acessoService.listarPapeis(),
   });
 
-  const addUserMutation = useMutation({
-    mutationFn: (data: AddTenantUserInput) => tenantService.addUser(tenantId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
-      setIsModalOpen(false);
-      setNewName('');
-      setNewEmail('');
-      setNewRole('user');
-      setErrors({});
-    },
-  });
-
-  const removeUserMutation = useMutation({
-    mutationFn: (email: string) => tenantService.removeUser(tenantId, email),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
-    },
-  });
-
-  const updateUserRoleMutation = useMutation({
-    mutationFn: ({ email, role }: { email: string; role: TenantUserRole }) =>
-      tenantService.updateUserRole(tenantId, email, role),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
-    },
-  });
-
-  const blockUserMutation = useMutation({
-    mutationFn: ({ email, isBlocked }: { email: string; isBlocked: boolean }) =>
-      tenantService.blockUser(tenantId, email, isBlocked),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
-    },
-  });
-
-  const updateUserNameMutation = useMutation({
-    mutationFn: ({ email, name }: { email: string; name: string }) =>
-      tenantService.updateUserName(tenantId, email, name),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-users', tenantId] });
-    },
-  });
-
-  const resetUserPasswordMutation = useMutation({
-    mutationFn: ({ tenantId, email }: { tenantId: string; email: string }) =>
-      tenantService.resetUserPassword(tenantId, email),
-    onSuccess: () => {
-      alert("Senha temporária enviada com sucesso!");
-    },
-  });
-
-  const handleSave = (e?: React.SyntheticEvent) => {
-    if (e) e.preventDefault();
-    const newErrors: { name?: string; email?: string } = {};
-    if (!newName.trim()) {
-      newErrors.name = 'Nome é obrigatório';
-    }
-    if (!newEmail.trim()) {
-      newErrors.email = 'E-mail é obrigatório';
-    }
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-    addUserMutation.mutate({
-      name: newName,
-      email: newEmail,
-      role: newRole,
-    });
-  };
-
-  const handleRemove = (email: string) => {
-    if (window.confirm('Tem certeza de que deseja remover este usuário?')) {
-      removeUserMutation.mutate(email);
-    }
-  };
-
-  const handleEditSave = () => {
-    if (!editingUser) return;
-    
-    // Dispara as mutations sequencialmente ou apenas a que mudou
-    if (editingUser.name !== editName) {
-      updateUserNameMutation.mutate({ email: editingUser.email, name: editName });
-    }
-    // Além do papel atual, o seletor só oferece admin e user.
-    if (editingUser.role !== editRole && (editRole === 'admin' || editRole === 'user')) {
-      updateUserRoleMutation.mutate({ email: editingUser.email, role: editRole });
-    }
-    if (editingUser.is_blocked !== editBlocked) {
-      blockUserMutation.mutate({ email: editingUser.email, isBlocked: editBlocked });
-    }
-    setEditingUser(null);
-  };
+  const usuarios = usuariosQuery.data ?? [];
+  const catalogo = catalogoQuery.data;
+  const papeis = papeisQuery.data ?? [];
+  const ferramentas = catalogo ? ferramentasExibidas(catalogo, servicosContratados) : [];
+  const acima = (maxUsuarios ?? 0) > 0 && usuarios.length > (maxUsuarios ?? 0);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 mt-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Usuários</h2>
-          <p className="text-slate-500 text-sm">Gerencie os usuários e permissões vinculados a este tenant.</p>
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <Users size={20} aria-hidden="true" />
+            Usuários
+          </h2>
+          {(maxUsuarios ?? 0) > 0 ? (
+            <p className="text-sm text-slate-500 mt-1">
+              {usuarios.length} de {maxUsuarios} usuários
+              {acima ? <span className="text-amber-600"> — acima do limite do plano</span> : null}
+            </p>
+          ) : null}
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          type="button"
+          onClick={() => setConvidando(true)}
           className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
         >
-          <Plus size={18} />
-          Adicionar Usuário
+          <Plus size={18} aria-hidden="true" />
+          Convidar
         </button>
       </div>
 
-      {isLoading ? (
+      {usuariosQuery.isPending ? (
         <div className="flex justify-center py-8">
           <Loader2 className="animate-spin text-primary-600" size={32} />
         </div>
-      ) : error ? (
-        <div className="text-red-500 py-4 text-center">
-          Erro ao carregar usuários.
+      ) : usuariosQuery.isError ? (
+        <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          Não foi possível carregar os usuários.
         </div>
-      ) : users.length === 0 ? (
+      ) : usuarios.length === 0 ? (
         <div className="text-slate-500 py-8 text-center border-2 border-dashed border-slate-100 rounded-lg">
-          Nenhum usuário cadastrado ainda
+          Nenhum usuário vinculado a esta empresa.
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table role="table" className="w-full border-collapse text-left text-sm text-slate-500">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-700">
-              <tr role="row">
-                <th scope="col" className="px-6 py-3">Nome</th>
-                <th scope="col" className="px-6 py-3">Email</th>
-                <th scope="col" className="px-6 py-3">Perfil</th>
-                <th scope="col" className="px-6 py-3">Status</th>
-                <th scope="col" className="px-6 py-3">Ações</th>
+          <table className="w-full border-collapse text-left text-sm text-slate-500">
+            <thead className="bg-slate-50 text-slate-700">
+              <tr>
+                <th scope="col" className="px-6 py-3 font-semibold">Nome / E-mail</th>
+                {ferramentas.map((ferramenta) => (
+                  <th key={ferramenta.id} scope="col" className="px-6 py-3 font-semibold">{ferramenta.nome}</th>
+                ))}
+                <th scope="col" className="px-6 py-3 font-semibold">Status</th>
+                <th scope="col" className="px-6 py-3 font-semibold"><span className="sr-only">Ações</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 border-t border-slate-100">
-              {users.map((userItem) => (
-                <tr role="row" key={userItem.email} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-4 font-medium text-slate-900">
-                    {userItem.name}
-                  </td>
-                  <td className="px-6 py-4">{userItem.email}</td>
+              {usuarios.map((usuario) => (
+                <tr key={usuario.email} className="hover:bg-slate-50/50">
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${userItem.role !== 'user' ? 'bg-primary-50 text-primary-700 border border-primary-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
-                      {ROTULO_DO_PAPEL[userItem.role] ?? userItem.role}
+                    <div className="font-medium text-slate-900">{usuario.name}</div>
+                    <div>{usuario.email}</div>
+                  </td>
+                  {ferramentas.map((ferramenta) => {
+                    const acesso = usuario.acessos?.[ferramenta.id];
+                    return (
+                      <td key={ferramenta.id} className="px-6 py-4">
+                        {nomeDoPapel(ferramenta, papeis, acesso?.papel ?? '')}
+                        {acesso?.implicito ? (
+                          <span
+                            title="Não gravado: vale o papel mais alto, porque é Administrador do Portal"
+                            aria-label="implícito"
+                          >
+                            *
+                          </span>
+                        ) : null}
+                      </td>
+                    );
+                  })}
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold tracking-wider ${usuario.status === 'bloqueado' ? 'bg-slate-100 text-slate-600 border border-slate-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                      {usuario.status === 'bloqueado' ? 'Bloqueado' : 'Ativo'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${userItem.is_blocked ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                      {userItem.is_blocked ? 'Bloqueado' : 'Ativo'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 flex gap-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingUser(userItem);
-                        setEditName(userItem.name);
-                        setEditRole(userItem.role);
-                        setEditBlocked(userItem.is_blocked);
-                      }}
-                      className="text-primary-600 hover:text-primary-900 font-medium flex items-center gap-1 transition-colors"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(userItem.email)}
-                      disabled={userItem.email === loggedInEmail}
-                      className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:hover:text-red-600 font-medium flex items-center gap-1 transition-colors"
-                    >
-                      Remover
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        aria-label={`Editar acesso de ${usuario.name}`}
+                        onClick={() => setEditando(usuario)}
+                        className="rounded-lg p-2 text-primary-600 hover:bg-primary-50"
+                      >
+                        <Edit2 size={16} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Remover ${usuario.name}`}
+                        onClick={() => setRemovendo(usuario)}
+                        disabled={usuario.email === emailLogado}
+                        className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -217,188 +557,67 @@ export function TenantUsersSection({ tenantId }: TenantUsersSectionProps) {
         </div>
       )}
 
-      {isModalOpen && (
-        <div role="dialog" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">Adicionar Usuário ao Tenant</h3>
-            <div 
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
-              className="space-y-4"
-            >
-              <div className="space-y-1">
-                <label htmlFor="new_name" className="text-sm font-semibold text-slate-700">Nome</label>
-                <input
-                  id="new_name"
-                  type="text"
-                  value={newName}
-                  onChange={(e) => {
-                    setNewName(e.target.value);
-                    if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
-                  }}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 outline-none"
-                  placeholder="Nome do usuário"
-                />
-                {errors.name && <span className="text-red-500 text-xs">{errors.name}</span>}
-              </div>
+      <Dialog.Root open={editando !== null} onOpenChange={(aberto) => { if (!aberto) setEditando(null); }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/50" />
+          <Dialog.Content className="fixed right-0 top-0 bottom-0 z-[100] w-[400px] bg-white p-6 shadow-xl overflow-y-auto">
+            {editando && catalogo ? (
+              <FormularioEditar
+                key={`${editando.email}:${ferramentas.map((ferramenta) => ferramenta.id).join(',')}`}
+                tenantId={tenantId}
+                usuario={editando}
+                catalogo={catalogo}
+                papeis={papeis}
+                ferramentas={ferramentas}
+                proprio={editando.email === emailLogado}
+                aoFechar={() => setEditando(null)}
+              />
+            ) : null}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
-              <div className="space-y-1">
-                <label htmlFor="new_email" className="text-sm font-semibold text-slate-700">E-mail</label>
-                <input
-                  id="new_email"
-                  type="email"
-                  value={newEmail}
-                  onChange={(e) => {
-                    setNewEmail(e.target.value);
-                    if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
-                  }}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 outline-none"
-                  placeholder="email@empresa.com"
-                />
-                {errors.email && <span className="text-red-500 text-xs">{errors.email}</span>}
-              </div>
+      <Dialog.Root open={convidando} onOpenChange={(aberto) => { if (!aberto) setConvidando(false); }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/50" />
+          <Dialog.Content
+            className="fixed right-0 top-0 bottom-0 z-[100] w-[400px] bg-white p-6 shadow-xl overflow-y-auto"
+            aria-describedby={undefined}
+          >
+            {catalogo ? (
+              <FormularioConvite
+                key={`convidar:${ferramentas.map((ferramenta) => ferramenta.id).join(',')}`}
+                tenantId={tenantId}
+                catalogo={catalogo}
+                papeis={papeis}
+                servicosContratados={servicosContratados}
+                quantidadeAtual={usuarios.length}
+                maxUsuarios={maxUsuarios}
+                aoFechar={() => setConvidando(false)}
+              />
+            ) : null}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
-              <div className="space-y-1">
-                <label htmlFor="new_role" className="text-sm font-semibold text-slate-700">Perfil</label>
-                <select
-                  id="new_role"
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as TenantUserRole)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-primary-500/20"
-                >
-                  <option value="admin">Administrador (Admin)</option>
-                  <option value="user">Usuário Comum (User)</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setNewName('');
-                    setNewEmail('');
-                    setNewRole('user');
-                    setErrors({});
-                  }}
-                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSave()}
-                  disabled={addUserMutation.isPending}
-                  className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
-                >
-                  {addUserMutation.isPending && <Loader2 className="animate-spin" size={16} />}
-                  Salvar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit User Modal */}
-      {editingUser && (
-        <div role="dialog" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">Editar Usuário</h3>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700">Nome</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700">E-mail</label>
-                <input
-                  type="email"
-                  value={editingUser.email}
-                  disabled
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label htmlFor="edit_role" className="text-sm font-semibold text-slate-700">Perfil</label>
-                <select
-                  id="edit_role"
-                  value={editRole}
-                  onChange={(e) => setEditRole(e.target.value as TenantMemberRole)}
-                  disabled={editingUser.email === loggedInEmail}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-slate-50 disabled:text-slate-400"
-                >
-                  <option value="admin">Administrador (Admin)</option>
-                  <option value="user">Usuário Comum (User)</option>
-                  {editingUser.role !== 'admin' && editingUser.role !== 'user' && (
-                    <option value={editingUser.role}>{ROTULO_DO_PAPEL[editingUser.role] ?? editingUser.role}</option>
-                  )}
-                </select>
-                {editingUser.email === loggedInEmail && (
-                  <p className="text-xs text-amber-600 mt-1">Você não pode alterar seu próprio perfil.</p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div>
-                  <label className="text-sm font-semibold text-slate-700 block">Bloquear Usuário</label>
-                  <span className="text-xs text-slate-500">Impede o login no sistema.</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editBlocked}
-                    onChange={(e) => setEditBlocked(e.target.checked)}
-                    disabled={editingUser.email === loggedInEmail}
-                    className="sr-only peer"
-                  />
-                  <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${editBlocked ? 'bg-red-600' : 'bg-slate-200'} ${editingUser.email === loggedInEmail ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
-                </label>
-              </div>
-
-              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm("Deseja redefinir e enviar uma nova senha temporária para o e-mail deste usuário?")) {
-                      resetUserPasswordMutation.mutate({ tenantId, email: editingUser.email });
-                    }
-                  }}
-                  disabled={resetUserPasswordMutation.isPending}
-                  className="flex items-center gap-2 px-3 py-2 border border-slate-200 text-slate-700 bg-slate-50 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors disabled:opacity-50"
-                >
-                  {resetUserPasswordMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Key size={16} />}
-                  Resetar Senha
-                </button>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingUser(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleEditSave()}
-                    disabled={updateUserRoleMutation.isPending || blockUserMutation.isPending || updateUserNameMutation.isPending}
-                    className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
-                  >
-                    {(updateUserRoleMutation.isPending || blockUserMutation.isPending || updateUserNameMutation.isPending) && <Loader2 className="animate-spin" size={16} />}
-                    Salvar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertDialog.Root open={removendo !== null} onOpenChange={(aberto) => { if (!aberto) setRemovendo(null); }}>
+        <AlertDialog.Portal>
+          <AlertDialog.Overlay className="fixed inset-0 z-[100] bg-slate-900/60" />
+          <AlertDialog.Content
+            className="fixed left-[50%] top-[50%] z-[100] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 bg-white p-6 shadow-lg sm:rounded-2xl"
+            aria-describedby={undefined}
+          >
+            {removendo ? (
+              <ConfirmacaoRemocao
+                key={removendo.email}
+                tenantId={tenantId}
+                usuario={removendo}
+                aoFechar={() => setRemovendo(null)}
+              />
+            ) : null}
+          </AlertDialog.Content>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
     </div>
   );
 }

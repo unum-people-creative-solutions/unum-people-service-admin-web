@@ -7,6 +7,15 @@ import { useParams, useRouter } from 'next/navigation';
 import type { Tenant } from '@/types/tenant';
 import type { PlansGrouped } from '@/services/planService';
 
+// A seção de usuários lê catálogo e papéis (gestao-de-acesso-f2).
+vi.mock('@/services/acessoService', () => ({
+  acessoService: {
+    catalogo: vi.fn().mockResolvedValue({ ferramentas: [] }),
+    listarPapeis: vi.fn().mockResolvedValue([]),
+    historico: vi.fn().mockResolvedValue({ registros: [], cursor: '' }),
+  },
+}));
+
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
     getById: vi.fn(),

@@ -5,6 +5,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { tenantService } from '@/services/tenantService';
 import { useParams, useRouter } from 'next/navigation';
 
+// A seção de usuários lê catálogo e papéis (gestao-de-acesso-f2).
+vi.mock('@/services/acessoService', () => ({
+  acessoService: {
+    catalogo: vi.fn().mockResolvedValue({ ferramentas: [] }),
+    listarPapeis: vi.fn().mockResolvedValue([]),
+    historico: vi.fn().mockResolvedValue({ registros: [], cursor: '' }),
+  },
+}));
+
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
     getById: vi.fn(),

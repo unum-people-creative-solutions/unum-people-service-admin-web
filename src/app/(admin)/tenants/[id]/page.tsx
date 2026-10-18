@@ -604,7 +604,11 @@ export default function TenantDetailsPage() {
               <TenantSitesSection tenantId={id} />
 
               {/* Seção de Usuários */}
-              <TenantUsersSection tenantId={id} />
+              <TenantUsersSection
+                tenantId={id}
+                servicosContratados={servicosContratados(tenant)}
+                maxUsuarios={[...(plansData?.active ?? []), ...(plansData?.inactive ?? [])].find((p) => p.slug === tenant.plan_id)?.max_usuarios}
+              />
             </div>
 
             <div className="space-y-8 sticky top-8 h-fit">
@@ -995,4 +999,13 @@ export default function TenantDetailsPage() {
       })()}
     </div>
   );
+}
+
+// Serviços que liberam ferramentas na tela de usuários. Mesma regra antiga da
+// API (Tenant.HasService): sem enabled_services e sem site, vale o CRM.
+function servicosContratados(tenant: Tenant): string[] {
+  const servicos = tenant.enabled_services ?? [];
+  const temSite = (tenant.site_urls?.length ?? 0) > 0 || !!tenant.site_url;
+  if (servicos.length === 0 && !temSite) return ['crm'];
+  return servicos;
 }
