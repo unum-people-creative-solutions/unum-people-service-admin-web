@@ -2,11 +2,12 @@
 
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { acessoService } from '@/services/acessoService';
-import type { Catalogo, RegistroHistorico } from '@/types/acesso';
+import type { Catalogo, PapelPersonalizado, RegistroHistorico } from '@/types/acesso';
 
 interface HistoricoDeAcessoProps {
   tenantId: string;
   catalogo?: Catalogo;
+  papeis?: PapelPersonalizado[];
 }
 
 interface EstadoDeAcesso {
@@ -82,9 +83,19 @@ function fraseDoRegistro(registro: RegistroHistorico): string {
   }
 }
 
-function nomeDoPapel(papelId: string | undefined, papeis: readonly { id: string; nome: string }[]): string {
+function nomeDoPapel(
+  papelId: string | undefined,
+  sistema: readonly { id: string; nome: string }[],
+  personalizados: readonly PapelPersonalizado[],
+  ferramentaId: string,
+): string {
   if (!papelId) return 'Automático';
-  return papeis.find((papel) => papel.id === papelId)?.nome ?? papelId;
+  const doSistema = sistema.find((papel) => papel.id === papelId);
+  if (doSistema) return doSistema.nome;
+  const personalizado = personalizados.find(
+    (papel) => papel.ferramenta === ferramentaId && papel.id === papelId,
+  );
+  return personalizado?.nome ?? papelId;
 }
 
 function ferramentasParaComparar(
@@ -110,7 +121,12 @@ function ferramentasParaComparar(
   return ids.map((id) => ({ id, nome: id, papeis: [] }));
 }
 
-function diferencasDeAcesso(antes: unknown, depois: unknown, catalogo: Catalogo | undefined): string[] {
+function diferencasDeAcesso(
+  antes: unknown,
+  depois: unknown,
+  catalogo: Catalogo | undefined,
+  personalizados: readonly PapelPersonalizado[],
+): string[] {
   const estadoAntes = lerEstado(antes);
   const estadoDepois = lerEstado(depois);
 
@@ -124,19 +140,23 @@ function diferencasDeAcesso(antes: unknown, depois: unknown, catalogo: Catalogo 
     const idAntes = estadoAntes.acessos?.[ferramenta.id] || undefined;
     const idDepois = estadoDepois.acessos?.[ferramenta.id] || undefined;
     if (idAntes === idDepois) continue;
-    const nomeAntes = nomeDoPapel(idAntes, ferramenta.papeis);
-    const nomeDepois = nomeDoPapel(idDepois, ferramenta.papeis);
+    const nomeAntes = nomeDoPapel(idAntes, ferramenta.papeis, personalizados, ferramenta.id);
+    const nomeDepois = nomeDoPapel(idDepois, ferramenta.papeis, personalizados, ferramenta.id);
     linhas.push(`${ferramenta.nome}: ${nomeAntes} → ${nomeDepois}`);
   }
   return linhas;
 }
 
-function diferencasDoRegistro(registro: RegistroHistorico, catalogo: Catalogo | undefined): string[] {
+function diferencasDoRegistro(
+  registro: RegistroHistorico,
+  catalogo: Catalogo | undefined,
+  personalizados: readonly PapelPersonalizado[],
+): string[] {
   if (registro.acao !== 'MEMBER_ACCESS_CHANGED') return [];
-  return diferencasDeAcesso(registro.antes, registro.depois, catalogo);
+  return diferencasDeAcesso(registro.antes, registro.depois, catalogo, personalizados);
 }
 
-export function HistoricoDeAcesso({ tenantId, catalogo }: HistoricoDeAcessoProps) {
+export function HistoricoDeAcesso({ tenantId, catalogo, papeis = [] }: HistoricoDeAcessoProps) {
   const consulta = useInfiniteQuery({
     queryKey: ['historico-acesso', tenantId],
     queryFn: ({ pageParam }) => acessoService.historico(tenantId, pageParam),
@@ -172,17 +192,22 @@ export function HistoricoDeAcesso({ tenantId, catalogo }: HistoricoDeAcessoProps
       {registros.length === 0 ? (
         <p>Nenhuma mudança de acesso registrada.</p>
       ) : (
-        <ol className="space-y-3">
+        <ol>
           {registros.map((registro, indice) => (
-            <li key={`${registro.criado_em}-${registro.acao}-${registro.alvo}-${indice}`} className="flex flex-col gap-1 text-sm text-slate-700">
-              <time dateTime={registro.criado_em} className="tabular-nums text-slate-500">
+            <li
+              key={`${registro.criado_em}-${registro.acao}-${registro.alvo}-${indice}`}
+              className="grid grid-cols-1 gap-x-4 border-b border-slate-100 py-2 sm:grid-cols-[7rem_14rem_1fr]"
+            >
+              <time dateTime={registro.criado_em} className="tabular-nums text-sm text-slate-500">
                 {formatoData.format(new Date(registro.criado_em))}
               </time>
-              <span>{registro.ator}</span>
-              <span>{fraseDoRegistro(registro)}</span>
-              {diferencasDoRegistro(registro, catalogo).map((linha) => (
-                <span key={linha}>{linha}</span>
-              ))}
+              <span className="min-w-0 truncate text-slate-500">{registro.ator}</span>
+              <div className="min-w-0">
+                <span className="text-slate-800">{fraseDoRegistro(registro)}</span>
+                {diferencasDoRegistro(registro, catalogo, papeis).map((linha) => (
+                  <span key={linha} className="block text-sm text-slate-500">{linha}</span>
+                ))}
+              </div>
             </li>
           ))}
         </ol>

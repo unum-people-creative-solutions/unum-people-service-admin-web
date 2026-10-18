@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { HistoricoDeAcesso } from './HistoricoDeAcesso'
 import { acessoService } from '@/services/acessoService'
 import type { PaginaHistorico } from '@/types/acesso'
-import { catalogo } from './fixtures'
+import { catalogo, leitor } from './fixtures'
 
 // spec: gestao-de-acesso-f2-portal-admin RF-19, blueprint §6. Os registros
 // seguem o que a API grava: MEMBER_ACCESS_CHANGED com {acessos, role}; ROLE_*
@@ -65,4 +65,15 @@ describe('HistoricoDeAcesso', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(await screen.findByText('Nenhuma mudança de acesso registrada.')).toBeInTheDocument()
   })
+})
+
+// Conferência visual (2026-10-18): o papel personalizado aparecia pelo id.
+test('papel personalizado aparece pelo nome', async () => {
+  vi.mocked(acessoService.historico).mockResolvedValueOnce({ registros: [
+    { criado_em: '2026-10-16T17:32:00Z', ator: 'op', acao: 'MEMBER_ACCESS_CHANGED', alvo: 'caio@loja.com',
+      antes: { acessos: { portal: 'membro', crm: 'vendedor' } }, depois: { acessos: { portal: 'membro', crm: 'p-aaaaaaaaaaaa' } } },
+  ], cursor: '' })
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(<QueryClientProvider client={qc}><HistoricoDeAcesso tenantId="t1" catalogo={catalogo} papeis={[leitor]} /></QueryClientProvider>)
+  expect(await screen.findByText('CRM: Vendedor → Leitor')).toBeInTheDocument()
 })

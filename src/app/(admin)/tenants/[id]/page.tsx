@@ -1019,6 +1019,7 @@ function servicosContratados(tenant: Tenant): string[] {
 function HistoricoDoTenant({ tenantId }: { tenantId: string }) {
   const [aberto, setAberto] = useState(false);
   const { data: catalogo } = useQuery({ queryKey: ['acessos-catalogo'], queryFn: acessoService.catalogo, enabled: aberto });
+  const { data: papeis } = useQuery({ queryKey: ['papeis'], queryFn: acessoService.listarPapeis, enabled: aberto });
   return (
     <details
       className="bg-white rounded-xl border border-slate-200 p-6"
@@ -1029,7 +1030,7 @@ function HistoricoDoTenant({ tenantId }: { tenantId: string }) {
       </summary>
       {aberto && (
         <div className="mt-4">
-          <HistoricoDeAcesso tenantId={tenantId} catalogo={catalogo} />
+          <HistoricoDeAcesso tenantId={tenantId} catalogo={catalogo} papeis={papeis} />
         </div>
       )}
     </details>

@@ -180,7 +180,7 @@ function PapeisConteudo() {
 
           <div role="tabpanel" id="painel-acessos" aria-labelledby={`aba-${abaAtiva}`} className="pt-6">
             {abaAtiva === 'historico' ? (
-              <HistoricoDeAcesso tenantId="PLATFORM" catalogo={catalogo} />
+              <HistoricoDeAcesso tenantId="PLATFORM" catalogo={catalogo} papeis={papeisQuery.data} />
             ) : ferramentaAtiva ? (
               <>
                 <table className="w-full text-sm">

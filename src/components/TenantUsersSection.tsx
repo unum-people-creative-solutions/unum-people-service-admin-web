@@ -490,28 +490,28 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm text-slate-500">
+          <table lang="pt-BR" className="table-fixed w-full border-collapse text-left text-sm text-slate-500">
             <thead className="bg-slate-50 text-slate-700">
               <tr>
-                <th scope="col" className="px-6 py-3 font-semibold">Nome / E-mail</th>
+                <th scope="col" className="w-[26%] px-3 py-3 font-semibold">Nome / E-mail</th>
                 {ferramentas.map((ferramenta) => (
-                  <th key={ferramenta.id} scope="col" className="px-6 py-3 font-semibold">{ferramenta.nome}</th>
+                  <th key={ferramenta.id} scope="col" className="px-2 py-3 font-semibold hyphens-auto">{ferramenta.nome}</th>
                 ))}
-                <th scope="col" className="px-6 py-3 font-semibold">Status</th>
-                <th scope="col" className="px-6 py-3 font-semibold"><span className="sr-only">Ações</span></th>
+                <th scope="col" className="w-[5.75rem] px-2 py-3 font-semibold">Status</th>
+                <th scope="col" className="w-[4.5rem] px-2 py-3 font-semibold"><span className="sr-only">Ações</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 border-t border-slate-100">
               {usuarios.map((usuario) => (
                 <tr key={usuario.email} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-slate-900">{usuario.name}</div>
-                    <div>{usuario.email}</div>
+                  <td className="px-3 py-3 overflow-hidden">
+                    <div className="truncate font-medium text-slate-900" title={usuario.name}>{usuario.name}</div>
+                    <div className="truncate" title={usuario.email}>{usuario.email}</div>
                   </td>
                   {ferramentas.map((ferramenta) => {
                     const acesso = usuario.acessos?.[ferramenta.id];
                     return (
-                      <td key={ferramenta.id} className="px-6 py-4">
+                      <td key={ferramenta.id} className="px-2 py-3 hyphens-auto">
                         {nomeDoPapel(ferramenta, papeis, acesso?.papel ?? '')}
                         {acesso?.implicito ? (
                           <span
@@ -524,18 +524,18 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
                       </td>
                     );
                   })}
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold tracking-wider ${usuario.status === 'bloqueado' ? 'bg-slate-100 text-slate-600 border border-slate-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                  <td className="px-2 py-3">
+                    <span className={`whitespace-nowrap px-2 py-1 rounded-full text-[10px] font-bold tracking-wider ${usuario.status === 'bloqueado' ? 'bg-slate-100 text-slate-600 border border-slate-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                       {usuario.status === 'bloqueado' ? 'Bloqueado' : 'Ativo'}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-2 py-3">
                     <div className="flex gap-1">
                       <button
                         type="button"
                         aria-label={`Editar acesso de ${usuario.name}`}
                         onClick={() => setEditando(usuario)}
-                        className="rounded-lg p-2 text-primary-600 hover:bg-primary-50"
+                        className="rounded-lg p-1 text-primary-600 hover:bg-primary-50"
                       >
                         <Edit2 size={16} aria-hidden="true" />
                       </button>
@@ -544,7 +544,7 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
                         aria-label={`Remover ${usuario.name}`}
                         onClick={() => setRemovendo(usuario)}
                         disabled={usuario.email === emailLogado}
-                        className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        className="rounded-lg p-1 text-red-600 hover:bg-red-50 disabled:opacity-50"
                       >
                         <Trash2 size={16} aria-hidden="true" />
                       </button>

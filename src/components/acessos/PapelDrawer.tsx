@@ -221,23 +221,21 @@ function FormularioDoPapel({
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            {nomeVazio ? <p className="text-sm text-slate-600">Dê um nome ao papel</p> : null}
-            {semPermissao ? <p className="text-sm text-slate-600">Escolha pelo menos uma permissão</p> : null}
-          </div>
-          <div className="flex gap-2">
+        <div className="space-y-2">
+          {nomeVazio ? <p className="text-sm text-slate-500">Dê um nome ao papel</p> : null}
+          {semPermissao ? <p className="text-sm text-slate-500">Escolha pelo menos uma permissão</p> : null}
+          <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={aoFechar}
-              className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 font-semibold hover:bg-slate-50"
+              className="whitespace-nowrap px-4 py-2 border border-slate-200 rounded-lg text-slate-600 font-semibold hover:bg-slate-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={nomeVazio || semPermissao || salvar.isPending}
-              className="bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="whitespace-nowrap bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {salvar.isPending ? 'Salvando…' : 'Salvar papel'}
             </button>
