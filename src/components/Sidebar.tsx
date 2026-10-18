@@ -12,8 +12,7 @@ import {
   ChevronRight,
   LogOut,
   Menu,
-  X
-} from 'lucide-react';
+  X, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -34,6 +33,11 @@ const menuItems = [
     title: 'Planos',
     href: '/plans',
     icon: Tag,
+  },
+  {
+    title: 'Papéis',
+    href: '/acessos/papeis',
+    icon: ShieldCheck,
   },
   {
     title: 'Termos',

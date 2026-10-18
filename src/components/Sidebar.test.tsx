@@ -81,3 +81,14 @@ describe('Sidebar Component', () => {
     });
   });
 });
+
+// gestao-de-acesso-f2 RF-16: item Papéis no menu.
+test('menu tem Papéis entre Planos e Termos', () => {
+  vi.mocked(useAuthStore).mockReturnValue({ logout: vi.fn() } as unknown as ReturnType<typeof useAuthStore>);
+  vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+  render(<Sidebar />);
+  const links = screen.getAllByRole('link').map((l) => l.getAttribute('href'));
+  expect(links).toContain('/acessos/papeis');
+  expect(links.indexOf('/acessos/papeis')).toBe(links.indexOf('/plans') + 1);
+  expect(screen.getByRole('link', { name: /Papéis/ })).toHaveAttribute('href', '/acessos/papeis');
+});

@@ -7,6 +7,15 @@ import { useParams, useRouter } from 'next/navigation';
 import type { Tenant } from '@/types/tenant';
 import type { PlansGrouped } from '@/services/planService';
 
+// A seção de usuários lê catálogo e papéis (gestao-de-acesso-f2).
+vi.mock('@/services/acessoService', () => ({
+  acessoService: {
+    catalogo: vi.fn().mockResolvedValue({ ferramentas: [] }),
+    listarPapeis: vi.fn().mockResolvedValue([]),
+    historico: vi.fn().mockResolvedValue({ registros: [], cursor: '' }),
+  },
+}));
+
 vi.mock('@/services/tenantService', () => ({
   tenantService: {
     getById: vi.fn(),
@@ -999,5 +1008,30 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       const invoiceId = await screen.findByText('inv-integration-123');
       expect(invoiceId).toBeInTheDocument();
     });
+  });
+});
+
+// gestao-de-acesso-f2 RF-19, blueprint §6: histórico de acesso no detalhe do
+// tenant, fechado por padrão e carregado só quando aberto.
+describe('TenantDetailsPage - Histórico de acesso', () => {
+  beforeEach(() => {
+    queryClient.clear();
+    vi.clearAllMocks();
+    vi.mocked(useParams).mockReturnValue({ id: 'tenant-123' });
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(tenantService.getById).mockResolvedValue(mockTenant as Tenant);
+  });
+
+  test('fechado por padrão; abrir busca o histórico do tenant', async () => {
+    const { acessoService } = await import('@/services/acessoService');
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+    const resumo = await screen.findByText('Histórico de acesso');
+    expect(acessoService.historico).not.toHaveBeenCalled();
+    fireEvent.click(resumo);
+    await waitFor(() => expect(acessoService.historico).toHaveBeenCalledWith('tenant-123', undefined));
   });
 });
