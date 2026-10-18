@@ -131,7 +131,9 @@ describe('TenantUsersSection', () => {
   test('convidar: acessos por ferramenta, sem as entradas automáticas', async () => {
     vi.mocked(tenantService.addUser).mockResolvedValue({ message: 'ok' })
     renderizar()
-    fireEvent.click(await screen.findByRole('button', { name: 'Convidar' }))
+    // Convidar só habilita depois que catálogo e papéis carregam.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Convidar' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Convidar' }))
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Caio' } })
     fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'caio@loja.com' } })
     fireEvent.change(screen.getByLabelText('CRM'), { target: { value: 'vendedor' } })
@@ -141,7 +143,9 @@ describe('TenantUsersSection', () => {
 
   test('convidar sem nome e e-mail mostra os erros', async () => {
     renderizar()
-    fireEvent.click(await screen.findByRole('button', { name: 'Convidar' }))
+    // Convidar só habilita depois que catálogo e papéis carregam.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Convidar' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Convidar' }))
     fireEvent.click(screen.getByRole('button', { name: 'Convidar pessoa' }))
     expect(await screen.findByText(/nome é obrigatório/i)).toBeInTheDocument()
     expect(screen.getByText(/e-mail é obrigatório/i)).toBeInTheDocument()
@@ -150,7 +154,9 @@ describe('TenantUsersSection', () => {
 
   test('convidar acima do limite pede confirmação no próprio botão', async () => {
     renderizar({ maxUsuarios: 3 })
-    fireEvent.click(await screen.findByRole('button', { name: 'Convidar' }))
+    // Convidar só habilita depois que catálogo e papéis carregam.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Convidar' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Convidar' }))
     expect(screen.getByText('O plano permite 3 usuários; esta será a 4ª pessoa. Convidar assim mesmo?')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Convidar acima do limite' })).toBeInTheDocument()
   })
@@ -178,5 +184,33 @@ describe('TenantUsersSection', () => {
     vi.mocked(tenantService.listUsers).mockRejectedValue(new Error('x'))
     renderizar()
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar os usuários.')
+  })
+})
+
+describe('TenantUsersSection — lacunas do Verifier', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useAuthStore).mockReturnValue({ user: { email: 'op@unum.com', groups: ['GlobalAdmin'] } } as unknown as ReturnType<typeof useAuthStore>)
+    vi.mocked(tenantService.listUsers).mockResolvedValue([ana, bia, eu])
+    vi.mocked(acessoService.listarPapeis).mockResolvedValue([leitor])
+  })
+
+  test('G4: sem catálogo, a tela diz e não abre gaveta vazia', async () => {
+    vi.mocked(acessoService.catalogo).mockRejectedValue(new Error('x'))
+    renderizar()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar os papéis. Os acessos não podem ser editados agora.')
+    expect(screen.getByRole('button', { name: 'Convidar' })).toBeDisabled()
+    expect(within(await linhaDe('Ana Souza')).getByRole('button', { name: 'Editar acesso de Ana Souza' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+  })
+
+  test('asterisco explica o implícito certo; lixeira desabilitada diz por quê', async () => {
+    vi.mocked(acessoService.catalogo).mockResolvedValue(catalogo)
+    const caio: TenantUser = { ...bia, email: 'caio@loja.com', name: 'Caio', status: 'ativo', is_blocked: false,
+      acessos: { ...bia.acessos, crm: { papel: 'sem_acesso', implicito: true } } }
+    vi.mocked(tenantService.listUsers).mockResolvedValue([ana, caio, eu])
+    renderizar()
+    expect(within(await linhaDe('Caio')).getByTitle('Não gravado: sem acesso, porque não é Administrador do Portal')).toBeInTheDocument()
+    expect(within(await linhaDe('Operador')).getByRole('button', { name: 'Remover Operador' })).toHaveAttribute('title', 'Você não pode remover a própria conta.')
   })
 })

@@ -10,7 +10,7 @@ import { ApiError } from '@/lib/apiError';
 import { acessoService } from '@/services/acessoService';
 import { tenantService } from '@/services/tenantService';
 import { useAuthStore } from '@/store/useAuthStore';
-import type { AcessosDoUsuario, Catalogo, FerramentaCatalogo, FerramentaId, MudancasDeAcesso, PapelPersonalizado } from '@/types/acesso';
+import type { AcessosDoUsuario, Catalogo, FerramentaCatalogo, MudancasDeAcesso, PapelPersonalizado } from '@/types/acesso';
 import type { AddTenantUserInput, TenantUser as TenantUserBase } from '@/types/tenant';
 
 type TenantUser = TenantUserBase & {
@@ -450,6 +450,11 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
   const papeis = papeisQuery.data ?? [];
   const ferramentas = catalogo ? ferramentasExibidas(catalogo, servicosContratados) : [];
   const acima = (maxUsuarios ?? 0) > 0 && usuarios.length > (maxUsuarios ?? 0);
+  // Sem catálogo ou papéis, não há como montar os seletores: a tela diz e
+  // trava convidar e editar, em vez de abrir uma gaveta vazia (Verifier G4).
+  const papeisIndisponiveis = catalogoQuery.isError || papeisQuery.isError;
+  const papeisCarregando = catalogoQuery.isPending || papeisQuery.isPending;
+  const motivoSemEdicao = papeisIndisponiveis ? 'Os papéis não carregaram.' : papeisCarregando ? 'Carregando os papéis…' : undefined;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 mt-6">
@@ -469,12 +474,27 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
         <button
           type="button"
           onClick={() => setConvidando(true)}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+          disabled={motivoSemEdicao !== undefined}
+          title={motivoSemEdicao}
+          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus size={18} aria-hidden="true" />
           Convidar
         </button>
       </div>
+
+      {papeisIndisponiveis ? (
+        <div role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <span>Não foi possível carregar os papéis. Os acessos não podem ser editados agora.</span>
+          <button
+            type="button"
+            onClick={() => { void catalogoQuery.refetch(); void papeisQuery.refetch(); }}
+            className="whitespace-nowrap font-semibold underline"
+          >
+            Tentar de novo
+          </button>
+        </div>
+      ) : null}
 
       {usuariosQuery.isPending ? (
         <div className="flex justify-center py-8">
@@ -515,7 +535,11 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
                         {nomeDoPapel(ferramenta, papeis, acesso?.papel ?? '')}
                         {acesso?.implicito ? (
                           <span
-                            title="Não gravado: vale o papel mais alto, porque é Administrador do Portal"
+                            title={
+                              acesso.papel === 'sem_acesso'
+                                ? 'Não gravado: sem acesso, porque não é Administrador do Portal'
+                                : 'Não gravado: vale o papel mais alto, porque é Administrador do Portal'
+                            }
                             aria-label="implícito"
                           >
                             *
@@ -535,7 +559,9 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
                         type="button"
                         aria-label={`Editar acesso de ${usuario.name}`}
                         onClick={() => setEditando(usuario)}
-                        className="rounded-lg p-1 text-primary-600 hover:bg-primary-50"
+                        disabled={motivoSemEdicao !== undefined}
+                        title={motivoSemEdicao}
+                        className="rounded-lg p-1 text-primary-600 hover:bg-primary-50 disabled:opacity-50"
                       >
                         <Edit2 size={16} aria-hidden="true" />
                       </button>
@@ -544,6 +570,7 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
                         aria-label={`Remover ${usuario.name}`}
                         onClick={() => setRemovendo(usuario)}
                         disabled={usuario.email === emailLogado}
+                        title={usuario.email === emailLogado ? 'Você não pode remover a própria conta.' : undefined}
                         className="rounded-lg p-1 text-red-600 hover:bg-red-50 disabled:opacity-50"
                       >
                         <Trash2 size={16} aria-hidden="true" />

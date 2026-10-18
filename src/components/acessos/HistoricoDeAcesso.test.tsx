@@ -22,7 +22,7 @@ const pagina1: PaginaHistorico = {
     { criado_em: '2026-10-16T17:32:00Z', ator: 'op@unumpeople.com', acao: 'MEMBER_ACCESS_CHANGED', alvo: 'ana@loja.com',
       antes: { acessos: { portal: 'membro', crm: 'vendedor' }, role: 'user' }, depois: { acessos: { portal: 'membro', crm: 'gestor' }, role: 'user' } },
     { criado_em: '2026-10-16T14:05:00Z', ator: 'op@unumpeople.com', acao: 'MEMBER_INVITED', alvo: 'bia@loja.com', antes: null, depois: { role: 'user', acessos: { portal: 'membro' } } },
-    { criado_em: '2026-10-15T12:10:00Z', ator: 'op@unumpeople.com', acao: 'ROLE_CREATED', alvo: 'crm#p-1', antes: null, depois: { Nome: 'Leitor de leads', Ferramenta: 'crm' } },
+    { criado_em: '2026-10-15T12:10:00Z', ator: 'op@unumpeople.com', acao: 'ROLE_CREATED', alvo: 'crm#p-1', antes: null, depois: { nome: 'Leitor de leads', ferramenta: 'crm' } },
   ],
   cursor: 'c2',
 }

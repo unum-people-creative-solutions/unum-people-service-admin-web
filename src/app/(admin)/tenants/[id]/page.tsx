@@ -20,6 +20,7 @@ import {
 import { useState, useEffect } from 'react';
 import { TenantUsersSection } from '@/components/TenantUsersSection';
 import { HistoricoDeAcesso } from '@/components/acessos/HistoricoDeAcesso';
+import { servicosContratados } from '@/lib/servicosContratados';
 import { acessoService } from '@/services/acessoService';
 import { BillingCard } from '@/components/tenants/BillingCard';
 import { ServiceAgreementCard } from '@/components/tenants/ServiceAgreementCard';
@@ -1005,14 +1006,6 @@ export default function TenantDetailsPage() {
   );
 }
 
-// Serviços que liberam ferramentas na tela de usuários. Mesma regra antiga da
-// API (Tenant.HasService): sem enabled_services e sem site, vale o CRM.
-function servicosContratados(tenant: Tenant): string[] {
-  const servicos = tenant.enabled_services ?? [];
-  const temSite = (tenant.site_urls?.length ?? 0) > 0 || !!tenant.site_url;
-  if (servicos.length === 0 && !temSite) return ['crm'];
-  return servicos;
-}
 
 // Histórico de acesso do tenant (gestao-de-acesso-f2 RF-19): fechado por padrão
 // e montado só quando aberto, para não consultar a auditoria à toa.

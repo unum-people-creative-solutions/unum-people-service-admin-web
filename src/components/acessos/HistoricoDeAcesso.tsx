@@ -54,7 +54,8 @@ function lerEstado(valor: unknown): EstadoDeAcesso {
 
 function nomeSerializado(valor: unknown): string {
   if (!ehObjeto(valor)) return '';
-  return typeof valor.Nome === 'string' ? valor.Nome : '';
+  // O papel vai para a auditoria com as tags JSON do domain.Papel (nome, ferramenta).
+  return typeof valor.nome === 'string' ? valor.nome : '';
 }
 
 function fraseDoRegistro(registro: RegistroHistorico): string {
