@@ -15,10 +15,12 @@ import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { 
   ArrowLeft, Save, Loader2, ShieldAlert, Key,
   CheckCircle2, Eye, EyeOff, Copy, Trash2, 
-  Globe, LayoutGrid, CreditCard, AlertTriangle, PauseCircle, XCircle
+  Globe, LayoutGrid, CreditCard, AlertTriangle, PauseCircle, XCircle, History
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { TenantUsersSection } from '@/components/TenantUsersSection';
+import { HistoricoDeAcesso } from '@/components/acessos/HistoricoDeAcesso';
+import { acessoService } from '@/services/acessoService';
 import { BillingCard } from '@/components/tenants/BillingCard';
 import { ServiceAgreementCard } from '@/components/tenants/ServiceAgreementCard';
 import { TenantInvoicesSection } from '@/components/TenantInvoicesSection';
@@ -609,6 +611,8 @@ export default function TenantDetailsPage() {
                 servicosContratados={servicosContratados(tenant)}
                 maxUsuarios={[...(plansData?.active ?? []), ...(plansData?.inactive ?? [])].find((p) => p.slug === tenant.plan_id)?.max_usuarios}
               />
+
+              <HistoricoDoTenant tenantId={id} />
             </div>
 
             <div className="space-y-8 sticky top-8 h-fit">
@@ -1008,4 +1012,26 @@ function servicosContratados(tenant: Tenant): string[] {
   const temSite = (tenant.site_urls?.length ?? 0) > 0 || !!tenant.site_url;
   if (servicos.length === 0 && !temSite) return ['crm'];
   return servicos;
+}
+
+// Histórico de acesso do tenant (gestao-de-acesso-f2 RF-19): fechado por padrão
+// e montado só quando aberto, para não consultar a auditoria à toa.
+function HistoricoDoTenant({ tenantId }: { tenantId: string }) {
+  const [aberto, setAberto] = useState(false);
+  const { data: catalogo } = useQuery({ queryKey: ['acessos-catalogo'], queryFn: acessoService.catalogo, enabled: aberto });
+  return (
+    <details
+      className="bg-white rounded-xl border border-slate-200 p-6"
+      onToggle={(e) => setAberto((e.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary className="font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+        <History size={18} aria-hidden /> Histórico de acesso
+      </summary>
+      {aberto && (
+        <div className="mt-4">
+          <HistoricoDeAcesso tenantId={tenantId} catalogo={catalogo} />
+        </div>
+      )}
+    </details>
+  );
 }
