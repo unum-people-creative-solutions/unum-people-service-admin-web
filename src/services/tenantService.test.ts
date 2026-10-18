@@ -135,6 +135,13 @@ describe('tenantService', () => {
           role: 'user',
           is_blocked: false,
           created_at: '2026-06-12T12:00:00Z',
+          status: 'ativo',
+          acessos: {
+            portal: { papel: 'membro', implicito: false },
+            crm: { papel: 'vendedor', implicito: false },
+            blog: { papel: 'redator', implicito: false },
+            lp: { papel: 'editor', implicito: false },
+          },
         },
       ]
       mockFetch.mockResolvedValueOnce({

@@ -63,7 +63,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new ApiError(error.error || 'Request failed', response.status);
+    throw new ApiError(error.error || 'Request failed', response.status, error);
   }
 
   // 204 No Content (DELETE) ou 201/200 sem corpo: response.json() em string vazia

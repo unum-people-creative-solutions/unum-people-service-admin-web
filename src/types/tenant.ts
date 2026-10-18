@@ -1,3 +1,4 @@
+import type { AcessosDoUsuario, MudancasDeAcesso } from './acesso';
 export type TenantStatus = 'aguardando_ativacao' | 'ativo' | 'inadimplente' | 'suspenso' | 'pausado' | 'cancelado' | 'pendente_asaas';
 export type PlanCycle = 'mensal' | 'anual';
 export type PlanType = 'pago' | 'personalizado' | 'livre';
@@ -22,6 +23,8 @@ export interface Plan {
   // legítimo de pages_included para plano plataforma.
   product?: PlanProduct | '';
   pages_included?: number;
+  // gestao-de-acesso-f2 RF-01: 0 ou ausente = sem limite de usuários.
+  max_usuarios?: number;
   // Destaques e selo do card do plano (feature plano-destaques). Ausentes em
   // plano gravado antes do campo; a leitura (planService) entrega [] e ''.
   destaques?: string[];
@@ -161,12 +164,17 @@ export interface TenantUser {
   role: TenantMemberRole;
   is_blocked: boolean;
   created_at: string;
+  // gestao-de-acesso-f2 RF-06: status do vínculo e papel efetivo por ferramenta.
+  status: 'ativo' | 'bloqueado';
+  acessos: AcessosDoUsuario;
 }
 
 export interface AddTenantUserInput {
   email: string;
   name: string;
   role: TenantUserRole;
+  // gestao-de-acesso-f2 RF-07: com acessos, o papel antigo é derivado do Portal.
+  acessos?: MudancasDeAcesso;
 }
 
 export interface ChangePlanInput {
