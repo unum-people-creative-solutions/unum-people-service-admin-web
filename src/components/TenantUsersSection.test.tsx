@@ -213,4 +213,13 @@ describe('TenantUsersSection — lacunas do Verifier', () => {
     expect(within(await linhaDe('Caio')).getByTitle('Não gravado: sem acesso, porque não é Administrador do Portal')).toBeInTheDocument()
     expect(within(await linhaDe('Operador')).getByRole('button', { name: 'Remover Operador' })).toHaveAttribute('title', 'Você não pode remover a própria conta.')
   })
+
+  test('Membro implícito do Portal explica que todo mundo é pelo menos Membro', async () => {
+    vi.mocked(acessoService.catalogo).mockResolvedValue(catalogo)
+    const dani: TenantUser = { ...bia, email: 'dani@loja.com', name: 'Dani', status: 'ativo', is_blocked: false,
+      acessos: { ...bia.acessos, portal: { papel: 'membro', implicito: true } } }
+    vi.mocked(tenantService.listUsers).mockResolvedValue([ana, dani, eu])
+    renderizar()
+    expect(within(await linhaDe('Dani')).getByTitle('Não gravado: toda pessoa da empresa é pelo menos Membro do Portal')).toBeInTheDocument()
+  })
 })

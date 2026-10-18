@@ -536,9 +536,11 @@ export function TenantUsersSection({ tenantId, servicosContratados = [], maxUsua
                         {acesso?.implicito ? (
                           <span
                             title={
-                              acesso.papel === 'sem_acesso'
-                                ? 'Não gravado: sem acesso, porque não é Administrador do Portal'
-                                : 'Não gravado: vale o papel mais alto, porque é Administrador do Portal'
+                              ferramenta.servico === ''
+                                ? 'Não gravado: toda pessoa da empresa é pelo menos Membro do Portal'
+                                : acesso.papel === 'sem_acesso'
+                                  ? 'Não gravado: sem acesso, porque não é Administrador do Portal'
+                                  : 'Não gravado: vale o papel mais alto, porque é Administrador do Portal'
                             }
                             aria-label="implícito"
                           >
