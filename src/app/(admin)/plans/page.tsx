@@ -55,6 +55,7 @@ export default function PlansPage() {
     term_id: '',
     product: 'plataforma',
     pages_included: 0,
+    max_usuarios: 0,
     destaques: '',
     selo: '',
   };
@@ -124,6 +125,7 @@ export default function PlansPage() {
       term_id: plan.term_id ?? '',
       product: plan.product || 'plataforma',
       pages_included: plan.pages_included ?? 0,
+      max_usuarios: plan.max_usuarios ?? 0,
       destaques: (plan.destaques ?? []).join('\n'),
       selo: plan.selo ?? '',
     });
@@ -137,6 +139,8 @@ export default function PlansPage() {
       activation_fee: Number(data.activation_fee),
       monthly_value: Number(data.monthly_value),
       pages_included: Number(data.pages_included) || 0,
+      // gestao-de-acesso-f2 RF-01: 0 = sem limite.
+      max_usuarios: Number(data.max_usuarios) || 0,
       // Sempre presentes, mesmo vazios: o PUT do backend substitui o item
       // inteiro, então omitir apagaria o que o formulário não mostrou.
       destaques: parseDestaques(data.destaques),
@@ -254,6 +258,21 @@ export default function PlansPage() {
                     {errors.pages_included && <span className="text-red-500 text-xs">Obrigatório</span>}
                   </div>
                 )}
+                <div>
+                  <label htmlFor="max_usuarios" className="block text-sm font-semibold mb-1">Máximo de usuários</label>
+                  <input
+                    id="max_usuarios"
+                    type="number"
+                    min={0}
+                    step={1}
+                    aria-describedby="max_usuarios_ajuda"
+                    {...register('max_usuarios', { valueAsNumber: true, min: 0 })}
+                    className="w-full border p-2 rounded"
+                  />
+                  <p id="max_usuarios_ajuda" className="text-xs text-slate-500 mt-1">
+                    0 = sem limite. Mudar não remove ninguém; só impede convites novos acima do limite.
+                  </p>
+                </div>
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label htmlFor="activation_fee" className="block text-sm font-semibold mb-1">{isAnual ? 'Valor Anual' : 'Taxa de Adesão'}</label>
@@ -347,6 +366,9 @@ export default function PlansPage() {
                 <h3>{plan.nome}</h3>
                 <p className="text-xs text-slate-500">
                   Taxa de ativação: R$ {(plan.activation_fee ?? 0).toLocaleString('pt-BR')} · Mensalidade: R$ {(plan.monthly_value ?? 0).toLocaleString('pt-BR')}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Usuários: {plan.max_usuarios ? plan.max_usuarios : 'sem limite'}
                 </p>
               </div>
               <button

@@ -4,6 +4,7 @@ import { userPool } from "@/lib/cognito";
 import { ApiError } from "@/lib/apiError";
 import { Tenant, CreateTenantInput, TenantUser, TenantUserRole, AddTenantUserInput, ChangePlanInput, Invoice, Site, SiteDetail } from "@/types/tenant";
 import { DashboardStats, AuditRecord, SystemErrorLog } from "@/types/dashboard";
+import type { MudancasDeAcesso } from "@/types/acesso";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.unumpeople.com/v1';
 
@@ -67,7 +68,7 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new ApiError(error.error || 'Request failed', response.status);
+    throw new ApiError(error.error || 'Request failed', response.status, error);
   }
 
   // 204 No Content (DELETE) ou 201/200 sem corpo: response.json() em string vazia
@@ -155,6 +156,13 @@ export const tenantService = {
     fetchWithAuth(`${tenantPath(tenantId)}/users/${email}/role`, {
       method: 'PATCH',
       body: JSON.stringify({ role }),
+    }),
+
+  // Papel por ferramenta ("" volta ao papel implícito) — gestao-de-acesso-f2 RF-08.
+  updateUserAcessos: (tenantId: string, email: string, acessos: MudancasDeAcesso): Promise<{ message: string }> =>
+    fetchWithAuth(`${tenantPath(tenantId)}/users/${encodeURIComponent(email)}/acessos`, {
+      method: 'PATCH',
+      body: JSON.stringify({ acessos }),
     }),
 
   blockUser: (tenantId: string, email: string, isBlocked: boolean): Promise<{ message: string }> =>
