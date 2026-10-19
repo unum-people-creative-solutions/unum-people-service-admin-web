@@ -111,6 +111,18 @@ describe('TenantUsersSection', () => {
     expect(tenantService.updateUserAcessos).not.toHaveBeenCalled()
   })
 
+  // gestao-de-acesso-f5 (Verifier das telas, G2): o bloqueio da gaveta vem do status do vínculo.
+  test('pessoa bloqueada: a gaveta abre marcada e editar só o nome não desbloqueia', async () => {
+    vi.mocked(tenantService.updateUserName).mockResolvedValue({ message: 'ok' })
+    renderizar()
+    fireEvent.click(within(await linhaDe('Bia Lima')).getByRole('button', { name: 'Editar acesso de Bia Lima' }))
+    expect(await screen.findByRole('checkbox', { name: 'Bloquear acesso a esta empresa' })).toBeChecked()
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Bia L.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(tenantService.updateUserName).toHaveBeenCalledWith('t1', 'bia@loja.com', 'Bia L.'))
+    expect(tenantService.blockUser).not.toHaveBeenCalled()
+  })
+
   test('último administrador: a mensagem aparece na gaveta', async () => {
     vi.mocked(tenantService.updateUserAcessos).mockRejectedValue(new ApiError('ultimo_administrador', 409, { error: 'ultimo_administrador' }))
     renderizar()
