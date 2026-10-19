@@ -152,17 +152,9 @@ export interface CreateTenantInput {
   term_id?: string;
 }
 
-export type TenantUserRole = 'admin' | 'user';
-
-// Papéis de vínculo que a API devolve além dos atribuíveis pelo admin:
-// TenantAdmin (legado) e GlobalAdmin (o operador no tenant da própria Unum).
-export type TenantMemberRole = TenantUserRole | 'TenantAdmin' | 'GlobalAdmin';
-
 export interface TenantUser {
   email: string;
   name: string;
-  role: TenantMemberRole;
-  is_blocked: boolean;
   created_at: string;
   // gestao-de-acesso-f2 RF-06: status do vínculo e papel efetivo por ferramenta.
   status: 'ativo' | 'bloqueado';
@@ -172,9 +164,8 @@ export interface TenantUser {
 export interface AddTenantUserInput {
   email: string;
   name: string;
-  role: TenantUserRole;
-  // gestao-de-acesso-f2 RF-07: com acessos, o papel antigo é derivado do Portal.
-  acessos?: MudancasDeAcesso;
+  // gestao-de-acesso-f5 RF-09: o convite manda só os acessos, com o Portal.
+  acessos: MudancasDeAcesso;
 }
 
 export interface ChangePlanInput {

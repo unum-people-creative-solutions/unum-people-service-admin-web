@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>()(
         token, 
         refreshToken: refreshToken || null,
         isAuthenticated: true, 
-        isAdmin: user.groups.includes('Admins') || user.groups.includes('GlobalAdmin')
+        isAdmin: user.groups.includes('GlobalAdmin')
       }),
       setToken: (token) => set({ token }),
       logout: () => set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isAdmin: false }),
@@ -49,6 +49,10 @@ export const useAuthStore = create<AuthState>()(
         isAdmin: state.isAdmin,
       }),
       onRehydrateStorage: () => (state) => {
+        // O isAdmin guardado antes da fase 5 (TenantAdmin/Admins) não vale: recalcula pelos grupos.
+        if (state) {
+          useAuthStore.setState({ isAdmin: state.user?.groups.includes('GlobalAdmin') ?? false });
+        }
         state?.setHasHydrated(true);
       },
     }

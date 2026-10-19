@@ -19,14 +19,14 @@ vi.mock('@/services/acessoService', () => ({ acessoService: { catalogo: vi.fn(),
 vi.mock('@/store/useAuthStore', () => ({ useAuthStore: vi.fn() }))
 
 const ana: TenantUser = {
-  email: 'ana@loja.com', name: 'Ana Souza', role: 'admin', is_blocked: false, created_at: '2026-06-12T12:00:00Z', status: 'ativo',
+  email: 'ana@loja.com', name: 'Ana Souza', created_at: '2026-06-12T12:00:00Z', status: 'ativo',
   acessos: { portal: { papel: 'administrador', implicito: false }, crm: { papel: 'gestor', implicito: true }, blog: { papel: 'editor', implicito: true }, lp: { papel: 'administrador', implicito: true } },
 }
 const bia: TenantUser = {
-  email: 'bia@loja.com', name: 'Bia Lima', role: 'user', is_blocked: true, created_at: '2026-06-12T12:00:00Z', status: 'bloqueado',
+  email: 'bia@loja.com', name: 'Bia Lima', created_at: '2026-06-12T12:00:00Z', status: 'bloqueado',
   acessos: { portal: { papel: 'membro', implicito: false }, crm: { papel: 'vendedor', implicito: false }, blog: { papel: 'redator', implicito: false }, lp: { papel: 'editor', implicito: false } },
 }
-const eu: TenantUser = { ...bia, email: 'op@unum.com', name: 'Operador', status: 'ativo', is_blocked: false }
+const eu: TenantUser = { ...bia, email: 'op@unum.com', name: 'Operador', status: 'ativo' }
 
 function renderizar(props: Partial<React.ComponentProps<typeof TenantUsersSection>> = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -111,6 +111,18 @@ describe('TenantUsersSection', () => {
     expect(tenantService.updateUserAcessos).not.toHaveBeenCalled()
   })
 
+  // gestao-de-acesso-f5 (Verifier das telas, G2): o bloqueio da gaveta vem do status do vínculo.
+  test('pessoa bloqueada: a gaveta abre marcada e editar só o nome não desbloqueia', async () => {
+    vi.mocked(tenantService.updateUserName).mockResolvedValue({ message: 'ok' })
+    renderizar()
+    fireEvent.click(within(await linhaDe('Bia Lima')).getByRole('button', { name: 'Editar acesso de Bia Lima' }))
+    expect(await screen.findByRole('checkbox', { name: 'Bloquear acesso a esta empresa' })).toBeChecked()
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Bia L.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(tenantService.updateUserName).toHaveBeenCalledWith('t1', 'bia@loja.com', 'Bia L.'))
+    expect(tenantService.blockUser).not.toHaveBeenCalled()
+  })
+
   test('último administrador: a mensagem aparece na gaveta', async () => {
     vi.mocked(tenantService.updateUserAcessos).mockRejectedValue(new ApiError('ultimo_administrador', 409, { error: 'ultimo_administrador' }))
     renderizar()
@@ -138,7 +150,7 @@ describe('TenantUsersSection', () => {
     fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'caio@loja.com' } })
     fireEvent.change(screen.getByLabelText('CRM'), { target: { value: 'vendedor' } })
     fireEvent.click(screen.getByRole('button', { name: 'Convidar pessoa' }))
-    await waitFor(() => expect(tenantService.addUser).toHaveBeenCalledWith('t1', { name: 'Caio', email: 'caio@loja.com', role: 'user', acessos: { portal: 'membro', crm: 'vendedor' } }))
+    await waitFor(() => expect(tenantService.addUser).toHaveBeenCalledWith('t1', { name: 'Caio', email: 'caio@loja.com', acessos: { portal: 'membro', crm: 'vendedor' } }))
   })
 
   test('convidar sem nome e e-mail mostra os erros', async () => {
@@ -206,7 +218,7 @@ describe('TenantUsersSection — lacunas do Verifier', () => {
 
   test('asterisco explica o implícito certo; lixeira desabilitada diz por quê', async () => {
     vi.mocked(acessoService.catalogo).mockResolvedValue(catalogo)
-    const caio: TenantUser = { ...bia, email: 'caio@loja.com', name: 'Caio', status: 'ativo', is_blocked: false,
+    const caio: TenantUser = { ...bia, email: 'caio@loja.com', name: 'Caio', status: 'ativo',
       acessos: { ...bia.acessos, crm: { papel: 'sem_acesso', implicito: true } } }
     vi.mocked(tenantService.listUsers).mockResolvedValue([ana, caio, eu])
     renderizar()
@@ -216,7 +228,7 @@ describe('TenantUsersSection — lacunas do Verifier', () => {
 
   test('Membro implícito do Portal explica que todo mundo é pelo menos Membro', async () => {
     vi.mocked(acessoService.catalogo).mockResolvedValue(catalogo)
-    const dani: TenantUser = { ...bia, email: 'dani@loja.com', name: 'Dani', status: 'ativo', is_blocked: false,
+    const dani: TenantUser = { ...bia, email: 'dani@loja.com', name: 'Dani', status: 'ativo',
       acessos: { ...bia.acessos, portal: { papel: 'membro', implicito: true } } }
     vi.mocked(tenantService.listUsers).mockResolvedValue([ana, dani, eu])
     renderizar()
