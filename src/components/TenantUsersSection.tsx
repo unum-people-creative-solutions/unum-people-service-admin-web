@@ -282,7 +282,6 @@ function FormularioConvite({
       const entrada: AddTenantUserInput = {
         name: nome.trim(),
         email: email.trim(),
-        role: (valor.portal ?? 'membro') === 'administrador' ? 'admin' : 'user',
         acessos: acessosPreenchidos(valor),
       };
       return tenantService.addUser(tenantId, entrada);

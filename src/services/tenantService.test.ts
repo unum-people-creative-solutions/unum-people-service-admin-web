@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { tenantService } from './tenantService'
 import { useAuthStore } from '@/store/useAuthStore'
-import { TenantUser, TenantUserRole, AddTenantUserInput } from '@/types/tenant'
+import { TenantUser, AddTenantUserInput } from '@/types/tenant'
 import { ApiError } from '@/lib/apiError'
 
 // Mock globals
@@ -132,8 +132,6 @@ describe('tenantService', () => {
         {
           email: 'user@test.com',
           name: 'Test User',
-          role: 'user',
-          is_blocked: false,
           created_at: '2026-06-12T12:00:00Z',
           status: 'ativo',
           acessos: {
@@ -171,7 +169,7 @@ describe('tenantService', () => {
       const input: AddTenantUserInput = {
         email: 'newuser@test.com',
         name: 'New User',
-        role: 'user',
+        acessos: { portal: 'membro' },
       }
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -220,32 +218,13 @@ describe('tenantService', () => {
     })
   })
 
-  describe('updateUserRole', () => {
-    it('calls PATCH /admin/tenants/{id}/users/{email}/role endpoint with body', async () => {
-      const tenantId = 'tenant-123'
-      const email = 'user@test.com'
-      const role: TenantUserRole = 'admin'
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ message: 'Role updated' }),
-        text: async () => JSON.stringify(({ message: 'Role updated' })),
-      })
-
-      const result = await tenantService.updateUserRole(tenantId, email, role)
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining(`/admin/tenants/${tenantId}/users/${email}/role`),
-        expect.objectContaining({
-          method: 'PATCH',
-          body: JSON.stringify({ role }),
-          headers: expect.objectContaining({
-            Authorization: `Bearer ${accessToken}`,
-          }),
-        })
-      )
-      expect(result).toEqual({ message: 'Role updated' })
+  // gestao-de-acesso-f5 RF-09: a rota de mudar role saiu da API; o papel é por ferramenta (updateUserAcessos).
+  describe('sem updateUserRole', () => {
+    it('não existe mais o método que chamava PATCH .../users/{email}/role', () => {
+      expect(tenantService).not.toHaveProperty('updateUserRole')
     })
   })
+
 
   describe('updateUserName', () => {
     it('calls PATCH /admin/tenants/{id}/users/{email}/name endpoint with body', async () => {
@@ -534,7 +513,6 @@ describe('tenantService — ID do tenant no caminho', () => {
     ['listUsers', () => tenantService.listUsers(id)],
     ['addUser', () => tenantService.addUser(id, {} as AddTenantUserInput)],
     ['removeUser', () => tenantService.removeUser(id, 'a@b.com')],
-    ['updateUserRole', () => tenantService.updateUserRole(id, 'a@b.com', 'user' as TenantUserRole)],
     ['blockUser', () => tenantService.blockUser(id, 'a@b.com', true)],
     ['updateUserName', () => tenantService.updateUserName(id, 'a@b.com', 'Nome')],
     ['retryBilling', () => tenantService.retryBilling(id)],

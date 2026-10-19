@@ -2,7 +2,7 @@ import { CognitoUser, CognitoRefreshToken } from 'amazon-cognito-identity-js';
 import { useAuthStore } from "@/store/useAuthStore";
 import { userPool } from "@/lib/cognito";
 import { ApiError } from "@/lib/apiError";
-import { Tenant, CreateTenantInput, TenantUser, TenantUserRole, AddTenantUserInput, ChangePlanInput, Invoice, Site, SiteDetail } from "@/types/tenant";
+import { Tenant, CreateTenantInput, TenantUser, AddTenantUserInput, ChangePlanInput, Invoice, Site, SiteDetail } from "@/types/tenant";
 import { DashboardStats, AuditRecord, SystemErrorLog } from "@/types/dashboard";
 import type { MudancasDeAcesso } from "@/types/acesso";
 
@@ -150,12 +150,6 @@ export const tenantService = {
   removeUser: (tenantId: string, email: string): Promise<{ message: string }> =>
     fetchWithAuth(`${tenantPath(tenantId)}/users/${email}`, {
       method: 'DELETE',
-    }),
-
-  updateUserRole: (tenantId: string, email: string, role: TenantUserRole): Promise<{ message: string }> =>
-    fetchWithAuth(`${tenantPath(tenantId)}/users/${email}/role`, {
-      method: 'PATCH',
-      body: JSON.stringify({ role }),
     }),
 
   // Papel por ferramenta ("" volta ao papel implícito) — gestao-de-acesso-f2 RF-08.
