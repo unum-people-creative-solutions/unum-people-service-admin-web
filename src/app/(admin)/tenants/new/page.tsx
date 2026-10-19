@@ -156,7 +156,7 @@ export default function NewTenantPage() {
                 <h2 className="text-lg font-bold text-slate-800">Administrador do Tenant</h2>
                 <div className="flex gap-2">
                   <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Administrador</span>
-                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded">Administrador Inicial / TenantAdmin</span>
+                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded">Administrador do Portal</span>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

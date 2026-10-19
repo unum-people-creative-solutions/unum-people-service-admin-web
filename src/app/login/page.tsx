@@ -49,8 +49,8 @@ export default function LoginPage() {
         const decoded = jwtDecode<{ email: string; 'cognito:groups'?: string[] }>(idToken);
         const groups = decoded['cognito:groups'] || [];
 
-        // Verifica se é Admin
-        if (!groups.includes('Admins') && !groups.includes('GlobalAdmin')) {
+        // Só o operador (GlobalAdmin) entra (gestao-de-acesso-f5 D-F5-9).
+        if (!groups.includes('GlobalAdmin')) {
           setError('Acesso negado. Apenas administradores globais podem acessar este painel.');
           setLoading(false);
           return;
