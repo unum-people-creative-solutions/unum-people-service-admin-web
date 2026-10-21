@@ -67,7 +67,12 @@ export default function TenantsPage() {
                 ) : tenants?.map((tenant) => (
                   <tr key={tenant.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-medium text-slate-900">{tenant.nome_negocio}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-slate-900">{tenant.nome_negocio}</div>
+                        {tenant.is_test_tenant ? (
+                          <span aria-label="Tenant de teste" className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Teste</span>
+                        ) : null}
+                      </div>
                       <div className="text-sm text-slate-500">{tenant.email_contato}</div>
                     </td>
                     <td className="px-6 py-4 text-slate-600">{tenant.documento}</td>
