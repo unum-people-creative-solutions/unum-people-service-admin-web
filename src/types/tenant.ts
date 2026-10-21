@@ -109,6 +109,8 @@ export interface Tenant {
   google_ads_customer_id?: string;
   use_mcc_auth: boolean;
   status: TenantStatus;
+  /** Unix do início do dia em que um cancelamento agendado vira terminal. */
+  cancel_at?: number;
   plan_id: string;
   plan_type?: PlanType;
   plan_status?: TenantStatus; // Mantido para retrocompatibilidade se necessário
