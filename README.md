@@ -20,6 +20,10 @@ Tela `(admin)/terms` — CRUD de `Term`/`TermVersion` (o operador escreve o cont
 
 A listagem (`(admin)/tenants`) e o detalhe do tenant mostram o selo **Teste** (nome acessível "Tenant de teste") quando `is_test_tenant` é verdadeiro; o detalhe mostra também "Cobrança no sandbox do Asaas". O flag só é escolhido na criação (`/tenants/new`) e não aparece na edição; tenant já existente só vira teste pelo comando `cmd/marcar-teste` da API (ADR-0008). A exclusão segue o fluxo normal: cancelar e, por ser de teste, excluir de imediato.
 
+## Flags
+
+A página **Flags** (`/flags`, item no menu depois de Termos) lista o catálogo de feature flags da API com descrição, apps e a data da última mudança. Cada flag tem um seletor de três estados: **Desligada**, **Só teste** (vale para tenants de teste e para quem está em modo teste) e **Ligada** (para todos). Mudar para **Ligada** pede confirmação; os outros estados mudam direto. A mudança vale em até 1 minuto (cache da API). Flag nova não se cria pela tela: ela nasce no catálogo da API, junto com a funcionalidade que protege.
+
 ## Modo teste do checkout
 
 Em **Configurações** (`/settings`), a seção "Modo teste do checkout" mostra se o modo está ativo e quando o token foi gerado. **Gerar token** / **Rotacionar token** (com confirmação) cria um token novo, e o anterior deixa de valer na hora. **Mostrar link** revela o link pronto `https://unumpeople.app/configurar?teste=<token>`, com **Copiar link**, e o comando do console do navegador `unumTeste.ativar('<token>')`, com **Copiar comando** (quem prefere ativar pelo console em `unumpeople.app`). **Desligar modo teste** (com confirmação) apaga o token: todo link de teste passa a ser recusado. A base do link vem de `NEXT_PUBLIC_CONFIGURADOR_URL` (padrão `https://unumpeople.app`).

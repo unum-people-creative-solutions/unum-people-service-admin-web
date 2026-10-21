@@ -9,6 +9,7 @@ import {
   FileText,
   AlertCircle,
   Settings,
+  Flag,
   ChevronRight,
   LogOut,
   Menu,
@@ -43,6 +44,11 @@ const menuItems = [
     title: 'Termos',
     href: '/terms',
     icon: FileText,
+  },
+  {
+    title: 'Flags',
+    href: '/flags',
+    icon: Flag,
   },
   {
     title: 'Monitoramento',

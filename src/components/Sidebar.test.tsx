@@ -92,3 +92,13 @@ test('menu tem Papéis entre Planos e Termos', () => {
   expect(links.indexOf('/acessos/papeis')).toBe(links.indexOf('/plans') + 1);
   expect(screen.getByRole('link', { name: /Papéis/ })).toHaveAttribute('href', '/acessos/papeis');
 });
+
+// modo-teste-fase3 AC 14: item Flags no menu, logo depois de Termos.
+test('menu tem Flags logo depois de Termos', () => {
+  vi.mocked(useAuthStore).mockReturnValue({ logout: vi.fn() } as unknown as ReturnType<typeof useAuthStore>);
+  vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+  render(<Sidebar />);
+  const links = screen.getAllByRole('link').map((l) => l.getAttribute('href'));
+  expect(links.indexOf('/flags')).toBe(links.indexOf('/terms') + 1);
+  expect(screen.getByRole('link', { name: /Flags/ })).toHaveAttribute('href', '/flags');
+});
