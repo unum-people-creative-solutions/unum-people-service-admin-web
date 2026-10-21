@@ -191,7 +191,7 @@ export const tenantService = {
       method: 'POST',
     }),
 
-  cancelContract: (id: string): Promise<{ message: string }> =>
+  cancelContract: (id: string): Promise<{ message: string; kind?: string; effective_at?: string }> =>
     fetchWithAuth(`${tenantPath(id)}/cancel`, {
       method: 'POST',
     }),
