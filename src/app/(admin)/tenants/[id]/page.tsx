@@ -442,6 +442,9 @@ export default function TenantDetailsPage() {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-3xl font-bold text-slate-900">{tenant.nome_negocio}</h1>
+                {tenant.is_test_tenant ? (
+                  <span aria-label="Tenant de teste" className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">Teste</span>
+                ) : null}
                 {(() => {
                   const badge = getStatusBadge(tenant);
                   return (
@@ -452,6 +455,9 @@ export default function TenantDetailsPage() {
                 })()}
               </div>
               <p className="text-slate-500 text-sm">Tenant ID: <span className="font-mono">{tenant.id}</span></p>
+              {tenant.is_test_tenant ? (
+                <p className="text-amber-700 text-sm font-medium mt-1">Cobrança no sandbox do Asaas</p>
+              ) : null}
             </div>
             
             <div className="flex items-center gap-4 w-full md:w-auto">
