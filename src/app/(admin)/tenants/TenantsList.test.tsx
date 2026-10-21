@@ -52,14 +52,16 @@ describe('TenantsPage', () => {
     );
 
     const linhaTeste = (await screen.findByText('Loja Fictícia')).closest('tr')!;
-    const selo = within(linhaTeste).getByLabelText('Tenant de teste');
-    expect(selo).toHaveTextContent('Teste');
+    // Papel img: o ARIA só admite nome acessível em papel que aceita nome (span genérico não).
+    const selo = within(linhaTeste).getByRole('img', { name: 'Tenant de teste' });
+    // Texto exato: toHaveTextContent aceitaria 'Teste de plano'.
+    expect(selo.textContent).toBe('Teste');
 
     for (const nome of ['Parceiro Real', 'Sem Campo']) {
       const linha = screen.getByText(nome).closest('tr')!;
-      expect(within(linha).queryByLabelText('Tenant de teste')).toBeNull();
+      expect(within(linha).queryByRole('img', { name: 'Tenant de teste' })).toBeNull();
       expect(within(linha).queryByText('Teste')).toBeNull();
     }
-    expect(screen.getAllByLabelText('Tenant de teste')).toHaveLength(1);
+    expect(screen.getAllByRole('img', { name: 'Tenant de teste' })).toHaveLength(1);
   });
 });

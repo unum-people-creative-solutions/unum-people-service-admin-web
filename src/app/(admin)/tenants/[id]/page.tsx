@@ -443,7 +443,7 @@ export default function TenantDetailsPage() {
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-3xl font-bold text-slate-900">{tenant.nome_negocio}</h1>
                 {tenant.is_test_tenant ? (
-                  <span aria-label="Tenant de teste" className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">Teste</span>
+                  <span role="img" aria-label="Tenant de teste" className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">Teste</span>
                 ) : null}
                 {(() => {
                   const badge = getStatusBadge(tenant);

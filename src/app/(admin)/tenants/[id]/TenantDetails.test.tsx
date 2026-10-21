@@ -126,7 +126,7 @@ describe('TenantDetailsPage - tenant de teste', () => {
     renderizar();
 
     const cabecalho = (await screen.findByRole('heading', { level: 1, name: 'Empresa Teste' })).parentElement!;
-    expect(within(cabecalho).getByLabelText('Tenant de teste')).toHaveTextContent('Teste');
+    expect(within(cabecalho).getByRole('img', { name: 'Tenant de teste' }).textContent).toBe('Teste');
     expect(screen.getByText('Cobrança no sandbox do Asaas')).toBeInTheDocument();
   });
 
@@ -135,7 +135,7 @@ describe('TenantDetailsPage - tenant de teste', () => {
     renderizar();
 
     await screen.findByRole('heading', { level: 1, name: 'Empresa Teste' });
-    expect(screen.queryByLabelText('Tenant de teste')).toBeNull();
+    expect(screen.queryByRole('img', { name: 'Tenant de teste' })).toBeNull();
     expect(screen.queryByText('Cobrança no sandbox do Asaas')).toBeNull();
   });
 });
