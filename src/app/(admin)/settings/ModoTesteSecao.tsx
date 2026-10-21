@@ -28,16 +28,16 @@ export default function ModoTesteSecao() {
   const [acao, setAcao] = useState<Acao | null>(null);
   const [pendente, setPendente] = useState(false);
   const [linkVisivel, setLinkVisivel] = useState(false);
-  const [copia, setCopia] = useState<'ok' | 'erro' | null>(null);
+  const [copia, setCopia] = useState<{ alvo: 'link' | 'comando'; resultado: 'ok' | 'erro' } | null>(null);
 
   // Permissão negada ou contexto não seguro não podem falhar em silêncio.
-  async function copiarLink(texto: string) {
+  async function copiar(alvo: 'link' | 'comando', texto: string) {
     try {
       await navigator.clipboard.writeText(texto);
-      setCopia('ok');
+      setCopia({ alvo, resultado: 'ok' });
     } catch (erro) {
       console.error(erro);
-      setCopia('erro');
+      setCopia({ alvo, resultado: 'erro' });
     }
   }
 
@@ -95,6 +95,8 @@ export default function ModoTesteSecao() {
   }
 
   const link = estado?.token ? linkDoToken(estado.token) : null;
+  // O mesmo token, para quem prefere ativar pelo console do navegador (unumTeste.ativar).
+  const comando = estado?.token ? `unumTeste.ativar('${estado.token}')` : '';
 
   return (
     <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -123,16 +125,31 @@ export default function ModoTesteSecao() {
             {estado.ativo && link && linkVisivel ? (
               <>
                 <p className="text-sm break-all text-slate-700">{link}</p>
-                <button type="button" className={CLASSE_PRIMARIO} onClick={() => void copiarLink(link)}>
+                <button type="button" className={`${CLASSE_PRIMARIO} self-start`} onClick={() => void copiar('link', link)}>
                   Copiar link
                 </button>
-                {copia === 'ok' ? <p role="status" className="text-sm text-slate-600">Link copiado.</p> : null}
-                {copia === 'erro' ? <p role="alert">Não foi possível copiar o link.</p> : null}
+                <p className="text-sm text-slate-600">
+                  Ou, no console do navegador (F12) em unumpeople.app:
+                </p>
+                <p className="text-sm break-all font-mono text-slate-700">{comando}</p>
+                <button type="button" className={`${CLASSE_PRIMARIO} self-start`} onClick={() => void copiar('comando', comando)}>
+                  Copiar comando
+                </button>
+                {copia?.resultado === 'ok' ? (
+                  <p role="status" className="text-sm text-slate-600">
+                    {copia.alvo === 'link' ? 'Link copiado.' : 'Comando copiado.'}
+                  </p>
+                ) : null}
+                {copia?.resultado === 'erro' ? (
+                  <p role="alert">
+                    {copia.alvo === 'link' ? 'Não foi possível copiar o link.' : 'Não foi possível copiar o comando.'}
+                  </p>
+                ) : null}
               </>
             ) : null}
 
             {estado.ativo && link && !linkVisivel ? (
-              <button type="button" className={CLASSE_PRIMARIO} onClick={() => setLinkVisivel(true)}>
+              <button type="button" className={`${CLASSE_PRIMARIO} self-start`} onClick={() => setLinkVisivel(true)}>
                 Mostrar link
               </button>
             ) : null}

@@ -22,7 +22,7 @@ A listagem (`(admin)/tenants`) e o detalhe do tenant mostram o selo **Teste** (n
 
 ## Modo teste do checkout
 
-Em **Configurações** (`/settings`), a seção "Modo teste do checkout" mostra se o modo está ativo e quando o token foi gerado. **Gerar token** / **Rotacionar token** (com confirmação) cria um token novo, e o anterior deixa de valer na hora. **Mostrar link** revela o link pronto `https://unumpeople.app/configurar?teste=<token>`, com **Copiar link**. **Desligar modo teste** (com confirmação) apaga o token: todo link de teste passa a ser recusado. A base do link vem de `NEXT_PUBLIC_CONFIGURADOR_URL` (padrão `https://unumpeople.app`).
+Em **Configurações** (`/settings`), a seção "Modo teste do checkout" mostra se o modo está ativo e quando o token foi gerado. **Gerar token** / **Rotacionar token** (com confirmação) cria um token novo, e o anterior deixa de valer na hora. **Mostrar link** revela o link pronto `https://unumpeople.app/configurar?teste=<token>`, com **Copiar link**, e o comando do console do navegador `unumTeste.ativar('<token>')`, com **Copiar comando** (quem prefere ativar pelo console em `unumpeople.app`). **Desligar modo teste** (com confirmação) apaga o token: todo link de teste passa a ser recusado. A base do link vem de `NEXT_PUBLIC_CONFIGURADOR_URL` (padrão `https://unumpeople.app`).
 
 ## Planos (produto e cota de páginas)
 

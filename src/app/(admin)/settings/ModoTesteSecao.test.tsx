@@ -261,4 +261,54 @@ describe('ModoTesteSecao', () => {
     expect(await screen.findByText(/configurar\?teste=n{43}/)).toBeInTheDocument();
     expect(screen.queryByText('Link copiado.')).not.toBeInTheDocument();
   });
+
+  // Pedido do usuário (2026-10-21): o comando do console aparece junto do link.
+  const COMANDO = `unumTeste.ativar('${TOKEN}')`;
+
+  it('o comando do console fica oculto até "Mostrar link" e então aparece com o token', async () => {
+    mockAtivo();
+    render(<ModoTesteSecao />);
+
+    await screen.findByRole('button', { name: 'Mostrar link' });
+    expect(screen.queryByText(COMANDO)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar link' }));
+
+    expect(screen.getByText(COMANDO)).toBeInTheDocument();
+  });
+
+  it('Copiar comando copia o comando exato e avisa', async () => {
+    mockAtivo();
+    render(<ModoTesteSecao />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mostrar link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar comando' }));
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(COMANDO);
+    expect(await screen.findByText('Comando copiado.')).toBeInTheDocument();
+    expect(screen.queryByText('Link copiado.')).not.toBeInTheDocument();
+  });
+
+  it('Copiar comando mostra erro quando a área de transferência recusa', async () => {
+    mockAtivo();
+    vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error('negado'));
+    render(<ModoTesteSecao />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mostrar link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar comando' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível copiar o comando.');
+  });
+
+  it('depois de rotacionar, o comando mostra o token novo', async () => {
+    mockAtivo();
+    vi.mocked(settingsService.rotacionarModoTeste).mockResolvedValue({ token: 'n'.repeat(43), rotacionado_em: '2026-10-21T14:00:00Z' });
+    render(<ModoTesteSecao />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Rotacionar token' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    expect(await screen.findByText(`unumTeste.ativar('${'n'.repeat(43)}')`)).toBeInTheDocument();
+    expect(screen.queryByText(COMANDO)).not.toBeInTheDocument();
+  });
 });
