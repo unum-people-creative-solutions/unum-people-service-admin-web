@@ -15,6 +15,7 @@ import {
 import { settingsService, GlobalSettingsResponse } from '@/services/settingsService';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import ModoTesteSecao from './ModoTesteSecao';
 
 // O campo guarda só o e-mail: o prefixo mailto: é do cliente de web push.
 // Valores antigos salvos com o prefixo aparecem sem ele.
@@ -236,6 +237,8 @@ export default function SettingsPage() {
           </div>
         </form>
       </section>
+
+      <ModoTesteSecao />
     </div>
   );
 }
