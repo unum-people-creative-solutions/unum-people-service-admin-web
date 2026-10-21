@@ -903,6 +903,40 @@ describe('TenantDetailsPage - Refactor Requirements', () => {
       });
     });
 
+    test('cancelamento já agendado esconde o botão e mostra o fim do acesso', async () => {
+      vi.mocked(tenantService.getById).mockResolvedValue({
+        ...mockTenant,
+        status: 'ativo',
+        cancel_at: Date.UTC(2026, 10, 10, 3, 0, 0) / 1000,
+      } as Tenant);
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      const showActionsBtn = await screen.findByRole('button', { name: /mostrar ações/i });
+      fireEvent.click(showActionsBtn);
+
+      expect(screen.queryByRole('button', { name: /cancelar contrato/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/Cancelamento agendado. O acesso segue até 10\/11\/2026/)).toBeInTheDocument();
+    });
+
+    test('o diálogo explica o estorno em 7 dias e o fim do ciclo', async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TenantDetailsPage />
+        </QueryClientProvider>
+      );
+
+      fireEvent.click(await screen.findByRole('button', { name: /mostrar ações/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /cancelar contrato/i }));
+
+      expect(screen.getByText(/até 7 dias/i)).toBeInTheDocument();
+      expect(screen.getByText(/fim do período já pago/i)).toBeInTheDocument();
+    });
+
     test('T11 — UI: "Cancelar Contrato" exige frase digitada', async () => {
       render(
         <QueryClientProvider client={queryClient}>

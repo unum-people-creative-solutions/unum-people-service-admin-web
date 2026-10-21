@@ -101,6 +101,12 @@ const StatusLed = ({ active, section }: { active: boolean; section: string }) =>
   );
 };
 
+function dataBR(iso?: string) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+  const [ano, mes, dia] = iso.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
 export default function TenantDetailsPage() {
   // O link codifica o ID (TENANT#DEMO_REVIEW chega como TENANT%23DEMO_REVIEW).
   // Os IDs são UUID ou TENANT#<NOME>, sem "%" literal, então decodificar um
@@ -253,13 +259,17 @@ export default function TenantDetailsPage() {
 
   const cancelContractMutation = useMutation({
     mutationFn: () => tenantService.cancelContract(id),
-    onSuccess: () => {
-      queryClient.setQueryData(['tenant', id], (old: Tenant | undefined) =>
-        old ? { ...old, status: 'cancelado' as Tenant['status'] } : old
-      );
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['tenant', id] });
-      setSuccessMsg('Contrato cancelado com sucesso!');
-      setTimeout(() => setSuccessMsg(null), 3000);
+      const quando = dataBR(result.effective_at);
+      if (result.kind === 'fim_de_periodo' && quando) {
+        setSuccessMsg(`Assinatura encerrada. O acesso segue até ${quando}.`);
+      } else if (result.kind === 'arrependimento') {
+        setSuccessMsg('Contrato cancelado e estorno solicitado.');
+      } else {
+        setSuccessMsg('Contrato cancelado com sucesso!');
+      }
+      setTimeout(() => setSuccessMsg(null), 5000);
     },
     onError: (err: Error) => {
       setErrorMsg(err?.message || 'Erro ao cancelar contrato.');
@@ -410,7 +420,10 @@ export default function TenantDetailsPage() {
   // já é minúsculo. Normaliza os dois para a mesma convenção antes de comparar.
   const currentStatus = String(tenant.status || tenant.plan_status || '').toLowerCase();
   const isPausarEnabled = ['ativo', 'inadimplente', 'suspenso'].includes(currentStatus as string);
-  const isCancelarEnabled = !['cancelado', 'excluindo'].includes(currentStatus as string);
+  const fimDoAcesso = (tenant.cancel_at ?? 0) > 0
+    ? new Date((tenant.cancel_at ?? 0) * 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+    : '';
+  const isCancelarEnabled = !['cancelado', 'excluindo'].includes(currentStatus as string) && fimDoAcesso === '';
   const canDelete = currentStatus === 'cancelado';
 
 
@@ -782,6 +795,12 @@ export default function TenantDetailsPage() {
                         </AlertDialog.Root>
                       )}
 
+                      {fimDoAcesso !== '' && (
+                        <p className="text-sm text-orange-800 bg-orange-50 border border-orange-100 rounded-lg px-4 py-3">
+                          Cancelamento agendado. O acesso segue até {fimDoAcesso}.
+                        </p>
+                      )}
+
                       {isCancelarEnabled && (
                         <AlertDialog.Root>
                           <AlertDialog.Trigger asChild>
@@ -806,7 +825,7 @@ export default function TenantDetailsPage() {
                               <AlertDialog.Description asChild>
                                 <div className="text-slate-600 text-sm leading-relaxed space-y-4">
                                   <p>
-                                    O contrato será cancelado e a assinatura será encerrada. Serviços serão interrompidos de acordo com as regras de cancelamento.
+                                    A assinatura é encerrada agora. Se o primeiro pagamento foi confirmado há até 7 dias, o valor é estornado e o acesso acaba na hora. Depois disso, o acesso segue até o fim do período já pago.
                                   </p>
                                   <div className="space-y-3">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
