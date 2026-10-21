@@ -20,6 +20,10 @@ Tela `(admin)/terms` — CRUD de `Term`/`TermVersion` (o operador escreve o cont
 
 A listagem (`(admin)/tenants`) e o detalhe do tenant mostram o selo **Teste** (nome acessível "Tenant de teste") quando `is_test_tenant` é verdadeiro; o detalhe mostra também "Cobrança no sandbox do Asaas". O flag só é escolhido na criação (`/tenants/new`) e não aparece na edição; tenant já existente só vira teste pelo comando `cmd/marcar-teste` da API (ADR-0008). A exclusão segue o fluxo normal: cancelar e, por ser de teste, excluir de imediato.
 
+## Modo teste do checkout
+
+Em **Configurações** (`/settings`), a seção "Modo teste do checkout" mostra se o modo está ativo e quando o token foi gerado. **Gerar token** / **Rotacionar token** (com confirmação) cria um token novo, e o anterior deixa de valer na hora. **Mostrar link** revela o link pronto `https://unumpeople.app/configurar?teste=<token>`, com **Copiar link**. **Desligar modo teste** (com confirmação) apaga o token: todo link de teste passa a ser recusado. A base do link vem de `NEXT_PUBLIC_CONFIGURADOR_URL` (padrão `https://unumpeople.app`).
+
 ## Planos (produto e cota de páginas)
 
 Tela `(admin)/plans` — o formulário de plano envia `product` (`plataforma` | `landing-page`) e `pages_included`. Plano legado chega da API com `product: ""` (chave presente; o `omitempty` do backend está só no DynamoDB) e `pages_included: 0`; a leitura trata string vazia como `plataforma`. A cota mínima de landing page é validada pelo backend (400/409); a UI só exibe o erro retornado.
