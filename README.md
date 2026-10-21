@@ -16,6 +16,10 @@ O painel inteiro pede para não indexar (`robots` nos metadados de `src/app/layo
 
 Tela `(admin)/terms` — CRUD de `Term`/`TermVersion` (o operador escreve o conteúdo em Markdown; o backend renderiza, sanitiza e publica em S3). Cada `Plan` pago é vinculado a um termo (obrigatório, inclusive para planos já existentes); para tenants `PERSONALIZADO`/`LIVRE` o termo é escolhido manualmente no formulário de criação/edição do tenant. O detalhe do tenant mostra o status do aceite (`ServiceAgreementCard`, ao lado do `BillingCard`) — o aceite em si é sempre feito pelo Administrador do Portal da empresa (permissão `portal.contrato.aceitar`), nunca pelo operador aqui. O painel só aceita o grupo `GlobalAdmin` (desde a fase 5, o grupo legado `Admins` não entra), e o convite de usuário manda só `acessos`, com o Portal. O detalhe do tenant também lista as notas fiscais de serviço emitidas (`TenantInvoicesSection`, mesmo bloco do `BillingCard`/`ServiceAgreementCard`) — busca via `GET /admin/tenants/{id}/invoices`, exibe status/link de PDF quando autorizada; só leitura, sem ação de emissão manual nesta fase.
 
+## Tenant de teste
+
+A listagem (`(admin)/tenants`) e o detalhe do tenant mostram o selo **Teste** (nome acessível "Tenant de teste") quando `is_test_tenant` é verdadeiro; o detalhe mostra também "Cobrança no sandbox do Asaas". O flag só é escolhido na criação (`/tenants/new`) e não aparece na edição; tenant já existente só vira teste pelo comando `cmd/marcar-teste` da API (ADR-0008). A exclusão segue o fluxo normal: cancelar e, por ser de teste, excluir de imediato.
+
 ## Planos (produto e cota de páginas)
 
 Tela `(admin)/plans` — o formulário de plano envia `product` (`plataforma` | `landing-page`) e `pages_included`. Plano legado chega da API com `product: ""` (chave presente; o `omitempty` do backend está só no DynamoDB) e `pages_included: 0`; a leitura trata string vazia como `plataforma`. A cota mínima de landing page é validada pelo backend (400/409); a UI só exibe o erro retornado.
