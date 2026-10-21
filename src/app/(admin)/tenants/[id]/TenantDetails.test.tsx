@@ -105,6 +105,41 @@ describe('TenantDetailsPage - ID com "#"', () => {
   });
 });
 
+// modo-teste-fase0 AC 11–12: o detalhe identifica o tenant de teste e diz onde ele é cobrado.
+describe('TenantDetailsPage - tenant de teste', () => {
+  beforeEach(() => {
+    queryClient.clear();
+    vi.clearAllMocks();
+    vi.mocked(useParams).mockReturnValue({ id: 'tenant-123' });
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+  });
+
+  const renderizar = () =>
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantDetailsPage />
+      </QueryClientProvider>
+    );
+
+  test('tenant de teste: selo "Teste" no cabeçalho e cobrança no sandbox', async () => {
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, is_test_tenant: true } as Tenant);
+    renderizar();
+
+    const cabecalho = (await screen.findByRole('heading', { level: 1, name: 'Empresa Teste' })).parentElement!;
+    expect(within(cabecalho).getByRole('img', { name: 'Tenant de teste' }).textContent).toBe('Teste');
+    expect(screen.getByText('Cobrança no sandbox do Asaas')).toBeInTheDocument();
+  });
+
+  test.each([false, undefined])('tenant real (is_test_tenant=%s): sem selo e sem a linha do sandbox', async (valor) => {
+    vi.mocked(tenantService.getById).mockResolvedValue({ ...mockTenant, is_test_tenant: valor } as Tenant);
+    renderizar();
+
+    await screen.findByRole('heading', { level: 1, name: 'Empresa Teste' });
+    expect(screen.queryByRole('img', { name: 'Tenant de teste' })).toBeNull();
+    expect(screen.queryByText('Cobrança no sandbox do Asaas')).toBeNull();
+  });
+});
+
 describe('TenantDetailsPage - Refactor Requirements', () => {
   beforeEach(() => {
     queryClient.clear();
