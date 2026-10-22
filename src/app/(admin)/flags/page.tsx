@@ -101,7 +101,8 @@ function CartaoDaFlag({
 export default function FlagsPage() {
   const [flags, setFlags] = useState<FlagVisao[]>([]);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
-  const [erroGravacao, setErroGravacao] = useState<string | null>(null);
+  // Erro de gravação por flag: duas flags podem falhar juntas, cada uma com o seu alerta.
+  const [errosGravacao, setErrosGravacao] = useState<ReadonlySet<string>>(new Set());
   // Várias flags podem gravar ao mesmo tempo: cada uma trava só os próprios radios.
   const [gravando, setGravando] = useState<ReadonlySet<string>>(new Set());
   const [confirmacao, setConfirmacao] = useState<string | null>(null);
@@ -134,6 +135,17 @@ export default function FlagsPage() {
     };
   }, []);
 
+  function limparErro(chave: string) {
+    setErrosGravacao((atuais) => {
+      if (!atuais.has(chave)) {
+        return atuais;
+      }
+      const proximos = new Set(atuais);
+      proximos.delete(chave);
+      return proximos;
+    });
+  }
+
   async function gravar(chave: string, estado: FlagEstado) {
     if (gravacoesAtuais.current.has(chave)) {
       return;
@@ -141,7 +153,7 @@ export default function FlagsPage() {
 
     gravacoesAtuais.current.add(chave);
     setGravando(new Set(gravacoesAtuais.current));
-    setErroGravacao(null);
+    limparErro(chave);
 
     try {
       const resposta = await flagsService.atualizar(chave, estado);
@@ -152,7 +164,7 @@ export default function FlagsPage() {
       setConfirmacao((atual) => (atual === chave ? null : atual));
     } catch (erro: unknown) {
       console.error(erro);
-      setErroGravacao(chave);
+      setErrosGravacao((atuais) => new Set(atuais).add(chave));
     } finally {
       gravacoesAtuais.current.delete(chave);
       setGravando(new Set(gravacoesAtuais.current));
@@ -165,7 +177,7 @@ export default function FlagsPage() {
     }
 
     if (estado === 'ligada') {
-      setErroGravacao(null);
+      limparErro(flag.chave);
       setConfirmacao(flag.chave);
       return;
     }
@@ -194,7 +206,7 @@ export default function FlagsPage() {
             flag={flag}
             desabilitada={gravando.has(flag.chave)}
             exibirConfirmacao={confirmacao === flag.chave}
-            mensagemErro={erroGravacao === flag.chave ? mensagemGravacao(flag.chave) : null}
+            mensagemErro={errosGravacao.has(flag.chave) ? mensagemGravacao(flag.chave) : null}
             aoEscolher={(estado) => escolher(flag, estado)}
             aoConfirmar={() => void gravar(flag.chave, 'ligada')}
             aoCancelar={() => setConfirmacao((atual) => (atual === flag.chave ? null : atual))}

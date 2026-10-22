@@ -258,4 +258,61 @@ describe('Página de flags', () => {
 
     expect(await screen.findByRole('group', { name: 'sem-apps' })).toBeInTheDocument();
   });
+
+  // Fechamento do modo teste, item C: um alerta de erro POR flag.
+  const MSG_A = 'Não foi possível gravar a flag demonstracao.';
+  const MSG_B = 'Não foi possível gravar a flag amostra.';
+
+  async function falharAsDuasFlags() {
+    atualizar.mockRejectedValue(new Error('rede caiu'));
+    await montarPagina();
+    fireEvent.click(radioDaFlag('demonstracao', 'Só teste'));
+    fireEvent.click(radioDaFlag('amostra', 'Desligada'));
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(2));
+  }
+
+  it('duas flags que falham ao mesmo tempo mostram dois alertas, cada um no seu cartão', async () => {
+    await falharAsDuasFlags();
+
+    expect(within(grupoDaFlag('demonstracao')).getByRole('alert')).toHaveTextContent(MSG_A);
+    expect(within(grupoDaFlag('amostra')).getByRole('alert')).toHaveTextContent(MSG_B);
+  });
+
+  it('gravar outra flag com sucesso não apaga o alerta da que falhou', async () => {
+    atualizar.mockRejectedValueOnce(new Error('rede caiu'));
+    await montarPagina();
+    fireEvent.click(radioDaFlag('demonstracao', 'Só teste'));
+    expect(await within(grupoDaFlag('demonstracao')).findByRole('alert')).toHaveTextContent(MSG_A);
+
+    fireEvent.click(radioDaFlag('amostra', 'Desligada'));
+    await waitFor(() => expect(atualizar).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(radioDaFlag('amostra', 'Desligada')).toBeChecked());
+
+    expect(within(grupoDaFlag('demonstracao')).getByRole('alert')).toHaveTextContent(MSG_A);
+  });
+
+  it('gravar com sucesso uma flag limpa só o alerta dela', async () => {
+    await falharAsDuasFlags();
+    atualizar.mockResolvedValueOnce({
+      chave: 'demonstracao',
+      descricao: 'Sem efeito: prova o fluxo ponta a ponta',
+      apps: ['lp-builder'],
+      estado: 'teste',
+    });
+
+    fireEvent.click(radioDaFlag('demonstracao', 'Só teste'));
+
+    await waitFor(() => expect(within(grupoDaFlag('demonstracao')).queryByRole('alert')).not.toBeInTheDocument());
+    expect(within(grupoDaFlag('amostra')).getByRole('alert')).toHaveTextContent(MSG_B);
+  });
+
+  it('abrir a confirmação de "Ligada" numa flag limpa só o alerta dela', async () => {
+    await falharAsDuasFlags();
+
+    fireEvent.click(radioDaFlag('demonstracao', 'Ligada'));
+
+    await waitFor(() => expect(within(grupoDaFlag('demonstracao')).queryByRole('alert')).not.toBeInTheDocument());
+    expect(within(grupoDaFlag('demonstracao')).getByRole('alertdialog')).toBeInTheDocument();
+    expect(within(grupoDaFlag('amostra')).getByRole('alert')).toHaveTextContent(MSG_B);
+  });
 });
