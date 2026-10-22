@@ -107,6 +107,8 @@ export interface Tenant {
   slug?: string;
   enabled_services?: string[];
   google_ads_customer_id?: string;
+  ads_conversion_action_id?: string;
+  ads_recurring_conversion_action_id?: string;
   use_mcc_auth: boolean;
   status: TenantStatus;
   /** Unix do início do dia em que um cancelamento agendado vira terminal. */

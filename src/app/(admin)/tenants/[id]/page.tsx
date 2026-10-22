@@ -158,6 +158,8 @@ export default function TenantDetailsPage() {
         site_urls: toSiteUrlItems(tenant.site_urls ?? (tenant.site_url ? [tenant.site_url] : [])),
         slug: tenant.slug || '',
         google_ads_customer_id: tenant.google_ads_customer_id || '',
+        ads_conversion_action_id: tenant.ads_conversion_action_id || '',
+        ads_recurring_conversion_action_id: tenant.ads_recurring_conversion_action_id || '',
         enabled_services: tenant.enabled_services || [],
         activation_fee: tenant.contract?.activation_fee ?? 0,
         monthly_value: tenant.contract?.monthly_value ?? tenant.plan_value ?? 0,
@@ -408,6 +410,8 @@ export default function TenantDetailsPage() {
   
   const isIntegrationsDirty = (
     dirtyFields.google_ads_customer_id === true || 
+    dirtyFields.ads_conversion_action_id === true ||
+    dirtyFields.ads_recurring_conversion_action_id === true ||
     dirtyFields.use_mcc_auth === true || 
     (Array.isArray(dirtyFields.enabled_services) && dirtyFields.enabled_services.some(v => v === true))
   );
@@ -565,6 +569,36 @@ export default function TenantDetailsPage() {
                         Utilizar Autenticação MCC (Master)
                       </label>
                     </div>
+                  </div>
+
+                  {/* Funil do Configurador, fase 1: para onde vai cada venda no Google Ads. */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label htmlFor="ads_conversion_action_id" className="text-sm font-semibold text-slate-700">Ação de venda</label>
+                      <input
+                        id="ads_conversion_action_id"
+                        {...register('ads_conversion_action_id')}
+                        inputMode="numeric"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="ads_recurring_conversion_action_id" className="text-sm font-semibold text-slate-700">Ação de recorrência (opcional)</label>
+                      <input
+                        id="ads_recurring_conversion_action_id"
+                        {...register('ads_recurring_conversion_action_id')}
+                        inputMode="numeric"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm text-slate-600">
+                    <p>Quando um cliente que chegou por um anúncio do Google compra, a venda registrada aqui é enviada ao Google Ads, com o valor.</p>
+                    <p><strong>Ação de venda:</strong> recebe as vendas.</p>
+                    <p><strong>Ação de recorrência (opcional):</strong> se preenchida, recebe as compras que vierem depois da primeira de cada cliente (recompra, mensalidade). Em branco, todas as vendas vão para a Ação de venda.</p>
+                    <p>Sem a Ação de venda, nenhuma venda é enviada.</p>
+                    <p><strong>Onde achar o número:</strong> no Google Ads, em Metas › Conversões, abra a ação e copie o número que aparece depois de ctId= no endereço. A ação deve ser de importação de conversões de cliques, com janela de 90 dias. Se ela deve orientar os lances, marque-a como principal no próprio Google Ads.</p>
+                    <p>O Google só aceita vendas feitas até 90 dias depois do clique no anúncio. Vendas mais tardias ficam no CRM, mas não são enviadas.</p>
                   </div>
 
                   <div className="space-y-4">
