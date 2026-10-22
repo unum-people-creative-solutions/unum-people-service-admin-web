@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import ModoTesteSecao from './ModoTesteSecao';
 import SecaoGoogleAds from './SecaoGoogleAds';
+import SecaoFunilConfigurador from './SecaoFunilConfigurador';
 
 // O campo guarda só o e-mail: o prefixo mailto: é do cliente de web push.
 // Valores antigos salvos com o prefixo aparecem sem ele.
@@ -242,6 +243,8 @@ export default function SettingsPage() {
       <ModoTesteSecao />
 
       <SecaoGoogleAds />
+
+      <SecaoFunilConfigurador />
     </div>
   );
 }
