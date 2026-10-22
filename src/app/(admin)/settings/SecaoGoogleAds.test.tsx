@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { googleAdsService } from '@/services/googleAdsService';
 import SecaoGoogleAds from './SecaoGoogleAds';
 import { ApiError } from '@/lib/apiError';
+import { iniciarConexao } from '@/lib/googleAdsOAuth';
 
 vi.mock('@/services/googleAdsService', () => ({
   googleAdsService: {
@@ -11,6 +12,7 @@ vi.mock('@/services/googleAdsService', () => ({
     atualizarMcc: vi.fn(),
   },
 }));
+vi.mock('@/lib/googleAdsOAuth', () => ({ iniciarConexao: vi.fn() }));
 
 const CONTA = {
   conectado: true,
@@ -18,6 +20,7 @@ const CONTA = {
   conectado_em: '2026-10-22T18:30:00Z',
   mcc_customer_id: '',
   tenants_usando: 3,
+  google_client_id: 'cli.apps.googleusercontent.com',
 };
 
 const FORMATO = 'Use o formato 000-000-0000.';
@@ -28,6 +31,7 @@ function mockConectada(parcial: Partial<typeof CONTA> = {}) {
 
 describe('SecaoGoogleAds', () => {
   beforeEach(() => {
+    vi.mocked(iniciarConexao).mockReset();
     vi.mocked(googleAdsService.obter).mockReset();
     vi.mocked(googleAdsService.atualizarMcc).mockReset();
   });
@@ -43,9 +47,7 @@ describe('SecaoGoogleAds', () => {
     expect(screen.getByRole('heading', { name: 'Google Ads' })).toBeInTheDocument();
     expect(screen.getByLabelText('ID da MCC')).toHaveValue('');
     expect(screen.getByText('Tenants usando a autenticação MCC: 3')).toBeInTheDocument();
-    expect(
-      screen.getByText('Como conectar: pela tela de tenants do CRM, com o perfil GlobalAdmin.'),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/tela de tenants do CRM/)).not.toBeInTheDocument();
     expect(screen.queryByText('Não conectada.')).not.toBeInTheDocument();
     expect(screen.queryByText(/conta não identificada/)).not.toBeInTheDocument();
     expect(googleAdsService.obter).toHaveBeenCalledTimes(1);
@@ -58,7 +60,7 @@ describe('SecaoGoogleAds', () => {
 
     expect(
       await screen.findByText(
-        'Conectada (conta não identificada). Reconecte pela tela de tenants do CRM para registrar a conta.',
+        'Conectada (conta não identificada). Reconecte para registrar a conta.',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Conectada como/)).not.toBeInTheDocument();
@@ -177,5 +179,45 @@ describe('SecaoGoogleAds', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar a MCC.');
     expect(campo).not.toHaveAttribute('aria-invalid', 'true');
+  });
+});
+
+// google-ads-conectar-no-admin T305 (RF-04, G12).
+describe('SecaoGoogleAds — conectar a conta Google', () => {
+  beforeEach(() => {
+    vi.mocked(googleAdsService.obter).mockReset();
+    vi.mocked(iniciarConexao).mockReset();
+  });
+
+  it('sem conta, o botão conecta com o client id da API', async () => {
+    mockConectada({ conectado: false, email: '', conectado_em: '' });
+    render(<SecaoGoogleAds />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Conectar conta Google' }));
+    expect(iniciarConexao).toHaveBeenCalledWith('cli.apps.googleusercontent.com');
+  });
+
+  it('com conta, o botão reconecta', async () => {
+    mockConectada();
+    render(<SecaoGoogleAds />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reconectar conta Google' }));
+    expect(iniciarConexao).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Conectar conta Google' })).not.toBeInTheDocument();
+  });
+
+  it('falha ao iniciar a conexão aparece na tela', async () => {
+    mockConectada();
+    vi.mocked(iniciarConexao).mockImplementation(() => {
+      throw new Error('storage bloqueado');
+    });
+    render(<SecaoGoogleAds />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reconectar conta Google' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível iniciar a conexão com o Google.');
+  });
+
+  it('sem client id, o botão fica desabilitado e diz por quê', async () => {
+    mockConectada({ google_client_id: '' });
+    render(<SecaoGoogleAds />);
+    expect(await screen.findByRole('button', { name: 'Reconectar conta Google' })).toBeDisabled();
+    expect(screen.getByText('Login do Google não configurado na API')).toBeInTheDocument();
   });
 });
