@@ -5,6 +5,7 @@ import { Megaphone } from 'lucide-react';
 
 import { googleAdsService, type GoogleAdsMaster } from '@/services/googleAdsService';
 import { ApiError } from '@/lib/apiError';
+import { iniciarConexao } from '@/lib/googleAdsOAuth';
 
 const CLASSE_PRIMARIO =
   'bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50';
@@ -36,7 +37,7 @@ function formatarConectadoEm(iso: string) {
 function textoDaConta(dados: GoogleAdsMaster) {
   if (!dados.conectado) return 'Não conectada.';
   if (!dados.email) {
-    return 'Conectada (conta não identificada). Reconecte pela tela de tenants do CRM para registrar a conta.';
+    return 'Conectada (conta não identificada). Reconecte para registrar a conta.';
   }
   if (!dados.conectado_em.trim()) return `Conectada como ${dados.email}`;
   return `Conectada como ${dados.email} em ${formatarConectadoEm(dados.conectado_em)}`;
@@ -55,6 +56,7 @@ export default function SecaoGoogleAds() {
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState(false);
   const [pendente, setPendente] = useState(false);
+  const [erroConexao, setErroConexao] = useState<string | null>(null);
 
   useEffect(() => {
     async function carregar() {
@@ -75,6 +77,16 @@ export default function SecaoGoogleAds() {
     setMcc(valor);
     setErroCampo(null);
     setSucesso(false);
+  }
+
+  function conectarGoogle(clientId: string) {
+    setErroConexao(null);
+    try {
+      iniciarConexao(clientId);
+    } catch (erro) {
+      console.error(erro);
+      setErroConexao('Não foi possível iniciar a conexão com o Google.');
+    }
   }
 
   async function salvar() {
@@ -127,9 +139,18 @@ export default function SecaoGoogleAds() {
         {dados ? (
           <>
             <p className="text-sm font-medium text-slate-800">{textoDaConta(dados)}</p>
-            <p className="text-sm text-slate-600">
-              Como conectar: pela tela de tenants do CRM, com o perfil GlobalAdmin.
-            </p>
+            <button
+              type="button"
+              className={`${CLASSE_PRIMARIO} self-start`}
+              disabled={!dados.google_client_id}
+              onClick={() => conectarGoogle(dados.google_client_id)}
+            >
+              {dados.conectado ? 'Reconectar conta Google' : 'Conectar conta Google'}
+            </button>
+            {dados.google_client_id ? null : (
+              <p className="text-sm text-slate-600">Login do Google não configurado na API</p>
+            )}
+            {erroConexao ? <p role="alert">{erroConexao}</p> : null}
 
             <div className="flex flex-col gap-2">
               <label htmlFor="mcc-customer-id" className="text-sm font-medium text-slate-800">
